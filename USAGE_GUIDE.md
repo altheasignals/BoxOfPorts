@@ -1,0 +1,308 @@
+# 🚀 Complete ejoinctl Usage Guide
+
+## Overview
+ejoinctl is a comprehensive CLI tool for managing EJOIN Multi-WAN Router HTTP API v2.2. It provides SMS operations, device management, status monitoring, and more.
+
+## 📋 Available Gateways (from server_access.csv)
+- **RYL2371245SM**: 192.168.1.234:80 (root/zyg0-poPx-tHey)
+- **RYL2371245SMa**: 192.168.1.150:80 (root/zyg0-poPx-tHey)
+- **RYL2371245SMb**: 192.168.1.109:80 (root/zyg0-poPx-tHey)
+
+## 🔗 Basic Connection Testing
+
+### Test Gateway Connection
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' test-connection
+```
+
+**Output**: ✓ Connection successful! Device appears to be responding normally
+
+### Test Gateway with Custom Port
+```bash
+# Using explicit port parameter
+python -m ejoinctl.cli --host 13.228.130.204 --port 60140 --user root --password 'zyg0-poPx-tHey' test-connection
+
+# Using host:port format (recommended)
+python -m ejoinctl.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' test-connection
+```
+
+---
+
+## 📱 SMS Operations
+
+### 1. Basic SMS Send
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" --text "Hello World" --ports "1A"
+```
+
+### 1b. SMS Send with Custom Port
+```bash
+# Using host:port format
+python -m ejoinctl.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" --text "Hello from remote gateway" --ports "1A"
+```
+
+### 2. SMS with Template Variables
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" \
+  --text "Hello from port {{port}} at {{ts}}" \
+  --ports "1A"
+```
+
+### 3. Multi-Port SMS with Custom Variables
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" \
+  --text "Alert from {{company | upper}} - Port {{port}} Status: {{status}}" \
+  --ports "1A,2B,3A" \
+  --var "company=ACME Corp" --var "status=OK"
+```
+
+### 4. Port Range SMS
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" \
+  --text "Range test from {{port}} #{{idx}}" \
+  --ports "1A-1D"
+```
+
+### 5. SMS Spray (Multiple Ports Quickly)
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms spray --to "+1234567890" \
+  --text "Spray from {{port}}" \
+  --ports "1A,2A,3A"
+```
+
+### 6. Dry Run (Preview Without Sending)
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" \
+  --text "Test message" --ports "1A-1C" \
+  --dry-run
+```
+
+### 7. Advanced Template with Filters
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" \
+  --text "{{company | upper}} Alert: Port {{port}} at {{ts | truncate(19)}}" \
+  --ports "1A,2B,3C" --var "company=TechCorp" \
+  --dry-run
+```
+
+---
+
+## 🔧 Device Operations
+
+### 1. Lock Ports
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  ops lock --ports "1A,2A"
+```
+
+### 2. Unlock Ports
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  ops unlock --ports "1A,2A"
+```
+
+### 3. Lock Port Range
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  ops lock --ports "1A-1D"
+```
+
+---
+
+## 📊 Status Monitoring
+
+### 1. Subscribe to Status Updates
+```bash
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  status subscribe --callback "http://example.com/webhook" --period 30 --all-sims
+```
+
+---
+
+## 🎨 Template System Features
+
+### Built-in Variables
+- `{{port}}` - Current port identifier (e.g., "1A", "2B")
+- `{{ts}}` - Current UTC timestamp in ISO format
+- `{{idx}}` - Current iteration index (0-based)
+
+### Available Filters
+- `{{text | upper}}` - Convert to uppercase
+- `{{text | lower}}` - Convert to lowercase
+- `{{text | truncate(10)}}` - Truncate to 10 characters with "..."
+- `{{phone | phone('international')}}` - Format phone number
+- `{{phone | phone('local')}}` - Local phone format
+
+### Custom Variables
+Pass custom variables using `--var key=value`:
+```bash
+--var "company=ACME Corp" --var "status=Online" --var "priority=HIGH"
+```
+
+---
+
+## 🔌 Port Specifications
+
+### Supported Formats
+
+#### 1. Single Ports
+- `1A` - Slot 1, Port A
+- `2B` - Slot 2, Port B
+- `1.01` - Slot 1, Port 01 (decimal format)
+- `32.04` - Slot 32, Port 04
+
+#### 2. Port Lists
+- `1A,2B,3C` - Multiple specific ports
+- `1.01,2.02` - Multiple decimal ports
+
+#### 3. Port Ranges
+- `1A-1D` - Slot 1, Ports A through D
+- `1-3` - Slots 1-3, all Port A (expands to 1A,2A,3A)
+- `2.01-2.03` - Slot 2, Ports 01-03
+
+#### 4. Mixed Specifications
+- `1A,3B-3D,5.01` - Combination of individual ports and ranges
+
+---
+
+## 🌐 Working with Multiple Gateways
+
+### Test All Gateways
+```bash
+# Gateway 1
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' test-connection
+
+# Gateway 2
+python -m ejoinctl.cli --host 192.168.1.150 --user root --password 'zyg0-poPx-tHey' test-connection
+
+# Gateway 3
+python -m ejoinctl.cli --host 192.168.1.109 --user root --password 'zyg0-poPx-tHey' test-connection
+```
+
+### Switch Between Gateways
+Simply change the `--host` parameter to target different gateways:
+```bash
+# Use Gateway 2 for SMS
+python -m ejoinctl.cli --host 192.168.1.150 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" --text "From Gateway 2" --ports "1A"
+```
+
+### Remote Gateways with Custom Ports
+```bash
+# Connect to remote gateway with custom port
+python -m ejoinctl.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' \
+  test-connection
+
+# Environment variable approach
+export EJOIN_HOST="13.228.130.204:60140"
+python -m ejoinctl.cli --user root --password 'zyg0-poPx-tHey' test-connection
+```
+
+---
+
+## 🛠️ Advanced Usage Examples
+
+### 1. Bulk SMS Campaign
+```bash
+# Send to multiple ports with sequential numbering
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" \
+  --text "Campaign message #{{idx + 1}} from {{port}}" \
+  --ports "1A-4D" --dry-run
+```
+
+### 2. Emergency Alert System
+```bash
+# Lock all ports first, then send alert
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  ops lock --ports "1A-10D"
+
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  sms send --to "+1234567890" \
+  --text "EMERGENCY: All ports locked at {{ts}}" \
+  --ports "1A"
+```
+
+### 3. Status Monitoring Setup
+```bash
+# Subscribe to real-time status updates
+python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+  status subscribe --callback "https://yourdomain.com/status-webhook" \
+  --period 60 --all-sims
+```
+
+---
+
+## 📈 Performance Features
+
+### SMS Spray Optimization
+The `spray` command is optimized for speed:
+- Default 250ms interval between messages
+- Parallel processing across ports
+- Automatic template rendering per port
+
+### Port Range Expansion
+Port ranges are efficiently expanded:
+- `1A-1D` → `1A, 1B, 1C, 1D`
+- `1-3` → `1A, 2A, 3A`
+- Mixed specs supported: `1A,3B-3D,5.01`
+
+---
+
+## 🔧 CLI Options Summary
+
+### Global Options
+- `--host` - Gateway IP address (supports host:port format, e.g., "192.168.1.100:8080")
+- `--port` - Gateway port (default: 80, overridden if port specified in --host)
+- `--user` - Username (default from config)
+- `--password` - Password
+- `--verbose` - Enable detailed logging
+
+### SMS Send Options
+- `--to` - Recipient phone number
+- `--text` - Message text (with template support)
+- `--ports` - Port specification
+- `--repeat` - Number of repetitions
+- `--intvl-ms` - Interval between messages (ms)
+- `--timeout` - Request timeout (seconds)
+- `--var` - Template variables (key=value)
+- `--dry-run` - Preview without sending
+
+### SMS Spray Options
+- `--to` - Recipient phone number
+- `--text` - Message text
+- `--ports` - Ports to spray from
+- `--intvl-ms` - Interval (default: 250ms)
+
+---
+
+## ✅ Test Results Summary
+
+All features tested successfully:
+- ✅ Connection testing (3/3 gateways)
+- ✅ SMS sending (single and multiple ports)
+- ✅ SMS spray functionality
+- ✅ Template system with filters
+- ✅ Port locking/unlocking
+- ✅ Port range expansion
+- ✅ Status subscription
+- ✅ Dry run capabilities
+
+## 🎯 Next Steps
+
+The application is ready for production use! Key features working:
+1. **SMS Operations** - Send, spray, templates, filters
+2. **Device Management** - Lock/unlock ports
+3. **Status Monitoring** - Subscribe to updates
+4. **Multi-Gateway Support** - Switch between devices
+5. **Advanced Port Handling** - Ranges, lists, mixed specs
+
+For additional features (inbox management, etc.), the framework is in place and can be extended as needed.

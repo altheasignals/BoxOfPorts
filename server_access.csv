@@ -1,0 +1,4 @@
+Device Name,Device Local IP,Internal Access URL,Username,Password
+RYL2371245SM,192.168.1.234,http://192.168.1.234:80/,root,zyg0-poPx-tHey
+RYL2371245SMa,192.168.1.150,http://192.168.1.150:80/,root,zyg0-poPx-tHey
+RYL2371245SMb,192.168.1.109,http://192.168.1.109:80/,root,zyg0-poPx-tHey

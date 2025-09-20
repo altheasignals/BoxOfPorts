@@ -1,0 +1,39 @@
+.PHONY: dev test lint build run clean install
+
+# Development setup
+dev:
+	python -m pip install -e ".[dev]"
+
+# Run tests
+test:
+	python -m pytest tests/ -v
+
+# Lint and format code
+lint:
+	python -m ruff check .
+	python -m ruff format .
+	python -m mypy ejoinctl/
+
+# Build the package
+build:
+	python -m pip install build
+	python -m build
+
+# Run the CLI in development mode
+run:
+	python -m ejoinctl.cli
+
+# Clean build artifacts
+clean:
+	rm -rf dist/
+	rm -rf build/
+	rm -rf *.egg-info/
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+
+# Install the package
+install:
+	python -m pip install .
+
+# Quick development check
+check: lint test

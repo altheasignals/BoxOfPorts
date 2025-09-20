@@ -1,0 +1,150 @@
+# ejoinctl Docker Compose Configuration
+# Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
+
+version: '3.8'
+
+services:
+  ejoinctl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ejoinctl-app
+    hostname: ejoinctl
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      # Gateway connection settings (override these)
+      - EJOIN_HOST=${EJOIN_HOST:-192.168.1.100}
+      - EJOIN_PORT=${EJOIN_PORT:-80}
+      - EJOIN_USER=${EJOIN_USER:-admin}
+      - EJOIN_PASSWORD=${EJOIN_PASSWORD:-admin}
+      
+      # Application settings
+      - EJOINCTL_LOG_LEVEL=${EJOINCTL_LOG_LEVEL:-INFO}
+      - EJOINCTL_DATA_DIR=/app/data
+      - EJOINCTL_CONFIG_DIR=/app/config
+      - EJOINCTL_TIMEOUT=${EJOINCTL_TIMEOUT:-30}
+      - EJOINCTL_RETRIES=${EJOINCTL_RETRIES:-3}
+      
+      # Python settings
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    
+    # Volume mounts for persistence
+    volumes:
+      # Configuration files (read-only)
+      - ./config:/app/config:ro
+      # Data persistence
+      - ejoinctl_data:/app/data
+      # Logs
+      - ejoinctl_logs:/app/logs
+      # Optional: custom configuration
+      - ./gateways.csv:/app/config/gateways.csv:ro
+    
+    # Network configuration
+    networks:
+      - ejoinctl_network
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import ejoinctl; print('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Default command (override as needed)
+    command: ["--help"]
+    
+    # Security settings
+    user: ejoinctl
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN  # Only if needed for network operations
+
+  # Optional: Web dashboard (future feature)
+  ejoinctl-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web  # Future multi-stage build
+    container_name: ejoinctl-web
+    profiles:
+      - web  # Only start with --profile web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      ejoinctl:
+        condition: service_healthy
+    networks:
+      - ejoinctl_network
+    environment:
+      - EJOINCTL_WEB_HOST=0.0.0.0
+      - EJOINCTL_WEB_PORT=8080
+    volumes:
+      - ejoinctl_data:/app/data:ro
+      - ejoinctl_logs:/app/logs:ro
+
+  # Optional: Database for advanced features (future)
+  ejoinctl-db:
+    image: postgres:15-alpine
+    container_name: ejoinctl-db
+    profiles:
+      - database
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=ejoinctl
+      - POSTGRES_USER=ejoinctl
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secure_password}
+    volumes:
+      - ejoinctl_db_data:/var/lib/postgresql/data
+    networks:
+      - ejoinctl_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ejoinctl"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  ejoinctl_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  ejoinctl_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+  
+  ejoinctl_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+  
+  ejoinctl_db_data:
+    driver: local
