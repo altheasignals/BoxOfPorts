@@ -1,9 +1,10 @@
 """Configuration management for ejoinctl."""
 
+import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from dotenv import load_dotenv
 
@@ -111,32 +112,149 @@ class EjoinConfig:
             "username": self.username,
             "password": self.password,
         }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary for serialization."""
+        data = asdict(self)
+        # Convert Path objects to strings
+        data['db_path'] = str(data['db_path'])
+        return data
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EjoinConfig":
+        """Create config from dictionary."""
+        # Convert string paths back to Path objects
+        if 'db_path' in data:
+            data['db_path'] = Path(data['db_path'])
+        return cls(**data)
 
 
 class ConfigManager:
-    """Manages configuration profiles and current settings."""
+    """Manages configuration profiles and current settings with persistence."""
     
     def __init__(self):
         self._current_config: Optional[EjoinConfig] = None
-        self._profiles: dict[str, EjoinConfig] = {}
+        self._profiles: Dict[str, EjoinConfig] = {}
+        self._config_dir = Path.home() / ".ejoinctl"
+        self._profiles_file = self._config_dir / "profiles.json"
+        self._current_profile_file = self._config_dir / "current_profile"
+        self._current_profile: Optional[str] = None
+        
+        # Ensure config directory exists
+        self._config_dir.mkdir(exist_ok=True)
+        
+        # Load existing profiles and current profile
+        self._load_profiles()
+        self._load_current_profile()
+    
+    def _load_profiles(self) -> None:
+        """Load profiles from disk."""
+        if self._profiles_file.exists():
+            try:
+                with open(self._profiles_file, 'r') as f:
+                    profiles_data = json.load(f)
+                
+                self._profiles = {}
+                for name, config_data in profiles_data.items():
+                    self._profiles[name] = EjoinConfig.from_dict(config_data)
+            except Exception as e:
+                print(f"Warning: Could not load profiles: {e}")
+                self._profiles = {}
+    
+    def _save_profiles(self) -> None:
+        """Save profiles to disk."""
+        try:
+            profiles_data = {}
+            for name, config in self._profiles.items():
+                profiles_data[name] = config.to_dict()
+            
+            with open(self._profiles_file, 'w') as f:
+                json.dump(profiles_data, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save profiles: {e}")
+    
+    def _load_current_profile(self) -> None:
+        """Load current profile name from disk."""
+        if self._current_profile_file.exists():
+            try:
+                with open(self._current_profile_file, 'r') as f:
+                    self._current_profile = f.read().strip()
+            except Exception:
+                self._current_profile = None
+    
+    def _save_current_profile(self) -> None:
+        """Save current profile name to disk."""
+        try:
+            if self._current_profile:
+                with open(self._current_profile_file, 'w') as f:
+                    f.write(self._current_profile)
+            elif self._current_profile_file.exists():
+                self._current_profile_file.unlink()
+        except Exception as e:
+            print(f"Warning: Could not save current profile: {e}")
     
     def get_config(self, profile: Optional[str] = None) -> EjoinConfig:
         """Get configuration, optionally by profile name."""
-        if profile and profile in self._profiles:
-            return self._profiles[profile]
+        # Use specified profile, or current profile, or fallback to env
+        target_profile = profile or self._current_profile
         
+        if target_profile and target_profile in self._profiles:
+            return self._profiles[target_profile]
+        
+        # Fallback to environment-based config
         if self._current_config is None:
-            self._current_config = EjoinConfig.from_env()
+            try:
+                self._current_config = EjoinConfig.from_env()
+            except ValueError:
+                # If no env config available and no profiles, create a basic one
+                if not self._profiles:
+                    raise ValueError(
+                        "No configuration available. Either set environment variables "
+                        "(EJOIN_HOST, etc.) or create a profile with 'ejoinctl config add-profile'."
+                    )
+                # Use the first available profile
+                first_profile = next(iter(self._profiles.keys()))
+                return self._profiles[first_profile]
         
         return self._current_config
     
     def add_profile(self, name: str, config: EjoinConfig) -> None:
         """Add a named configuration profile."""
         self._profiles[name] = config
+        self._save_profiles()
+    
+    def remove_profile(self, name: str) -> bool:
+        """Remove a profile. Returns True if profile existed and was removed."""
+        if name in self._profiles:
+            del self._profiles[name]
+            # If we're removing the current profile, clear it
+            if self._current_profile == name:
+                self._current_profile = None
+                self._save_current_profile()
+            self._save_profiles()
+            return True
+        return False
+    
+    def switch_profile(self, name: str) -> bool:
+        """Switch to a different profile. Returns True if profile exists."""
+        if name in self._profiles:
+            self._current_profile = name
+            self._current_config = None  # Clear cached config to reload
+            self._save_current_profile()
+            return True
+        return False
+    
+    def get_current_profile(self) -> Optional[str]:
+        """Get the name of the current active profile."""
+        return self._current_profile
     
     def list_profiles(self) -> list[str]:
         """List available configuration profiles."""
         return list(self._profiles.keys())
+    
+    def get_profile_config(self, name: str) -> Optional[EjoinConfig]:
+        """Get configuration for a specific profile."""
+        return self._profiles.get(name)
 
 
 # Global configuration manager instance

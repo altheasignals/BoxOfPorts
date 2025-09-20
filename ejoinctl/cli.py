@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .config import config_manager, parse_host_port
+from .config import config_manager, parse_host_port, EjoinConfig
 from .http import create_sync_client, EjoinHTTPError
 from .ports import parse_port_spec, format_ports_for_api
 from .store import initialize_store, get_store
@@ -20,11 +20,13 @@ sms_app = typer.Typer(help="SMS operations")
 ops_app = typer.Typer(help="Device operations") 
 status_app = typer.Typer(help="Status monitoring")
 inbox_app = typer.Typer(help="Inbox management")
+config_app = typer.Typer(help="Profile and configuration management")
 
 app.add_typer(sms_app, name="sms")
 app.add_typer(ops_app, name="ops") 
 app.add_typer(status_app, name="status")
 app.add_typer(inbox_app, name="inbox")
+app.add_typer(config_app, name="config")
 
 console = Console()
 
@@ -302,6 +304,168 @@ def test_connection(ctx: typer.Context):
     except Exception as e:
         console.print(f"[red]✗ Unexpected error: {e}[/red]")
         raise typer.Exit(1)
+
+
+# ==============================================================================
+# Configuration/Profile Management Commands 
+# ==============================================================================
+
+@config_app.command("add-profile")
+def config_add_profile(
+    name: str = typer.Argument(..., help="Profile name"),
+    host: str = typer.Option(..., "--host", help="Device IP address (supports host:port format)"),
+    port: Optional[int] = typer.Option(None, "--port", help="Device port (overrides port in host)"),
+    user: str = typer.Option("root", "--user", help="Device username"),
+    password: str = typer.Option(..., "--password", help="Device password"),
+):
+    """Add a new server profile."""
+    try:
+        # Parse host:port format if provided
+        host_part, port_part = parse_host_port(host, 80)
+        if port:
+            port_part = port
+        
+        profile_config = EjoinConfig(
+            host=host_part,
+            port=port_part,
+            username=user,
+            password=password
+        )
+        
+        config_manager.add_profile(name, profile_config)
+        
+        console.print(f"[green]✓ Profile '{name}' added successfully[/green]")
+        console.print(f"  Host: {profile_config.host}:{profile_config.port}")
+        console.print(f"  User: {profile_config.username}")
+        
+        # Ask if user wants to switch to this profile
+        if config_manager.get_current_profile() is None:
+            config_manager.switch_profile(name)
+            console.print(f"[blue]→ Set as current profile (first profile created)[/blue]")
+        
+    except Exception as e:
+        console.print(f"[red]Error adding profile: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@config_app.command("list")
+def config_list_profiles():
+    """List all configured profiles."""
+    profiles = config_manager.list_profiles()
+    current = config_manager.get_current_profile()
+    
+    if not profiles:
+        console.print("[yellow]No profiles configured yet[/yellow]")
+        console.print("Use 'ejoinctl config add-profile' to create one")
+        return
+    
+    table = Table(title="Server Profiles")
+    table.add_column("Name", style="cyan")
+    table.add_column("Host:Port", style="green")
+    table.add_column("Username", style="yellow")
+    table.add_column("Status", style="blue")
+    
+    for profile_name in profiles:
+        profile_config = config_manager.get_profile_config(profile_name)
+        if profile_config:
+            status = "→ CURRENT" if profile_name == current else ""
+            table.add_row(
+                profile_name,
+                f"{profile_config.host}:{profile_config.port}",
+                profile_config.username,
+                status
+            )
+    
+    console.print(table)
+
+
+@config_app.command("switch")
+def config_switch_profile(
+    name: str = typer.Argument(..., help="Profile name to switch to")
+):
+    """Switch to a different profile."""
+    if config_manager.switch_profile(name):
+        console.print(f"[green]✓ Switched to profile '{name}')[/green]")
+        
+        # Show profile details
+        profile_config = config_manager.get_profile_config(name)
+        if profile_config:
+            console.print(f"  Host: {profile_config.host}:{profile_config.port}")
+            console.print(f"  User: {profile_config.username}")
+    else:
+        console.print(f"[red]Error: Profile '{name}' not found[/red]")
+        console.print("Use 'ejoinctl config list' to see available profiles")
+        raise typer.Exit(1)
+
+
+@config_app.command("show")
+def config_show_profile(
+    name: Optional[str] = typer.Argument(None, help="Profile name (default: current profile)")
+):
+    """Show details of a profile."""
+    if name is None:
+        name = config_manager.get_current_profile()
+        if name is None:
+            console.print("[yellow]No current profile set[/yellow]")
+            console.print("Specify a profile name or use 'ejoinctl config switch <name>'")
+            return
+    
+    profile_config = config_manager.get_profile_config(name)
+    if profile_config is None:
+        console.print(f"[red]Profile '{name}' not found[/red]")
+        raise typer.Exit(1)
+    
+    console.print(f"[bold]Profile: {name}[/bold]")
+    console.print(f"Host: {profile_config.host}")
+    console.print(f"Port: {profile_config.port}")
+    console.print(f"Username: {profile_config.username}")
+    console.print(f"Password: {'*' * len(profile_config.password)}")
+    console.print(f"Base URL: {profile_config.base_url}")
+    
+    if name == config_manager.get_current_profile():
+        console.print("[blue]→ This is the current active profile[/blue]")
+
+
+@config_app.command("remove")
+def config_remove_profile(
+    name: str = typer.Argument(..., help="Profile name to remove")
+):
+    """Remove a profile."""
+    if config_manager.remove_profile(name):
+        console.print(f"[green]✓ Profile '{name}' removed successfully[/green]")
+        
+        # Check if we need to suggest a new current profile
+        profiles = config_manager.list_profiles()
+        current = config_manager.get_current_profile()
+        
+        if not current and profiles:
+            console.print(f"[yellow]Consider switching to another profile:[/yellow]")
+            for profile in profiles[:3]:
+                console.print(f"  ejoinctl config switch {profile}")
+    else:
+        console.print(f"[red]Error: Profile '{name}' not found[/red]")
+        raise typer.Exit(1)
+
+
+@config_app.command("current")
+def config_current_profile():
+    """Show the current active profile."""
+    current = config_manager.get_current_profile()
+    if current:
+        console.print(f"[blue]Current profile: {current}[/blue]")
+        
+        profile_config = config_manager.get_profile_config(current)
+        if profile_config:
+            console.print(f"  {profile_config.host}:{profile_config.port} ({profile_config.username})")
+    else:
+        console.print("[yellow]No current profile set[/yellow]")
+        profiles = config_manager.list_profiles()
+        if profiles:
+            console.print("Available profiles:")
+            for profile in profiles:
+                console.print(f"  ejoinctl config switch {profile}")
+        else:
+            console.print("No profiles configured. Use 'ejoinctl config add-profile' to create one.")
 
 
 if __name__ == "__main__":

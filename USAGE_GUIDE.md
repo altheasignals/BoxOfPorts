@@ -296,6 +296,80 @@ All features tested successfully:
 - ✅ Status subscription
 - ✅ Dry run capabilities
 
+## ⚙️ Profile Management System
+
+### Why Use Profiles?
+Instead of specifying `--host`, `--user`, `--password` every time, create profiles for your servers and switch between them easily.
+
+### 1. Create Your First Profile
+```bash
+# Add a remote server profile
+python -m ejoinctl.cli config add-profile remote \
+  --host 13.228.130.204:60140 \
+  --user root \
+  --password 'zyg0-poPx-tHey'
+
+# Add a local server profile  
+python -m ejoinctl.cli config add-profile local \
+  --host 192.168.1.234 \
+  --user root \
+  --password 'zyg0-poPx-tHey'
+```
+
+### 2. List All Profiles
+```bash
+python -m ejoinctl.cli config list
+```
+**Output**:
+```
+                    Server Profiles                     
+┏━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ Name   ┃ Host:Port            ┃ Username ┃ Status    ┃
+┡━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ remote │ 13.228.130.204:60140 │ root     │ → CURRENT │
+│ local  │ 192.168.1.234:80     │ root     │           │
+└────────┴──────────────────────┴──────────┴───────────┘
+```
+
+### 3. Switch Between Profiles
+```bash
+# Switch to local profile
+python -m ejoinctl.cli config switch local
+
+# Check current profile
+python -m ejoinctl.cli config current
+```
+
+### 4. Use Commands Without Specifying Connection Details
+```bash
+# No need for --host, --user, --password anymore!
+python -m ejoinctl.cli test-connection
+python -m ejoinctl.cli sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
+```
+
+### 5. Profile Commands Summary
+```bash
+# Profile management
+python -m ejoinctl.cli config add-profile <name> --host <host:port> --user <user> --password <pass>
+python -m ejoinctl.cli config list                    # Show all profiles
+python -m ejoinctl.cli config switch <name>           # Switch to profile
+python -m ejoinctl.cli config current                 # Show current profile
+python -m ejoinctl.cli config show [name]            # Show profile details
+python -m ejoinctl.cli config remove <name>          # Delete profile
+```
+
+### 6. Override Profile Settings
+You can still override profile settings with CLI arguments:
+```bash
+# Use different host temporarily
+python -m ejoinctl.cli --host 192.168.1.999 test-connection
+
+# Use different port temporarily
+python -m ejoinctl.cli --port 8080 test-connection
+```
+
+---
+
 ## 🎯 Next Steps
 
 The application is ready for production use! Key features working:
@@ -304,5 +378,6 @@ The application is ready for production use! Key features working:
 3. **Status Monitoring** - Subscribe to updates
 4. **Multi-Gateway Support** - Switch between devices
 5. **Advanced Port Handling** - Ranges, lists, mixed specs
+6. **Profile Management** - Save servers, switch easily
 
 For additional features (inbox management, etc.), the framework is in place and can be extended as needed.

@@ -57,6 +57,7 @@ docker run --rm ejoinctl --help
 
 ### Basic Usage
 
+#### Option 1: Quick Commands (specify connection details each time)
 ```bash
 # Test connection to your gateway
 ejoinctl --host 192.168.1.100 --user admin --password your_password test-connection
@@ -67,14 +68,25 @@ ejoinctl --host 13.228.130.204:60140 --user root --password your_password test-c
 # Send SMS via specific port
 ejoinctl --host 192.168.1.100 --user admin --password your_password \
   sms send --to "+1234567890" --text "Hello from ejoinctl!" --ports "1A"
+```
 
-# Send SMS to gateway with custom port
-ejoinctl --host 13.228.130.204:60140 --user root --password your_password \
-  sms send --to "+1234567890" --text "Hello from port {{port}}" --ports "2A"
+#### Option 2: Profile-Based Usage (Recommended)
+```bash
+# Create profiles for your servers (one-time setup)
+ejoinctl config add-profile remote --host 13.228.130.204:60140 --user root --password your_password
+ejoinctl config add-profile local --host 192.168.1.100 --user admin --password your_password
 
-# Lock ports for maintenance
-ejoinctl --host 192.168.1.100 --user admin --password your_password \
-  ops lock --ports "1A-1D"
+# Switch between profiles
+ejoinctl config switch remote
+
+# Now use commands without specifying connection details!
+ejoinctl test-connection
+ejoinctl sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
+ejoinctl ops lock --ports "1A-1D"
+
+# Switch to different server instantly
+ejoinctl config switch local
+ejoinctl test-connection  # Now connects to local server
 ```
 
 ## 📖 Documentation
@@ -92,6 +104,16 @@ ejoinctl [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 - `--verbose` - Enable detailed logging
 
 ### Available Commands
+
+#### Profile Management
+```bash
+ejoinctl config add-profile <name>  # Add server profile
+ejoinctl config list                # List all profiles
+ejoinctl config switch <name>       # Switch to profile
+ejoinctl config current             # Show current profile
+ejoinctl config show [name]         # Show profile details
+ejoinctl config remove <name>       # Remove profile
+```
 
 #### SMS Operations
 ```bash
