@@ -15,6 +15,7 @@ ejoinctl is a comprehensive, production-ready CLI tool designed for managing EJO
 ### Key Features
 
 - 📱 **Advanced SMS Operations** - Send, spray, and template SMS with per-port routing
+- 📥 **SMS Inbox Management** - Retrieve, filter, and analyze received messages
 - 🔧 **Device Management** - Lock/unlock ports, execute device operations
 - 📊 **Real-time Monitoring** - Status subscriptions with webhook callbacks
 - 🎨 **Template System** - Jinja2-powered templating with custom filters
@@ -121,6 +122,15 @@ ejoinctl sms send     # Send SMS with templating support
 ejoinctl sms spray    # Spray SMS across multiple ports quickly
 ```
 
+#### Inbox Management
+```bash
+ejoinctl inbox list     # List received messages with filtering
+ejoinctl inbox search   # Search messages by content
+ejoinctl inbox stop     # Show STOP/unsubscribe messages
+ejoinctl inbox summary  # Inbox statistics and overview
+ejoinctl inbox show     # Show detailed message information
+```
+
 #### Device Operations  
 ```bash
 ejoinctl ops lock     # Lock specified ports
@@ -198,6 +208,24 @@ ejoinctl ops lock --ports "1A-10D"
 # Send alert
 ejoinctl sms send --to "+1234567890" \
   --text "EMERGENCY: System locked at {{ts}}" --ports "1A"
+```
+
+### SMS Inbox Management
+```bash
+# Monitor STOP messages (compliance)
+ejoinctl inbox stop
+
+# Get inbox overview
+ejoinctl inbox summary
+
+# Find messages containing specific text
+ejoinctl inbox search "balance"
+
+# List recent messages excluding delivery reports
+ejoinctl inbox list --count 20 --no-delivery-reports
+
+# Export STOP messages for compliance
+ejoinctl inbox stop --json > stop_messages.json
 ```
 
 ### Multi-Gateway Management

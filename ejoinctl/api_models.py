@@ -258,6 +258,151 @@ class IPListResponse(BaseResponse):
     ipset: List[str] = Field(..., description="IP address list")
 
 
+# Enhanced SMS Inbox Models
+from datetime import datetime
+from enum import Enum
+import base64
+
+class MessageType(str, Enum):
+    """SMS message type classification."""
+    REGULAR = "regular"  # Normal SMS from users
+    DELIVERY_REPORT = "delivery_report"  # SMS delivery confirmations
+    SYSTEM = "system"  # System/operator messages
+    STOP = "stop"  # Opt-out messages containing STOP
+    KEYWORD = "keyword"  # Messages containing specific keywords
+    
+class SMSMessage(BaseModel):
+    """Parsed SMS message with enhanced metadata."""
+    id: int = Field(..., description="SMS ID")
+    message_type: MessageType = Field(..., description="Classified message type")
+    is_delivery_report: bool = Field(..., description="Is this a delivery report")
+    port: str = Field(..., description="Receiving port (e.g., '1A', '2B')")
+    timestamp: datetime = Field(..., description="Message received timestamp")
+    sender: str = Field(..., description="Sender phone number or SMSC")
+    recipient: Optional[str] = Field(None, description="Recipient (for delivery reports)")
+    content: str = Field(..., description="Decoded message content")
+    raw_content: str = Field(..., description="Raw base64 content")
+    contains_keywords: List[str] = Field(default_factory=list, description="Detected keywords")
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+        
+    @classmethod
+    def from_api_data(cls, sms_id: int, sms_array: List[Union[int, str]]) -> "SMSMessage":
+        """Create SMSMessage from API array format.
+        
+        Array format: [delivery_flag, port, timestamp, sender, recipient, content]
+        - delivery_flag (int): 0=normal SMS, 1=delivery report
+        - port (str): Receive port like '1.01', '1.02' 
+        - timestamp (int): Unix timestamp
+        - sender (str): Phone number or SMSC
+        - recipient (str): Recipient number (for delivery reports)
+        - content (str): Base64 encoded SMS content or delivery report
+        """
+        if len(sms_array) < 6:
+            raise ValueError(f"Invalid SMS array format: {sms_array}")
+            
+        delivery_flag = int(sms_array[0])
+        port = str(sms_array[1])
+        timestamp = datetime.fromtimestamp(int(sms_array[2]))
+        sender = str(sms_array[3])
+        recipient = str(sms_array[4]) if sms_array[4] else None
+        raw_content = str(sms_array[5])
+        
+        # Decode content
+        if delivery_flag == 1:
+            # Delivery report format: "code scts"
+            content = raw_content
+            message_type = MessageType.DELIVERY_REPORT
+        else:
+            # Regular SMS: BASE64 encoded UTF-8
+            try:
+                content = base64.b64decode(raw_content).decode('utf-8')
+            except Exception:
+                content = raw_content  # Fallback to raw if decoding fails
+            message_type = cls._classify_message(content)
+        
+        # Detect keywords
+        keywords = cls._extract_keywords(content)
+        
+        return cls(
+            id=sms_id,
+            message_type=message_type,
+            is_delivery_report=delivery_flag == 1,
+            port=cls._format_port(port),
+            timestamp=timestamp,
+            sender=sender,
+            recipient=recipient,
+            content=content,
+            raw_content=raw_content,
+            contains_keywords=keywords
+        )
+    
+    @staticmethod
+    def _format_port(port: str) -> str:
+        """Convert port format from '1.01' to '1A' style."""
+        if '.' in port:
+            # Convert decimal format to letter format
+            slot, port_num = port.split('.')
+            port_letter = chr(ord('A') + int(port_num) - 1)
+            return f"{slot}{port_letter}"
+        return port
+    
+    @staticmethod
+    def _classify_message(content: str) -> MessageType:
+        """Classify message type based on content."""
+        content_lower = content.lower()
+        
+        # Check for STOP messages
+        if any(word in content_lower for word in ['stop', 'unsubscribe', 'opt out', 'opt-out']):
+            return MessageType.STOP
+        
+        # Check for system messages (common patterns)
+        system_indicators = [
+            'balance', 'credit', 'recharge', 'expired', 'network',
+            'service', 'plan', 'bundle', 'data', 'minutes', 'sms left'
+        ]
+        if any(indicator in content_lower for indicator in system_indicators):
+            return MessageType.SYSTEM
+            
+        # Default to regular message
+        return MessageType.REGULAR
+    
+    @staticmethod
+    def _extract_keywords(content: str) -> List[str]:
+        """Extract important keywords from message content."""
+        keywords = []
+        content_lower = content.lower()
+        
+        # Common keywords to detect
+        keyword_patterns = {
+            'stop': ['stop', 'unsubscribe', 'opt out', 'opt-out'],
+            'help': ['help', 'info', 'information'],
+            'balance': ['balance', 'credit', 'amount'],
+            'urgent': ['urgent', 'emergency', 'important'],
+            'promotion': ['offer', 'deal', 'discount', 'promo', 'sale']
+        }
+        
+        for category, patterns in keyword_patterns.items():
+            if any(pattern in content_lower for pattern in patterns):
+                keywords.append(category)
+        
+        return keywords
+
+class SMSInboxFilter(BaseModel):
+    """Filter criteria for SMS inbox queries."""
+    message_type: Optional[MessageType] = Field(None, description="Filter by message type")
+    contains_text: Optional[str] = Field(None, description="Filter by text content")
+    sender: Optional[str] = Field(None, description="Filter by sender number")
+    port: Optional[str] = Field(None, description="Filter by receiving port")
+    since: Optional[datetime] = Field(None, description="Messages since this timestamp")
+    until: Optional[datetime] = Field(None, description="Messages until this timestamp")
+    keywords: Optional[List[str]] = Field(None, description="Filter by keywords")
+    delivery_reports_only: bool = Field(False, description="Show only delivery reports")
+    exclude_delivery_reports: bool = Field(False, description="Exclude delivery reports")
+
 # Status Code Mappings
 STATUS_CODE_DESCRIPTIONS = {
     0: "OK",

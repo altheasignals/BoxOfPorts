@@ -431,14 +431,24 @@ def config_remove_profile(
     name: str = typer.Argument(..., help="Profile name to remove")
 ):
     """Remove a profile."""
+    # Store the current profile before removal to detect automatic switching
+    old_current = config_manager.get_current_profile()
+    
     if config_manager.remove_profile(name):
         console.print(f"[green]✓ Profile '{name}' removed successfully[/green]")
         
-        # Check if we need to suggest a new current profile
+        # Check if we need to suggest a new current profile or show automatic switch
         profiles = config_manager.list_profiles()
         current = config_manager.get_current_profile()
         
-        if not current and profiles:
+        if current and current != old_current:
+            # Automatic switch occurred (only one profile remains)
+            console.print(f"[blue]→ Automatically switched to '{current}' (only remaining profile)[/blue]")
+            profile_config = config_manager.get_profile_config(current)
+            if profile_config:
+                console.print(f"  Host: {profile_config.host}:{profile_config.port}")
+                console.print(f"  User: {profile_config.username}")
+        elif not current and profiles:
             console.print(f"[yellow]Consider switching to another profile:[/yellow]")
             for profile in profiles[:3]:
                 console.print(f"  ejoinctl config switch {profile}")
@@ -466,6 +476,367 @@ def config_current_profile():
                 console.print(f"  ejoinctl config switch {profile}")
         else:
             console.print("No profiles configured. Use 'ejoinctl config add-profile' to create one.")
+
+
+# ==============================================================================
+# Inbox Management Commands 
+# ==============================================================================
+
+@inbox_app.command("list")
+def inbox_list(
+    ctx: typer.Context,
+    start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID"),
+    count: int = typer.Option(50, "--count", help="Number of messages to show (0=all)"),
+    message_type: Optional[str] = typer.Option(None, "--type", help="Filter by message type (regular, stop, system, delivery_report)"),
+    port: Optional[str] = typer.Option(None, "--port", help="Filter by port (e.g., 1A, 2B)"),
+    sender: Optional[str] = typer.Option(None, "--sender", help="Filter by sender number"),
+    contains: Optional[str] = typer.Option(None, "--contains", help="Filter by text content"),
+    no_delivery_reports: bool = typer.Option(False, "--no-delivery-reports", help="Exclude delivery reports"),
+    delivery_reports_only: bool = typer.Option(False, "--delivery-reports-only", help="Show only delivery reports"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+):
+    """List received SMS messages from the inbox."""
+    from .inbox import SMSInboxService
+    from .api_models import MessageType, SMSInboxFilter
+    import json
+    
+    config = ctx.obj['config']
+    
+    try:
+        inbox_service = SMSInboxService(config)
+        
+        # Build filter criteria
+        filter_criteria = SMSInboxFilter(
+            exclude_delivery_reports=no_delivery_reports,
+            delivery_reports_only=delivery_reports_only
+        )
+        
+        if message_type:
+            try:
+                filter_criteria.message_type = MessageType(message_type)
+            except ValueError:
+                console.print(f"[red]Invalid message type: {message_type}[/red]")
+                console.print(f"Valid types: {', '.join([t.value for t in MessageType])}")
+                raise typer.Exit(1)
+        
+        if port:
+            filter_criteria.port = port
+        if sender:
+            filter_criteria.sender = sender
+        if contains:
+            filter_criteria.contains_text = contains
+        
+        # Get messages
+        all_messages = inbox_service.get_messages(start_id=start_id, count=count)
+        messages = inbox_service.filter_messages(all_messages, filter_criteria)
+        
+        if json_output:
+            # Output as JSON
+            json_data = [{
+                "id": msg.id,
+                "type": msg.message_type.value,
+                "port": msg.port,
+                "timestamp": msg.timestamp.isoformat(),
+                "sender": msg.sender,
+                "recipient": msg.recipient,
+                "content": msg.content,
+                "is_delivery_report": msg.is_delivery_report,
+                "keywords": msg.contains_keywords
+            } for msg in messages]
+            console.print(json.dumps(json_data, indent=2))
+            return
+        
+        if not messages:
+            console.print("[yellow]No messages found matching the criteria[/yellow]")
+            return
+        
+        # Display table
+        table = Table(title=f"SMS Inbox ({len(messages)} messages)")
+        table.add_column("ID", style="cyan", width=6)
+        table.add_column("Type", style="blue", width=10)
+        table.add_column("Port", style="green", width=6)
+        table.add_column("From", style="yellow", width=15)
+        table.add_column("Time", style="magenta", width=16)
+        table.add_column("Content", style="white")
+        
+        for msg in messages:
+            # Format message type with emoji
+            type_display = {
+                MessageType.REGULAR: "📱 Regular",
+                MessageType.STOP: "🛑 STOP",
+                MessageType.SYSTEM: "⚙️ System",
+                MessageType.DELIVERY_REPORT: "✅ Delivery",
+                MessageType.KEYWORD: "🔍 Keyword"
+            }.get(msg.message_type, msg.message_type.value)
+            
+            # Truncate long content
+            content = msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
+            
+            # Format timestamp
+            time_str = msg.timestamp.strftime("%m-%d %H:%M")
+            
+            table.add_row(
+                str(msg.id),
+                type_display,
+                msg.port,
+                msg.sender[-12:] if len(msg.sender) > 12 else msg.sender,  # Show last 12 chars
+                time_str,
+                content
+            )
+        
+        console.print(table)
+        
+        # Show summary
+        if len(messages) > 0:
+            types_count = {}
+            for msg in messages:
+                types_count[msg.message_type.value] = types_count.get(msg.message_type.value, 0) + 1
+            
+            summary_parts = [f"{count} {type_name}" for type_name, count in types_count.items()]
+            console.print(f"\n[dim]Summary: {', '.join(summary_parts)}[/dim]")
+    
+    except Exception as e:
+        console.print(f"[red]Error retrieving inbox: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@inbox_app.command("search")
+def inbox_search(
+    ctx: typer.Context,
+    text: str = typer.Argument(..., help="Text to search for"),
+    start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID"),
+    count: int = typer.Option(0, "--count", help="Max messages to search (0=all)"),
+    show_details: bool = typer.Option(False, "--details", help="Show full message details"),
+):
+    """Search for messages containing specific text."""
+    from .inbox import SMSInboxService
+    
+    config = ctx.obj['config']
+    
+    try:
+        inbox_service = SMSInboxService(config)
+        messages = inbox_service.get_messages_containing(text, start_id=start_id)
+        
+        if not messages:
+            console.print(f"[yellow]No messages found containing '{text}'[/yellow]")
+            return
+        
+        console.print(f"[blue]Found {len(messages)} messages containing '{text}'[/blue]")
+        
+        if show_details:
+            # Show detailed view
+            for i, msg in enumerate(messages[:10]):
+                console.print(f"\n[bold]Message {i+1}:[/bold]")
+                console.print(f"  ID: {msg.id}")
+                console.print(f"  Type: {msg.message_type.value}")
+                console.print(f"  Port: {msg.port}")
+                console.print(f"  From: {msg.sender}")
+                console.print(f"  Time: {msg.timestamp}")
+                console.print(f"  Content: {msg.content}")
+                if msg.contains_keywords:
+                    console.print(f"  Keywords: {', '.join(msg.contains_keywords)}")
+        else:
+            # Show compact table
+            table = Table(title=f"Search Results for '{text}'")
+            table.add_column("ID", style="cyan")
+            table.add_column("Port", style="green")
+            table.add_column("From", style="yellow")
+            table.add_column("Time", style="magenta")
+            table.add_column("Content", style="white")
+            
+            for msg in messages[:20]:  # Limit to first 20
+                content = msg.content[:60] + "..." if len(msg.content) > 60 else msg.content
+                table.add_row(
+                    str(msg.id),
+                    msg.port,
+                    msg.sender[-10:],
+                    msg.timestamp.strftime("%m-%d %H:%M"),
+                    content
+                )
+            
+            console.print(table)
+            
+            if len(messages) > 20:
+                console.print(f"[dim]... and {len(messages) - 20} more messages[/dim]")
+    
+    except Exception as e:
+        console.print(f"[red]Error searching inbox: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@inbox_app.command("stop")
+def inbox_stop(
+    ctx: typer.Context,
+    start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+):
+    """Show all STOP/unsubscribe messages."""
+    from .inbox import SMSInboxService
+    import json
+    
+    config = ctx.obj['config']
+    
+    try:
+        inbox_service = SMSInboxService(config)
+        messages = inbox_service.get_stop_messages(start_id=start_id)
+        
+        if not messages:
+            console.print("[green]No STOP messages found[/green]")
+            return
+        
+        console.print(f"[red]Found {len(messages)} STOP messages[/red]")
+        
+        if json_output:
+            json_data = [{
+                "id": msg.id,
+                "port": msg.port,
+                "timestamp": msg.timestamp.isoformat(),
+                "sender": msg.sender,
+                "content": msg.content
+            } for msg in messages]
+            console.print(json.dumps(json_data, indent=2))
+            return
+        
+        table = Table(title="🛑 STOP Messages")
+        table.add_column("ID", style="cyan")
+        table.add_column("Port", style="green")
+        table.add_column("From", style="yellow")
+        table.add_column("Time", style="magenta")
+        table.add_column("Content", style="red")
+        
+        for msg in messages:
+            table.add_row(
+                str(msg.id),
+                msg.port,
+                msg.sender,
+                msg.timestamp.strftime("%m-%d %H:%M:%S"),
+                msg.content
+            )
+        
+        console.print(table)
+        console.print(f"\n[bold red]⚠️  {len(messages)} users have requested to stop receiving messages[/bold red]")
+    
+    except Exception as e:
+        console.print(f"[red]Error retrieving STOP messages: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@inbox_app.command("summary")
+def inbox_summary(
+    ctx: typer.Context,
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+):
+    """Show inbox statistics and summary."""
+    from .inbox import SMSInboxService
+    import json
+    
+    config = ctx.obj['config']
+    
+    try:
+        inbox_service = SMSInboxService(config)
+        summary = inbox_service.get_inbox_summary()
+        
+        if json_output:
+            # Convert set to list for JSON serialization
+            summary_copy = summary.copy()
+            if isinstance(summary_copy.get("recent_senders"), set):
+                summary_copy["recent_senders"] = list(summary_copy["recent_senders"])
+            console.print(json.dumps(summary_copy, indent=2))
+            return
+        
+        # Display formatted summary
+        console.print("[bold]📧 SMS Inbox Summary[/bold]\n")
+        
+        console.print(f"Total Messages: [cyan]{summary['total_messages']}[/cyan]")
+        
+        if summary['total_messages'] > 0:
+            console.print(f"Regular Messages: [green]{summary['regular_messages']}[/green]")
+            console.print(f"Delivery Reports: [blue]{summary['delivery_reports']}[/blue]")
+            console.print(f"STOP Messages: [red]{summary['stop_messages']}[/red]")
+            
+            # Message types breakdown
+            console.print("\n[bold]By Type:[/bold]")
+            for msg_type, count in summary['by_type'].items():
+                if count > 0:
+                    console.print(f"  {msg_type}: {count}")
+            
+            # Port breakdown
+            if summary['by_port']:
+                console.print("\n[bold]By Port:[/bold]")
+                for port, count in sorted(summary['by_port'].items()):
+                    console.print(f"  Port {port}: {count} messages")
+            
+            # Date range
+            if summary['date_range']:
+                console.print(f"\n[bold]Date Range:[/bold]")
+                console.print(f"  Earliest: {summary['date_range']['earliest']}")
+                console.print(f"  Latest: {summary['date_range']['latest']}")
+            
+            # Recent senders
+            if summary['recent_senders']:
+                console.print(f"\n[bold]Recent Senders ({len(summary['recent_senders'])}):[/bold]")
+                for sender in list(summary['recent_senders'])[:10]:
+                    console.print(f"  {sender}")
+                if len(summary['recent_senders']) > 10:
+                    console.print(f"  ... and {len(summary['recent_senders']) - 10} more")
+    
+    except Exception as e:
+        console.print(f"[red]Error getting inbox summary: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@inbox_app.command("show")
+def inbox_show(
+    ctx: typer.Context,
+    message_id: int = typer.Argument(..., help="Message ID to show details for"),
+    start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID for search"),
+):
+    """Show detailed information about a specific message."""
+    from .inbox import SMSInboxService
+    
+    config = ctx.obj['config']
+    
+    try:
+        inbox_service = SMSInboxService(config)
+        messages = inbox_service.get_messages(start_id=start_id)
+        
+        # Find message with the specified ID
+        message = None
+        for msg in messages:
+            if msg.id == message_id:
+                message = msg
+                break
+        
+        if not message:
+            console.print(f"[red]Message with ID {message_id} not found[/red]")
+            return
+        
+        # Display detailed message info
+        console.print(f"[bold]📱 Message Details (ID: {message.id})[/bold]\n")
+        
+        console.print(f"[bold]Type:[/bold] {message.message_type.value}")
+        console.print(f"[bold]Port:[/bold] {message.port}")
+        console.print(f"[bold]Timestamp:[/bold] {message.timestamp}")
+        console.print(f"[bold]From:[/bold] {message.sender}")
+        
+        if message.recipient:
+            console.print(f"[bold]To:[/bold] {message.recipient}")
+        
+        console.print(f"[bold]Is Delivery Report:[/bold] {'Yes' if message.is_delivery_report else 'No'}")
+        
+        if message.contains_keywords:
+            console.print(f"[bold]Keywords:[/bold] {', '.join(message.contains_keywords)}")
+        
+        console.print(f"\n[bold]Content:[/bold]")
+        console.print(f"[white]{message.content}[/white]")
+        
+        if message.raw_content != message.content:
+            console.print(f"\n[bold]Raw Content:[/bold]")
+            console.print(f"[dim]{message.raw_content}[/dim]")
+    
+    except Exception as e:
+        console.print(f"[red]Error showing message: {e}[/red]")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

@@ -228,6 +228,26 @@ class SyncEjoinClient:
         return self._run_async(_post())
 
 
+    def get_sms_inbox(self, sms_id: int = 1, sms_num: int = 0, delete_after: bool = False) -> dict[str, Any]:
+        """Query SMS inbox from the device.
+        
+        Args:
+            sms_id: Starting SMS ID (1-based)
+            sms_num: Number of SMS to query (0 = all)
+            delete_after: Delete SMS after query (0 = no, 1 = yes)
+            
+        Returns:
+            SMS inbox response with messages
+        """
+        params = {
+            "sms_id": sms_id,
+            "sms_num": sms_num,
+            "sms_del": 1 if delete_after else 0,
+        }
+        
+        return self.get_json("/goip_get_sms.html", params=params)
+
+
 def create_sync_client(config: EjoinConfig) -> SyncEjoinClient:
     """Create a synchronous EJOIN HTTP client."""
     return SyncEjoinClient(config)

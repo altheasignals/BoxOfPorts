@@ -230,7 +230,13 @@ class ConfigManager:
             # If we're removing the current profile, clear it
             if self._current_profile == name:
                 self._current_profile = None
-                self._save_current_profile()
+            
+            # If only one profile remains, automatically set it as current
+            remaining_profiles = list(self._profiles.keys())
+            if len(remaining_profiles) == 1 and self._current_profile != remaining_profiles[0]:
+                self._current_profile = remaining_profiles[0]
+            
+            self._save_current_profile()
             self._save_profiles()
             return True
         return False
