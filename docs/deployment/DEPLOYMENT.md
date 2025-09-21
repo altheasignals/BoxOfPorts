@@ -50,8 +50,8 @@ mkdir -p ~/bop
 cd ~/bop
 
 # Clone repository (if available) or extract package
-git clone https://github.com/altheasignals/boxofports.git
-cd bop
+git clone https://github.com/altheasignals/BoxOfPorts.git
+cd BoxOfPorts
 
 # Or if you have the package directly:
 # tar -xzf bop-1.0.0.tar.gz
@@ -147,8 +147,8 @@ New-Item -ItemType Directory -Path "$env:USERPROFILE\bop" -Force
 Set-Location "$env:USERPROFILE\bop"
 
 # Clone repository or extract package
-git clone https://github.com/altheasignals/boxofports.git
-Set-Location bop
+git clone https://github.com/altheasignals/BoxOfPorts.git
+Set-Location BoxOfPorts
 
 # Create virtual environment (recommended)
 python -m venv venv
@@ -209,148 +209,92 @@ password = your_password
 
 ## 🐳 Docker Deployment
 
-### Option 1: Build from Source
+### Quick Docker Setup
 
-#### Create Dockerfile
-```dockerfile
-FROM python:3.11-slim
+The repository includes a production-ready Dockerfile and docker-compose.yml:
 
-# Set working directory
-WORKDIR /app
+```bash
+# Clone and build
+git clone https://github.com/altheasignals/BoxOfPorts.git
+cd BoxOfPorts
+docker build -t bop .
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy application files
-COPY . .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
-
-# Create data directory
-RUN mkdir -p /app/data
-
-# Set entrypoint
-ENTRYPOINT ["python", "-m", "bop.cli"]
-CMD ["--help"]
+# Test it works
+docker run --rm bop --help
 ```
 
-#### Build and Run
+### Docker Commands
+
+#### Basic Usage
 ```bash
-# Build image
-docker build -t bop:1.0.0 .
-
-# Run commands
-docker run --rm bop:1.0.0 --help
-
-# Run with persistent data
-docker run --rm \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config \
-  bop:1.0.0 \
-  --host 192.168.1.100 --user admin --password secret \
+# Test connection to gateway
+docker run --rm bop \\
+  --host 192.168.1.100 --user admin --password your_password \\
   test-connection
+
+# Send SMS
+docker run --rm bop \\
+  --host 192.168.1.100 --user admin --password your_password \\
+  sms send --to "+1234567890" --text "Hello Docker!" --ports "1A"
 ```
 
-### Option 2: Docker Compose (Recommended)
-
-#### Create docker-compose.yml
-```yaml
-version: '3.8'
-
-services:
-  bop:
-    build: .
-    container_name: bop
-    volumes:
-      # Mount configuration
-      - ./config:/app/config:ro
-      # Mount data directory for persistence
-      - ./data:/app/data
-      # Optional: mount logs
-      - ./logs:/app/logs
-    environment:
-      # Default gateway settings
-      - EJOIN_HOST=192.168.1.100
-      - EJOIN_PORT=80
-      - EJOIN_USER=admin
-      - EJOIN_PASSWORD=your_password
-      - PYTHONUNBUFFERED=1
-    networks:
-      - bop_network
-    restart: unless-stopped
-    
-  # Optional: Web dashboard (future feature)
-  # bop-web:
-  #   build: 
-  #     context: .
-  #     dockerfile: Dockerfile.web
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - bop
-
-networks:
-  bop_network:
-    driver: bridge
-
-volumes:
-  bop_data:
-  bop_config:
-```
-
-#### Create Directory Structure
+#### Using Profiles in Docker
 ```bash
-mkdir -p {config,data,logs}
+# Create data volume for persistent profiles
+docker volume create bop_data
 
-# Create sample configuration
-cat > config/gateways.csv << 'EOF'
-Device Name,Device Local IP,Internal Access URL,Username,Password
-Gateway1,192.168.1.100,http://192.168.1.100:80/,root,your_password
-Gateway2,192.168.1.101,http://192.168.1.101:80/,root,your_password
-Gateway3,192.168.1.102,http://192.168.1.102:80/,root,your_password
-EOF
+# Create profiles
+docker run --rm -v bop_data:/app/data bop \\
+  config add-profile gateway1 \\
+  --host 192.168.1.100 --user admin --password pass1
+
+docker run --rm -v bop_data:/app/data bop \\
+  config add-profile gateway2 \\
+  --host 192.168.1.101 --user admin --password pass2
+
+# List profiles
+docker run --rm -v bop_data:/app/data bop config list
+
+# Use profiles (no need to specify connection details)
+docker run --rm -v bop_data:/app/data bop test-connection
 ```
 
-#### Deploy with Docker Compose
+### Docker Compose (Production)
+
+The included `docker-compose.yml` provides a full production setup:
+
 ```bash
 # Start services
 docker-compose up -d
 
-# Run commands
-docker-compose exec bop python -m bop.cli --help
+# Run commands using the service
+docker-compose exec bop config add-profile prod \\
+  --host 192.168.1.100 --user admin --password secure_pass
+
+docker-compose exec bop test-connection
 
 # View logs
 docker-compose logs -f bop
-
-# Stop services
-docker-compose down
 ```
 
-### Docker Production Setup
+### Environment Variables (Fallback Only)
 
-#### Environment Variables
+Environment variables provide fallback configuration when no profiles exist:
+
 ```bash
-# Create environment file
+# Create .env file for fallback config
 cat > .env << 'EOF'
-# Default gateway configuration
 EJOIN_HOST=192.168.1.100
 EJOIN_PORT=80
 EJOIN_USER=admin
-EJOIN_PASSWORD=your_secure_password
-
-# Application settings
-BOXOFPORTS_LOG_LEVEL=INFO
-BOXOFPORTS_DATA_DIR=/app/data
-BOXOFPORTS_CONFIG_DIR=/app/config
-
-# Database settings
-BOXOFPORTS_DB_PATH=/app/data/bop.db
+EJOIN_PASSWORD=your_password
 EOF
+
+# Use with docker-compose (will use .env automatically)
+docker-compose up -d
 ```
+
+**Recommended:** Use profiles instead of environment variables for multiple gateways.
 
 ## 🚀 Quick Start Examples
 
