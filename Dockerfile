@@ -37,19 +37,19 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Create non-root user for security
-RUN groupadd -r boxofports && useradd -r -g boxofports boxofports
+RUN groupadd -r boxofports && useradd -r -g boxofports -m boxofports
 
 # Copy requirements first for better caching
 COPY pyproject.toml .
 COPY README.md .
 COPY LICENSE .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
-
 # Copy application source code
 COPY boxofports/ ./boxofports/
 COPY tests/ ./tests/
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -e .
 
 # Create necessary directories
 RUN mkdir -p /app/data /app/config /app/logs && \
@@ -58,27 +58,8 @@ RUN mkdir -p /app/data /app/config /app/logs && \
 # Copy configuration examples
 COPY server_access.csv ./config/gateways.csv.example
 
-# Create entrypoint script
-RUN cat > /app/entrypoint.sh << 'EOF'
-#!/bin/bash
-set -e
-
-# Set default environment variables if not provided
-export BOXOFPORTS_DATA_DIR=${BOXOFPORTS_DATA_DIR:-/app/data}
-export BOXOFPORTS_CONFIG_DIR=${BOXOFPORTS_CONFIG_DIR:-/app/config}
-export BOXOFPORTS_LOG_LEVEL=${BOXOFPORTS_LOG_LEVEL:-INFO}
-
-# Create directories if they don't exist
-mkdir -p "$BOXOFPORTS_DATA_DIR" "$BOXOFPORTS_CONFIG_DIR"
-
-# If no command provided, show help
-if [ $# -eq 0 ]; then
-    exec python -m boxofports.cli --help
-fi
-
-# Execute the command
-exec python -m boxofports.cli "$@"
-EOF
+# Copy entrypoint script
+COPY docker-entrypoint.sh /app/entrypoint.sh
 
 # Set proper permissions
 RUN chmod +x /app/entrypoint.sh && \

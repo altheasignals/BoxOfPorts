@@ -42,8 +42,8 @@ BoxOfPorts supports three installation modes to accommodate different use cases:
 
 ```bash
 # Clone the repository
-git clone https://github.com/altheasignals/boxofports.git
-cd bop
+git clone https://github.com/altheasignals/BoxOfPorts.git
+cd BoxOfPorts
 
 # Run the installer and select option 1
 ./install.sh
@@ -63,8 +63,8 @@ cd bop
 
 ```bash
 # Clone the repository
-git clone https://github.com/altheasignals/boxofports.git
-cd boxofports
+git clone https://github.com/altheasignals/BoxOfPorts.git
+cd BoxOfPorts
 
 # Run the installer and select option 2
 ./install.sh
@@ -84,8 +84,8 @@ cd boxofports
 
 ```bash
 # Clone the repository
-git clone https://github.com/altheasignals/boxofports.git
-cd boxofports
+git clone https://github.com/altheasignals/BoxOfPorts.git
+cd BoxOfPorts
 
 # Run the installer and select option 3
 ./install.sh
@@ -107,6 +107,9 @@ docker build -t bop .
 
 # Run commands
 docker run --rm bop --help
+
+# Run with connection parameters
+docker run --rm bop --host 192.168.1.100 --user admin --password your_password test-connection
 ```
 
 ### Choosing the Right Installation Mode
@@ -227,6 +230,10 @@ bop sms send --text "Alert from port {{port}} at {{ts}}" --ports "1A"
 bop sms send \
   --text "{{company | upper}} Alert: Port {{port}} Status {{status}}" \
   --ports "1A,2B" --var "company=Acme Corp" --var "status=OK"
+
+# Preview templates before sending (--dry-run)
+bop sms send --text "Alert from {{port}}" --ports "1A,2B" --dry-run
+# Shows exactly what will be sent without actually sending
 ```
 
 ### Available Filters
@@ -334,8 +341,8 @@ services:
 ### Setting up Development Environment
 ```bash
 # Clone repository
-git clone https://github.com/altheasignals/boxofports.git
-cd boxofports
+git clone https://github.com/altheasignals/BoxOfPorts.git
+cd BoxOfPorts
 
 # Install in development mode
 pip install -e ".[dev]"
