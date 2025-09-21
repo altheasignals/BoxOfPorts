@@ -292,8 +292,8 @@ show_completion() {
     echo "  DEPLOYMENT.md - Deployment guide"
     echo "  USAGE_GUIDE.md - Complete usage examples"
     echo ""
-    echo "Support: support@altheamesh.com"
-    echo "Website: https://altheamesh.com"
+echo "Support: support@altheasignals.net"
+    echo "Website: https://altheasignals.net"
     echo ""
     if ! command -v bop &> /dev/null; then
         echo -e "${YELLOW}Note: Restart your shell or run 'source ~/.bashrc' to use bop${RESET}"

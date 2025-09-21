@@ -4,11 +4,11 @@
 FROM python:3.11-slim
 
 # Set metadata
-LABEL maintainer="Althea Signals Network LLC <support@altheamesh.com>"
+LABEL maintainer="Althea Signals Network LLC <support@altheasignals.net>"
 LABEL version="1.0.0"
 LABEL description="BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
 LABEL vendor="Althea Signals Network LLC"
-LABEL url="https://altheamesh.com"
+LABEL url="https://altheasignals.net"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

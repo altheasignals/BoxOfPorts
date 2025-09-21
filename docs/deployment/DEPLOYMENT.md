@@ -50,7 +50,7 @@ mkdir -p ~/bop
 cd ~/bop
 
 # Clone repository (if available) or extract package
-git clone https://github.com/altheamesh/bop.git
+git clone https://github.com/altheasignals/boxofports.git
 cd bop
 
 # Or if you have the package directly:
@@ -147,7 +147,7 @@ New-Item -ItemType Directory -Path "$env:USERPROFILE\bop" -Force
 Set-Location "$env:USERPROFILE\bop"
 
 # Clone repository or extract package
-git clone https://github.com/altheamesh/bop.git
+git clone https://github.com/altheasignals/boxofports.git
 Set-Location bop
 
 # Create virtual environment (recommended)
@@ -504,7 +504,7 @@ chmod 600 ~/.config/bop/config.ini
 
 ### Getting Help
 - **Documentation**: Full docs available online
-- **Email Support**: support@altheamesh.com
+- **Email Support**: support@altheasignals.net
 - **Issue Reporting**: Include version, OS, and error messages
 
 ### Version Updates
@@ -531,5 +531,5 @@ tar -xzf bop-backup-20250101.tar.gz
 **BoxOfPorts Deployment Guide**  
 Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
 
-For technical support: support@altheamesh.com  
-Learn more: https://altheamesh.com
+For technical support: support@altheasignals.net  
+Learn more: https://altheasignals.net

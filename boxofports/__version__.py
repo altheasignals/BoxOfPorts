@@ -5,8 +5,8 @@ __title__ = "BoxOfPorts"
 __command__ = "bop"
 __description__ = "SMS Gateway Management CLI for EJOIN Multi-WAN Router Operators"
 __author__ = "Althea Signals Network LLC"
-__author_email__ = "support@altheamesh.com"
-__url__ = "https://altheamesh.com"
+__author_email__ = "support@altheasignals.net"
+__url__ = "https://altheasignals.net"
 __license__ = "Proprietary"
 
 # Build information

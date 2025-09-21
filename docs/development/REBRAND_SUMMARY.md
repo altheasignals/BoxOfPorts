@@ -71,7 +71,7 @@ API Version: 2.2
 Build Date: 2025-01-20
 
 Developed by: Althea Signals Network LLC
-Website: https://altheamesh.com
+Website: https://altheasignals.net
 License: Proprietary
 
 Python Requirements: >=3.11

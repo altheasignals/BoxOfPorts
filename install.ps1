@@ -289,8 +289,8 @@ function Show-Completion {
     Write-Host "  DEPLOYMENT.md - Deployment guide"
     Write-Host "  USAGE_GUIDE.md - Complete usage examples"
     Write-Host ""
-    Write-Host "Support: support@altheamesh.com"
-    Write-Host "Website: https://altheamesh.com"
+    Write-Host "Support: support@altheasignals.net"
+    Write-Host "Website: https://altheasignals.net"
     Write-Host ""
     
     if (-not (Get-Command bop -ErrorAction SilentlyContinue)) {

@@ -22,6 +22,6 @@ Features:
 
 __version__ = "1.0.0"
 __author__ = "Althea Signals Network LLC"
-__email__ = "support@altheamesh.com"
+__email__ = "support@altheasignals.net"
 __license__ = "Proprietary"
 __copyright__ = "Copyright (c) 2025 Althea Signals Network LLC"

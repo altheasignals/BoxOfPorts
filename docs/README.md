@@ -60,8 +60,8 @@ New to BoxOfPorts? Start here:
 ## 🔗 External Resources
 
 - **Project Repository**: Main source code and issues
-- **Support Email**: support@altheamesh.com
-- **Company Website**: https://altheamesh.com
+- **Support Email**: support@altheasignals.net
+- **Company Website**: https://altheasignals.net
 
 ---
 

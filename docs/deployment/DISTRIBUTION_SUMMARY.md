@@ -129,8 +129,8 @@ make run
 **Developer**: Althea Signals Network LLC  
 **Copyright**: © 2025 Althea Signals Network LLC. All rights reserved.  
 **License**: Proprietary (see LICENSE file)  
-**Support**: support@altheamesh.com  
-**Website**: https://altheamesh.com  
+**Support**: support@altheasignals.net  
+**Website**: https://altheasignals.net
 
 All source code files include proper copyright attribution:
 ```python
@@ -253,7 +253,7 @@ make docker-build
 4. Integrate with monitoring systems
 
 ### Support & Feedback
-- Email: support@altheamesh.com
+- Email: support@altheasignals.net
 - Report issues with detailed system information
 - Include logs from verbose mode: `bop --verbose ...`
 

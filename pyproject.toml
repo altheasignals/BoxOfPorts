@@ -7,10 +7,10 @@ name = "boxofports"
 version = "1.0.0"
 description = "BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
 authors = [
-    {name = "Althea Signals Network LLC", email = "support@altheamesh.com"},
+    {name = "Althea Signals Network LLC", email = "support@altheasignals.net"},
 ]
 maintainers = [
-    {name = "Althea Signals Network LLC", email = "support@altheamesh.com"},
+    {name = "Althea Signals Network LLC", email = "support@altheasignals.net"},
 ]
 license = {text = "Proprietary"}
 keywords = ["boxofports", "bop", "sms", "gateway", "ejoin", "router", "grateful-dead", "telecommunications"]

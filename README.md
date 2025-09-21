@@ -1,13 +1,13 @@
 # BoxOfPorts - SMS Gateway Management CLI
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/altheamesh/boxofports)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/altheasignals/boxofports)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 
 **SMS Gateway Management CLI for EJOIN Multi-WAN Router Operators**  
 *"Box of Rain" - Grateful Dead inspired tool for managing your box of ports*
 
-Developed by [Althea Signals Network LLC](https://altheamesh.com) - The leader in decentralized telecommunications infrastructure.
+Developed by [Althea Signals Network LLC](https://altheasignals.net) - The leader in decentralized telecommunications infrastructure.
 
 ## 🌟 Overview
 
@@ -42,7 +42,7 @@ BoxOfPorts supports three installation modes to accommodate different use cases:
 
 ```bash
 # Clone the repository
-git clone https://github.com/altheamesh/bop.git
+git clone https://github.com/altheasignals/boxofports.git
 cd bop
 
 # Run the installer and select option 1
@@ -63,8 +63,8 @@ cd bop
 
 ```bash
 # Clone the repository
-git clone https://github.com/altheamesh/bop.git
-cd bop
+git clone https://github.com/altheasignals/boxofports.git
+cd boxofports
 
 # Run the installer and select option 2
 ./install.sh
@@ -84,8 +84,8 @@ cd bop
 
 ```bash
 # Clone the repository
-git clone https://github.com/altheamesh/bop.git
-cd bop
+git clone https://github.com/altheasignals/boxofports.git
+cd boxofports
 
 # Run the installer and select option 3
 ./install.sh
@@ -334,8 +334,8 @@ services:
 ### Setting up Development Environment
 ```bash
 # Clone repository
-git clone https://github.com/altheamesh/bop.git
-cd bop
+git clone https://github.com/altheasignals/boxofports.git
+cd boxofports
 
 # Install in development mode
 pip install -e ".[dev]"
@@ -403,8 +403,8 @@ bop sms send --ports "1A-1D" --text "test" --to "+1234567890" --dry-run
 
 For technical support, feature requests, or licensing inquiries:
 
-- **Email**: support@altheamesh.com
-- **Website**: [https://altheamesh.com](https://altheamesh.com)
+- **Email**: support@altheasignals.net
+- **Website**: [https://altheasignals.net](https://altheasignals.net)
 - **Documentation**: [Full documentation available online]
 
 ## 📚 Complete Documentation
@@ -438,7 +438,7 @@ providing innovative solutions for network operators, service providers, and ent
 Our mission is to democratize access to telecommunications infrastructure through 
 cutting-edge technology and open protocols.
 
-**Learn more**: [https://altheamesh.com](https://altheamesh.com)
+**Learn more**: [https://altheasignals.net](https://altheasignals.net)
 
 ---
 
