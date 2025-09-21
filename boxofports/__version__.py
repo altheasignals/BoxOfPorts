@@ -14,8 +14,8 @@ __build_date__ = "2025-01-20"
 __api_version__ = "2.2"
 __python_requires__ = ">=3.11"
 
-# Grateful Dead reference
-__inspiration__ = "Box of Rain - Grateful Dead"
+# Design inspiration
+__inspiration__ = "Like rain in a box, but for ports"
 
 def get_version_info() -> dict:
     """Get comprehensive version information."""
@@ -53,5 +53,5 @@ License: {__license__}
 Python Requirements: {__python_requires__}
 
 Inspired by "{__inspiration__}"
-🎵 "Such a long long time to be gone, and a short time to be there..." 🎵
+Built for operators who know that connectivity flows like ripples in water.
 """.strip()

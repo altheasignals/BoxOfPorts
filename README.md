@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 
 **SMS Gateway Management CLI for EJOIN Multi-WAN Router Operators**  
-*Like "Box of Rain", but for ports*
+*Like Box of Rain, but... ports*
 
 Developed by [Althea Signals Network LLC](https://altheasignals.net) - The leader in decentralized telecommunications infrastructure.
 
@@ -262,7 +262,7 @@ bop supports flexible port specification formats:
 
 ## 📊 Examples
 
-### Bulk SMS Campaign
+### Let It Ripple - Bulk SMS Campaign
 ```bash
 bop sms send --to "+1234567890" \
   --text "Campaign #{{idx}} from {{port}}" \
@@ -279,7 +279,7 @@ bop sms send --to "+1234567890" \
   --text "EMERGENCY: System locked at {{ts}}" --ports "1A"
 ```
 
-### SMS Inbox Management
+### Eyes of the Inbox
 ```bash
 # Monitor STOP messages (compliance)
 bop inbox stop

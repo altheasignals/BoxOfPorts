@@ -188,7 +188,7 @@ def sms_send(
                 console.print(result_table)
                 
             except EjoinHTTPError as e:
-                console.print(f"[red]SMS send failed: {e}[/red]")
+                console.print(f"[red]Message undeliverable — {e}[/red]")
                 raise typer.Exit(1)
         
     except Exception as e:
@@ -229,13 +229,13 @@ def status_subscribe(
             params["all_sims"] = "1"
         
         response = client.get_json("/goip_get_status.html", params=params)
-        console.print(f"[green]Status subscription configured successfully[/green]")
+        console.print(f"[green]Status subscription flowing like a river[/green]")
         console.print(f"Callback URL: {callback}")
         console.print(f"Report period: {period} seconds")
         console.print(f"All SIMs: {'Yes' if all_sims else 'No'}")
         
     except EjoinHTTPError as e:
-        console.print(f"[red]Failed to subscribe to status: {e}[/red]")
+        console.print(f"[red]Eyes of the world closed — {e}[/red]")
         raise typer.Exit(1)
 
 
@@ -258,7 +258,7 @@ def ops_lock(
         }
         
         response = client.post_json("/goip_send_cmd.html", json=request_data)
-        console.print(f"[green]Lock command sent to ports: {', '.join(port_list)}[/green]")
+        console.print(f"[green]Ports locked in — {', '.join(port_list)}[/green]")
         
     except Exception as e:
         console.print(f"[red]Lock operation failed: {e}[/red]")
@@ -304,14 +304,14 @@ def test_connection(ctx: typer.Context):
         # Try a simple status request
         response = client.get_json("/goip_get_status.html", params={"period": "0"})
         
-        console.print("[green]✓ Connection successful![/green]")
-        console.print(f"Device appears to be responding normally")
+        console.print("[green]✓ Connection successful — not fade away[/green]")
+        console.print(f"Device is awake and responding")
         
     except EjoinHTTPError as e:
-        console.print(f"[red]✗ Connection failed: {e}[/red]")
+        console.print(f"[red]✗ Signal drift detected — {e}[/red]")
         raise typer.Exit(1)
     except Exception as e:
-        console.print(f"[red]✗ Unexpected error: {e}[/red]")
+        console.print(f"[red]✗ This darkness has got to give — {e}[/red]")
         raise typer.Exit(1)
 
 
@@ -343,7 +343,7 @@ def config_add_profile(
         
         config_manager.add_profile(name, profile_config)
         
-        console.print(f"[green]✓ Profile '{name}' added successfully[/green]")
+        console.print(f"[green]✓ Profile '{name}' ready — nothing left to do but smile, smile, smile[/green]")
         console.print(f"  Host: {profile_config.host}:{profile_config.port}")
         console.print(f"  User: {profile_config.username}")
         
@@ -394,7 +394,7 @@ def config_switch_profile(
 ):
     """Switch to a different profile."""
     if config_manager.switch_profile(name):
-        console.print(f"[green]✓ Switched to profile '{name}')[/green]")
+        console.print(f"[green]✓ Switched to profile '{name}' — might as well[/green]")
         
         # Show profile details
         profile_config = config_manager.get_profile_config(name)
@@ -444,7 +444,7 @@ def config_remove_profile(
     old_current = config_manager.get_current_profile()
     
     if config_manager.remove_profile(name):
-        console.print(f"[green]✓ Profile '{name}' removed successfully[/green]")
+        console.print(f"[green]✓ Profile '{name}' He is gone [/green]")
         
         # Check if we need to suggest a new current profile or show automatic switch
         profiles = config_manager.list_profiles()

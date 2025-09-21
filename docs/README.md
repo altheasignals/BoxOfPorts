@@ -66,5 +66,5 @@ New to BoxOfPorts? Start here:
 ---
 
 **BoxOfPorts** - SMS Gateway Management CLI  
-*"Box of Rain" - Grateful Dead inspired*  
+*Professional gateway management for the connected world*  
 Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.

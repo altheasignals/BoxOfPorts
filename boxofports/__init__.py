@@ -6,7 +6,7 @@ EJOIN multi-WAN routers. Built for the daily reality of managing dozens of
 gateways with failing ports, SIM card swaps, and compliance monitoring.
 
 Command: bop
-Inspired by "Box of Rain" - Grateful Dead
+Like rain in a box, but for ports
 
 Developed by Althea Signals Network LLC
 Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
