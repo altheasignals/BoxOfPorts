@@ -143,7 +143,7 @@ $PSVersionTable.PSVersion
    - ✅ Install pip
    - ✅ Install for all users (if admin)
 
-#### Step 2: Install bop
+#### Step 2: Install bop (from a PowerShell terminal)
 ```powershell
 # Create working directory
 New-Item -ItemType Directory -Path "$env:USERPROFILE\bop" -Force
