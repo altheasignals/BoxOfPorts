@@ -120,11 +120,18 @@ source ~/.zshrc
 ## 🪟 Windows Installation
 
 ### Prerequisites
-**Only Python 3.11+ required** - our installer handles the rest:
+**Requirements:**
+- **Python 3.11+** - our installer handles the rest
+- **PowerShell** - included with most modern Windows versions
+
 ```powershell
 # Check Python version (PowerShell)
 python --version
 # Should show Python 3.11.0 or higher
+
+# Verify PowerShell is available
+$PSVersionTable.PSVersion
+# Should show PowerShell version info
 ```
 
 ### Option 1: Direct Installation (Recommended)
