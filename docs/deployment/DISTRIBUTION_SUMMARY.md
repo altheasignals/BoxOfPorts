@@ -9,13 +9,15 @@ BoxOfPorts (`bop`) is now fully packaged and ready for distribution as a profess
 ## 🏗️ Package Structure
 
 ```
-gateway-manager/                    # Root directory
-├── bop/                      # Main application package
+BoxOfPorts/                         # Root directory
+├── boxofports/                    # Main application package
 │   ├── __init__.py               # Package info & attribution
+│   ├── __version__.py            # Version information
 │   ├── api_models.py             # Pydantic API models
 │   ├── cli.py                    # Typer CLI interface
 │   ├── config.py                 # Configuration management
 │   ├── http.py                   # HTTP client with retry logic
+│   ├── inbox.py                  # SMS inbox management
 │   ├── ports.py                  # Port parsing utilities
 │   ├── store.py                  # SQLite storage layer
 │   └── templating.py             # Jinja2 templating engine
@@ -95,8 +97,8 @@ bop --help
 ### 3. Docker Deployment
 ```bash
 # Build and run
-docker build -t bop:1.0.0 .
-docker run --rm bop:1.0.0 --help
+docker build -t bop .
+docker run --rm bop --help
 
 # Or with Docker Compose
 docker-compose up -d

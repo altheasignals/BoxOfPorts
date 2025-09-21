@@ -328,13 +328,13 @@ python -m bop.cli --host 192.168.1.100 --user admin --password secret `
 ### Docker Quick Start
 ```bash
 # Test connection
-docker run --rm bop:1.0.0 \
-  --host 192.168.1.100 --user admin --password secret \
+docker run --rm bop \\
+  --host 192.168.1.100 --user admin --password your_password \\
   test-connection
 
 # Send SMS
-docker run --rm bop:1.0.0 \
-  --host 192.168.1.100 --user admin --password secret \
+docker run --rm bop \\
+  --host 192.168.1.100 --user admin --password your_password \\
   sms send --to "+1234567890" --text "Hello from Docker!" --ports "1A"
 ```
 
