@@ -37,28 +37,7 @@ BoxOfPorts (`bop`) is a comprehensive CLI tool designed for SMS gateway operator
 
 BoxOfPorts supports three installation modes to accommodate different use cases:
 
-#### Option 1: 🛠️ Development Mode (pyenv + editable install)
-**Perfect for developers and operators who modify the code**
-
-```bash
-# Clone the repository
-git clone https://github.com/altheasignals/BoxOfPorts.git
-cd BoxOfPorts
-
-# Run the installer and select option 1
-./install.sh
-
-# Or install directly if you have pyenv
-./install-dev.sh
-```
-
-**Benefits:**
-- Code changes take effect immediately
-- Perfect for development and testing
-- Uses pyenv for Python version management
-- No sudo required
-
-#### Option 2: 👤 User Mode (local installation)
+#### Option 1: 👤 User Mode (local installation)
 **Recommended for most users**
 
 ```bash
@@ -78,6 +57,27 @@ cd BoxOfPorts
 - No sudo required
 - Doesn't affect system Python
 - Easy to update and remove
+
+#### Option 2: 🛠️ Development Mode (pyenv + editable install)
+**Perfect for developers and operators who modify the code**
+
+```bash
+# Clone the repository
+git clone https://github.com/altheasignals/BoxOfPorts.git
+cd BoxOfPorts
+
+# Run the installer and select option 1
+./install.sh
+
+# Or install directly if you have pyenv
+./install-dev.sh
+```
+
+**Benefits:**
+- Code changes take effect immediately
+- Perfect for development and testing
+- Uses pyenv for Python version management
+- No sudo required
 
 #### Option 3: 🌐 System Mode (global installation)
 **For administrators managing multi-user systems**

@@ -22,21 +22,37 @@ Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
 
 ## 🍎 macOS Installation
 
-### Prerequisites Check
+### Prerequisites by Installation Method
+
+#### For Automated Installation (Recommended)
+**Only Python 3.11+ required** - our installer handles everything else:
 ```bash
 # Check Python version
 python3 --version
 # Should show Python 3.11.0 or higher
-
-# Check pip
-pip3 --version
 ```
 
-### Option 1: Direct Installation (Recommended)
-
-#### Step 1: Install Python (if needed)
+#### For Development Mode
+**Requires pyenv** for Python version management:
 ```bash
-# Using Homebrew (recommended)
+# Install pyenv first (macOS)
+brew install pyenv
+
+# Or follow: https://github.com/pyenv/pyenv#installation
+```
+
+#### For Manual Installation
+**Requires Python 3.11+ with venv support** (usually included):
+```bash
+python3 --version  # 3.11.0+
+python3 -m venv --help  # Should work
+```
+
+### Option 1: Automated Installation (Recommended)
+
+#### Step 1: Install Python 3.11+ (if needed)
+```bash
+# macOS with Homebrew
 brew install python@3.11
 
 # Or download from python.org
@@ -67,20 +83,6 @@ pip install -e .
 # Verify installation
 bop --help
 ```
-
-#### Step 3: Create Desktop Shortcut (Optional)
-```bash
-# Create application launcher
-cat > ~/Desktop/bop.command << 'EOF'
-#!/bin/bash
-cd ~/bop/bop
-source venv/bin/activate
-python -m bop.cli "$@"
-EOF
-
-chmod +x ~/Desktop/bop.command
-```
-
 ### Option 2: System-wide Installation
 ```bash
 # Install system-wide (requires admin privileges)
@@ -92,43 +94,37 @@ bop --help
 
 ### macOS Configuration
 
-#### Create Configuration Directory
+#### Create Gateway Profiles (Recommended)
 ```bash
-mkdir -p ~/.config/bop
+# Create profiles for your gateways
+bop config add-profile gateway1 --host 192.168.1.100 --user admin --password secure_pass
+bop config add-profile gateway2 --host 192.168.1.101 --user admin --password secure_pass
+
+# List profiles
+bop config list
+
+# Switch between profiles
+bop config switch gateway1
+bop test-connection
 ```
 
-#### Sample Configuration File
+#### Alternative: Environment Variables (Fallback)
 ```bash
-cat > ~/.config/bop/config.ini << 'EOF'
-[default]
-host = 192.168.1.100
-port = 80
-username = admin
-password = your_secure_password
-timeout = 30
-
-[gateway1]
-host = 192.168.1.100
-username = root
-password = your_password
-
-[gateway2]
-host = 192.168.1.101
-username = root
-password = your_password
-EOF
+# For single gateway setup, you can use environment variables
+echo "export EJOIN_HOST=192.168.1.100" >> ~/.zshrc
+echo "export EJOIN_USER=admin" >> ~/.zshrc
+echo "export EJOIN_PASSWORD=secure_password" >> ~/.zshrc
+source ~/.zshrc
 ```
 
 ## 🪟 Windows Installation
 
-### Prerequisites Check
+### Prerequisites
+**Only Python 3.11+ required** - our installer handles the rest:
 ```powershell
 # Check Python version (PowerShell)
 python --version
 # Should show Python 3.11.0 or higher
-
-# Check pip
-pip --version
 ```
 
 ### Option 1: Direct Installation (Recommended)
@@ -163,16 +159,16 @@ pip install -e .
 python -m bop.cli --help
 ```
 
-#### Step 3: Create Batch File (Optional)
+#### Step 3: Verify Installation
 ```powershell
-# Create convenient launcher
-@"
-@echo off
-cd /d "%USERPROFILE%\bop\bop"
-call venv\Scripts\activate.bat
-python -m bop.cli %*
-pause
-"@ | Out-File -FilePath "$env:USERPROFILE\Desktop\bop.bat" -Encoding ASCII
+# Test the installation
+python -m boxofports.cli --help
+
+# Create your first profile
+python -m boxofports.cli config add-profile gateway1 --host 192.168.1.100 --user admin --password your_password
+
+# Test connection
+python -m boxofports.cli test-connection
 ```
 
 ### Option 2: Using Windows Subsystem for Linux (WSL)
@@ -185,26 +181,18 @@ wsl --install
 
 ### Windows Configuration
 
-#### Create Configuration Directory
+#### Create Gateway Profiles (Recommended)
 ```powershell
-New-Item -ItemType Directory -Path "$env:USERPROFILE\.config\bop" -Force
-```
+# Create profiles for your gateways
+python -m boxofports.cli config add-profile gateway1 --host 192.168.1.100 --user admin --password secure_pass
+python -m boxofports.cli config add-profile gateway2 --host 192.168.1.101 --user admin --password secure_pass
 
-#### Sample Configuration File
-```powershell
-@"
-[default]
-host = 192.168.1.100
-port = 80
-username = admin
-password = your_secure_password
-timeout = 30
+# List profiles
+python -m boxofports.cli config list
 
-[gateway1]
-host = 192.168.1.100
-username = root
-password = your_password
-"@ | Out-File -FilePath "$env:USERPROFILE\.config\bop\config.ini" -Encoding UTF8
+# Switch between profiles
+python -m boxofports.cli config switch gateway1
+python -m boxofports.cli test-connection
 ```
 
 ## 🐳 Docker Deployment
