@@ -1,6 +1,11 @@
 # BoxOfPorts - Gitignore
 # Protects confidential and generated files
 
+# Development Notes and Sensitive Prompts
+.dev-notes/
+*.prompt.md
+*-consultation-*
+
 # Environment and Configuration Files
 .env
 .env.local

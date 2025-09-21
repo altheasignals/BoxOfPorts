@@ -25,8 +25,8 @@ def parse_host_port(host_spec: str, default_port: int = 80) -> tuple[str, int]:
     Examples:
         >>> parse_host_port("192.168.1.100")
         ('192.168.1.100', 80)
-        >>> parse_host_port("13.228.130.204:60140")
-        ('13.228.130.204', 60140)
+        >>> parse_host_port("203.0.113.100:60140")
+        ('203.0.113.100', 60140)
     """
     if ':' in host_spec:
         host_part, port_part = host_spec.split(':', 1)

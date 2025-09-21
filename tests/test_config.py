@@ -23,8 +23,8 @@ def test_parse_host_port_basic():
 def test_parse_host_port_with_port():
     """Test host:port parsing when port is included."""
     # Test host with port
-    host, port = parse_host_port("13.228.130.204:60140")
-    assert host == "13.228.130.204"
+    host, port = parse_host_port("203.0.113.100:60140")
+    assert host == "203.0.113.100"
     assert port == 60140
     
     # Test with different port
@@ -60,16 +60,16 @@ def test_ejoin_config_base_url():
 def test_ejoin_config_from_env_with_port():
     """Test configuration loading from environment with host:port format."""
     with patch.dict(os.environ, {
-        'EJOIN_HOST': '13.228.130.204:60140',
+        'EJOIN_HOST': '203.0.113.100:60140',
         'EJOIN_USER': 'admin',
         'EJOIN_PASS': 'secret'
     }):
         config = EjoinConfig.from_env()
-        assert config.host == "13.228.130.204"
+        assert config.host == "203.0.113.100"
         assert config.port == 60140
         assert config.username == "admin"
         assert config.password == "secret"
-        assert config.base_url == "http://13.228.130.204:60140"
+        assert config.base_url == "http://203.0.113.100:60140"
 
 
 def test_ejoin_config_from_env_without_port():
@@ -158,8 +158,8 @@ def test_real_world_examples():
         ("127.0.0.1:8080", "127.0.0.1", 8080),
         ("api.example.com:443", "api.example.com", 443),
         ("10.0.0.1:22", "10.0.0.1", 22),
-        ("13.228.130.204:60140", "13.228.130.204", 60140),
-        ("192.168.1.234", "192.168.1.234", 80),  # No port specified
+        ("203.0.113.100:60140", "203.0.113.100", 60140),
+        ("192.168.1.100", "192.168.1.100", 80),  # No port specified
     ]
     
     for host_spec, expected_host, expected_port in examples:

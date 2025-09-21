@@ -13,7 +13,7 @@ maintainers = [
     {name = "Althea Signals Network LLC", email = "support@altheasignals.net"},
 ]
 license = {text = "Proprietary"}
-keywords = ["boxofports", "bop", "sms", "gateway", "ejoin", "router", "grateful-dead", "telecommunications"]
+keywords = ["boxofports", "bop", "sms", "gateway", "ejoin", "router", "telecommunications"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",

@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 
 **SMS Gateway Management CLI for EJOIN Multi-WAN Router Operators**  
-*"Box of Rain" - Grateful Dead inspired tool for managing your box of ports*
+*Like "Box of Rain", but for ports*
 
 Developed by [Althea Signals Network LLC](https://altheasignals.net) - The leader in decentralized telecommunications infrastructure.
 
@@ -129,7 +129,7 @@ docker run --rm bop --host 192.168.1.100 --user admin --password your_password t
 bop --host 192.168.1.100 --user admin --password your_password test-connection
 
 # Test connection with custom port (host:port format)
-bop --host 13.228.130.204:60140 --user root --password your_password test-connection
+bop --host 203.0.113.100:60140 --user root --password your_password test-connection
 
 # Send SMS via specific port
 bop --host 192.168.1.100 --user admin --password your_password \
@@ -139,7 +139,7 @@ bop --host 192.168.1.100 --user admin --password your_password \
 #### Option 2: Profile-Based Usage (Recommended)
 ```bash
 # Create profiles for your servers (one-time setup)
-bop config add-profile remote --host 13.228.130.204:60140 --user root --password your_password
+bop config add-profile remote --host 203.0.113.100:60140 --user root --password your_password
 bop config add-profile local --host 192.168.1.100 --user admin --password your_password
 
 # Switch between profiles
@@ -450,6 +450,6 @@ cutting-edge technology and open protocols.
 ---
 
 **BoxOfPorts** - SMS Gateway Management CLI  
-*"Box of Rain" - Grateful Dead inspired*  
+*Like "Box of Rain", but for ports*  
 Command: `bop`  
 Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.

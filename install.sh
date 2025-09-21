@@ -11,7 +11,7 @@ echo "🎁 BoxOfPorts Installation Script"
 echo "=================================="
 echo ""
 echo "BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
-echo "Inspired by 'Box of Rain - Grateful Dead'"
+echo "Like 'Box of Rain', but for ports"
 echo ""
 
 # Check Python version

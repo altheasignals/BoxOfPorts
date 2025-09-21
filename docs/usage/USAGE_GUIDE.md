@@ -3,16 +3,16 @@
 ## Overview
 BoxOfPorts (`bop`) is a comprehensive CLI tool for managing EJOIN Multi-WAN Router HTTP API v2.2. It provides SMS operations, inbox management, device control, and compliance monitoring for SMS gateway operators.
 
-## 📋 Available Gateways (from server_access.csv)
-- **RYL2371245SM**: 192.168.1.234:80 (root/zyg0-poPx-tHey)
-- **RYL2371245SMa**: 192.168.1.150:80 (root/zyg0-poPx-tHey)
-- **RYL2371245SMb**: 192.168.1.109:80 (root/zyg0-poPx-tHey)
+## 📋 Available Gateways (Example Configuration)
+- **Gateway-1**: 192.168.1.100:80 (admin/your_password)
+- **Gateway-2**: 192.168.1.101:80 (admin/your_password)
+- **Gateway-3**: 192.168.1.102:80 (admin/your_password)
 
 ## 🔗 Basic Connection Testing
 
 ### Test Gateway Connection
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' test-connection
 ```
 
 **Output**: ✓ Connection successful! Device appears to be responding normally
@@ -20,10 +20,10 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' t
 ### Test Gateway with Custom Port
 ```bash
 # Using explicit port parameter
-python -m bop.cli --host 13.228.130.204 --port 60140 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 203.0.113.100 --port 60140 --user root --password 'your_password' test-connection
 
 # Using host:port format (recommended)
-python -m bop.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 203.0.113.100:60140 --user root --password 'your_password' test-connection
 ```
 
 ---
@@ -32,20 +32,20 @@ python -m bop.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-
 
 ### 1. Basic SMS Send
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms send --to "+1234567890" --text "Hello World" --ports "1A"
 ```
 
 ### 1b. SMS Send with Custom Port
 ```bash
 # Using host:port format
-python -m bop.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 203.0.113.100:60140 --user root --password 'your_password' \
   sms send --to "+1234567890" --text "Hello from remote gateway" --ports "1A"
 ```
 
 ### 2. SMS with Template Variables
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms send --to "+1234567890" \
   --text "Hello from port {{port}} at {{ts}}" \
   --ports "1A"
@@ -53,7 +53,7 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 
 ### 3. Multi-Port SMS with Custom Variables
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms send --to "+1234567890" \
   --text "Alert from {{company | upper}} - Port {{port}} Status: {{status}}" \
   --ports "1A,2B,3A" \
@@ -62,7 +62,7 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 
 ### 4. Port Range SMS
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms send --to "+1234567890" \
   --text "Range test from {{port}} #{{idx}}" \
   --ports "1A-1D"
@@ -70,7 +70,7 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 
 ### 5. SMS Spray (Multiple Ports Quickly)
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms spray --to "+1234567890" \
   --text "Spray from {{port}}" \
   --ports "1A,2A,3A"
@@ -78,7 +78,7 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 
 ### 6. Dry Run (Preview Without Sending)
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms send --to "+1234567890" \
   --text "Test message" --ports "1A-1C" \
   --dry-run
@@ -86,7 +86,7 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 
 ### 7. Advanced Template with Filters
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms send --to "+1234567890" \
   --text "{{company | upper}} Alert: Port {{port}} at {{ts | truncate(19)}}" \
   --ports "1A,2B,3C" --var "company=TechCorp" \
@@ -99,19 +99,19 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 
 ### 1. Lock Ports
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   ops lock --ports "1A,2A"
 ```
 
 ### 2. Unlock Ports
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   ops unlock --ports "1A,2A"
 ```
 
 ### 3. Lock Port Range
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   ops lock --ports "1A-1D"
 ```
 
@@ -121,7 +121,7 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 
 ### 1. Subscribe to Status Updates
 ```bash
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   status subscribe --callback "http://example.com/webhook" --period 30 --all-sims
 ```
 
@@ -178,32 +178,32 @@ Pass custom variables using `--var key=value`:
 ### Test All Gateways
 ```bash
 # Gateway 1
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' test-connection
 
 # Gateway 2
-python -m bop.cli --host 192.168.1.150 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 192.168.1.101 --user root --password 'your_password' test-connection
 
 # Gateway 3
-python -m bop.cli --host 192.168.1.109 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 192.168.1.102 --user root --password 'your_password' test-connection
 ```
 
 ### Switch Between Gateways
 Simply change the `--host` parameter to target different gateways:
 ```bash
 # Use Gateway 2 for SMS
-python -m bop.cli --host 192.168.1.150 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.101 --user root --password 'your_password' \
   sms send --to "+1234567890" --text "From Gateway 2" --ports "1A"
 ```
 
 ### Remote Gateways with Custom Ports
 ```bash
 # Connect to remote gateway with custom port
-python -m bop.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 203.0.113.100:60140 --user root --password 'your_password' \
   test-connection
 
 # Environment variable approach
-export EJOIN_HOST="13.228.130.204:60140"
-python -m bop.cli --user root --password 'zyg0-poPx-tHey' test-connection
+export EJOIN_HOST="203.0.113.100:60140"
+python -m bop.cli --user root --password 'your_password' test-connection
 ```
 
 ---
@@ -213,7 +213,7 @@ python -m bop.cli --user root --password 'zyg0-poPx-tHey' test-connection
 ### 1. Bulk SMS Campaign
 ```bash
 # Send to multiple ports with sequential numbering
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms send --to "+1234567890" \
   --text "Campaign message #{{idx + 1}} from {{port}}" \
   --ports "1A-4D" --dry-run
@@ -222,10 +222,10 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 ### 2. Emergency Alert System
 ```bash
 # Lock all ports first, then send alert
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   ops lock --ports "1A-10D"
 
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   sms send --to "+1234567890" \
   --text "EMERGENCY: All ports locked at {{ts}}" \
   --ports "1A"
@@ -234,7 +234,7 @@ python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
 ### 3. Status Monitoring Setup
 ```bash
 # Subscribe to real-time status updates
-python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.100 --user root --password 'your_password' \
   status subscribe --callback "https://yourdomain.com/status-webhook" \
   --period 60 --all-sims
 ```
@@ -305,15 +305,15 @@ Instead of specifying `--host`, `--user`, `--password` every time, create profil
 ```bash
 # Add a remote server profile
 python -m bop.cli config add-profile remote \
-  --host 13.228.130.204:60140 \
+  --host 203.0.113.100:60140 \
   --user root \
-  --password 'zyg0-poPx-tHey'
+  --password 'your_password'
 
 # Add a local server profile  
 python -m bop.cli config add-profile local \
-  --host 192.168.1.234 \
+  --host 192.168.1.100 \
   --user root \
-  --password 'zyg0-poPx-tHey'
+  --password 'your_password'
 ```
 
 ### 2. List All Profiles
@@ -326,8 +326,8 @@ python -m bop.cli config list
 ┏━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
 ┃ Name   ┃ Host:Port            ┃ Username ┃ Status    ┃
 ┡━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ remote │ 13.228.130.204:60140 │ root     │ → CURRENT │
-│ local  │ 192.168.1.234:80     │ root     │           │
+│ remote │ 203.0.113.100:60140 │ root     │ → CURRENT │
+│ local  │ 192.168.1.100:80     │ root     │           │
 └────────┴──────────────────────┴──────────┴───────────┘
 ```
 

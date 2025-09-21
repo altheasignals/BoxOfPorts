@@ -40,7 +40,7 @@ banner() {
     echo "  BoxOfPorts v${VERSION} - SMS Gateway Management CLI"
     echo "  Command: bop"
     echo "  Developed by ${AUTHOR}"
-    echo "  🎵 Inspired by 'Box of Rain' - Grateful Dead 🎵"
+    echo "  🎵 Like 'Box of Rain', but for ports 🎵"
     echo "════════════════════════════════════════════════════════════════"
     echo -e "${RESET}"
 }

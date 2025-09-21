@@ -108,14 +108,14 @@ password = your_secure_password
 timeout = 30
 
 [gateway1]
-host = 192.168.1.234
+host = 192.168.1.100
 username = root
-password = zyg0-poPx-tHey
+password = your_password
 
 [gateway2]
-host = 192.168.1.150
+host = 192.168.1.101
 username = root
-password = zyg0-poPx-tHey
+password = your_password
 EOF
 ```
 
@@ -201,9 +201,9 @@ password = your_secure_password
 timeout = 30
 
 [gateway1]
-host = 192.168.1.234
+host = 192.168.1.100
 username = root
-password = zyg0-poPx-tHey
+password = your_password
 "@ | Out-File -FilePath "$env:USERPROFILE\.config\bop\config.ini" -Encoding UTF8
 ```
 
@@ -309,9 +309,9 @@ mkdir -p {config,data,logs}
 # Create sample configuration
 cat > config/gateways.csv << 'EOF'
 Device Name,Device Local IP,Internal Access URL,Username,Password
-Gateway1,192.168.1.234,http://192.168.1.234:80/,root,zyg0-poPx-tHey
-Gateway2,192.168.1.150,http://192.168.1.150:80/,root,zyg0-poPx-tHey
-Gateway3,192.168.1.109,http://192.168.1.109:80/,root,zyg0-poPx-tHey
+Gateway1,192.168.1.100,http://192.168.1.100:80/,root,your_password
+Gateway2,192.168.1.101,http://192.168.1.101:80/,root,your_password
+Gateway3,192.168.1.102,http://192.168.1.102:80/,root,your_password
 EOF
 ```
 
