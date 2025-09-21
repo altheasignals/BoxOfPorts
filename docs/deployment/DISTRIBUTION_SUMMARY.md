@@ -1,16 +1,16 @@
-# ejoinctl v1.0.0 - Distribution Package Summary
+# BoxOfPorts - Distribution Package Summary
 
 **Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.**
 
 ## 📦 Package Overview
 
-ejoinctl is now fully packaged and ready for distribution as a professional CLI tool for EJOIN Multi-WAN Router HTTP API v2.2 management. This document summarizes the complete distribution package.
+BoxOfPorts (`bop`) is now fully packaged and ready for distribution as a professional CLI tool for EJOIN Multi-WAN Router HTTP API v2.2 management. This document summarizes the complete distribution package.
 
 ## 🏗️ Package Structure
 
 ```
 gateway-manager/                    # Root directory
-├── ejoinctl/                      # Main application package
+├── bop/                      # Main application package
 │   ├── __init__.py               # Package info & attribution
 │   ├── api_models.py             # Pydantic API models
 │   ├── cli.py                    # Typer CLI interface
@@ -89,14 +89,14 @@ source venv/bin/activate  # Unix
 pip install -e .
 
 # Verify
-ejoinctl --help
+bop --help
 ```
 
 ### 3. Docker Deployment
 ```bash
 # Build and run
-docker build -t ejoinctl:1.0.0 .
-docker run --rm ejoinctl:1.0.0 --help
+docker build -t bop:1.0.0 .
+docker run --rm bop:1.0.0 --help
 
 # Or with Docker Compose
 docker-compose up -d
@@ -191,8 +191,8 @@ max_retries = 3
 export EJOIN_HOST=192.168.1.100
 export EJOIN_USER=admin
 export EJOIN_PASSWORD=secure_password
-export EJOINCTL_LOG_LEVEL=INFO
-export EJOINCTL_TIMEOUT=30
+export BOXOFPORTS_LOG_LEVEL=INFO
+export BOXOFPORTS_TIMEOUT=30
 ```
 
 ### Docker Configuration
@@ -201,15 +201,15 @@ environment:
   - EJOIN_HOST=192.168.1.100
   - EJOIN_USER=admin
   - EJOIN_PASSWORD=secure_password
-  - EJOINCTL_LOG_LEVEL=INFO
+  - BOXOFPORTS_LOG_LEVEL=INFO
 ```
 
 ## 🌐 Deployment Scenarios
 
 ### 1. Local Development
 - Install directly with `./install.sh`
-- Use configuration files in `~/.config/ejoinctl/`
-- Run commands directly: `ejoinctl sms send ...`
+- Use configuration files in `~/.config/bop/`
+- Run commands directly: `bop sms send ...`
 
 ### 2. Production Server
 - Deploy with Docker for isolation
@@ -243,8 +243,8 @@ make docker-build
 ### Getting Started
 1. Choose installation method (recommended: `./install.sh`)
 2. Configure gateway credentials
-3. Test connection: `ejoinctl test-connection`
-4. Try SMS: `ejoinctl sms send --to "+1234567890" --text "Hello" --ports "1A"`
+3. Test connection: `bop test-connection`
+4. Try SMS: `bop sms send --to "+1234567890" --text "Hello" --ports "1A"`
 
 ### Advanced Usage
 1. Review USAGE_GUIDE.md for comprehensive examples
@@ -255,11 +255,11 @@ make docker-build
 ### Support & Feedback
 - Email: support@altheamesh.com
 - Report issues with detailed system information
-- Include logs from verbose mode: `ejoinctl --verbose ...`
+- Include logs from verbose mode: `bop --verbose ...`
 
 ---
 
-**ejoinctl v1.0.0** - Professional EJOIN Gateway Management  
+**BoxOfPorts** - Professional EJOIN Gateway Management  
 **Developed by Althea Signals Network LLC**  
 **Ready for Production Deployment**
 

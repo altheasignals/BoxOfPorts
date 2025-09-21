@@ -1,0 +1,133 @@
+# BoxOfPorts - Gitignore
+# Protects confidential and generated files
+
+# Environment and Configuration Files
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+boxofports.db
+ejoinctl.db
+
+# CSV Files with Sensitive Data
+server_access.csv
+gateways.csv
+*.csv
+
+# Backup Files
+*.bak
+*.backup
+*.old
+*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual Environments
+.env/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Test Coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Documentation Build
+.doctrees/
+docs/_build/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Pytest
+.pytest_cache/
+
+# User Configuration and Data (stored in ~/.boxofports/)
+profiles.json
+current_profile
+*.session
+
+# Installation artifacts
+boxofports.egg-info/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk

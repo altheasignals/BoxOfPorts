@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ejoinctl"
+name = "boxofports"
 version = "1.0.0"
-description = "Professional CLI tool for EJOIN Multi-WAN Router HTTP API v2.2 management"
+description = "BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
 authors = [
     {name = "Althea Signals Network LLC", email = "support@altheamesh.com"},
 ]
@@ -13,7 +13,7 @@ maintainers = [
     {name = "Althea Signals Network LLC", email = "support@altheamesh.com"},
 ]
 license = {text = "Proprietary"}
-keywords = ["ejoin", "router", "sms", "gateway", "api", "cli", "telecommunications"]
+keywords = ["boxofports", "bop", "sms", "gateway", "ejoin", "router", "grateful-dead", "telecommunications"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -53,7 +53,8 @@ dev = [
 ]
 
 [project.scripts]
-ejoinctl = "ejoinctl.cli:app"
+bop = "boxofports.cli:app"
+boxofports = "boxofports.cli:app"
 
 [tool.ruff]
 target-version = "py311"

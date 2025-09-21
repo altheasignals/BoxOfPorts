@@ -2,7 +2,7 @@
 
 import pytest
 
-from ejoinctl.ports import (
+from boxofports.ports import (
     parse_port_spec,
     port_to_decimal,
     port_to_alpha,

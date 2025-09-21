@@ -4,7 +4,7 @@ import pytest
 import os
 from unittest.mock import patch
 
-from ejoinctl.config import EjoinConfig, parse_host_port, ConfigManager
+from boxofports.config import parse_host_port, EjoinConfig
 
 
 def test_parse_host_port_basic():
@@ -108,7 +108,7 @@ def test_ejoin_config_missing_host():
     env_vars_to_clear = {k: None for k in os.environ.keys() if k.startswith('EJOIN_')}
     with patch.dict(os.environ, env_vars_to_clear, clear=False):
         # Mock Path.exists to prevent .env file from being found
-        with patch('ejoinctl.config.Path.exists', return_value=False):
+        with patch('boxofports.config.Path.exists', return_value=False):
             with pytest.raises(ValueError, match="EJOIN_HOST environment variable is required"):
                 EjoinConfig.from_env()
 

@@ -1,7 +1,7 @@
-# ejoinctl Installation Script for Windows
+# bop Installation Script for Windows
 # Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
 #
-# PowerShell installation script for ejoinctl on Windows
+# PowerShell installation script for bop on Windows
 
 param(
     [switch]$SkipDeps,
@@ -10,7 +10,7 @@ param(
 )
 
 # Project information
-$PROJECT_NAME = "ejoinctl"
+$PROJECT_NAME = "bop"
 $VERSION = "1.0.0"
 $AUTHOR = "Althea Signals Network LLC"
 $MIN_PYTHON_VERSION = [Version]"3.11.0"
@@ -34,7 +34,7 @@ function Write-Error {
 
 function Show-Banner {
     Write-Host "================================================================" -ForegroundColor Blue
-    Write-Host "  ejoinctl v$VERSION - EJOIN Gateway Management CLI" -ForegroundColor Blue
+    Write-Host "  bop v$VERSION - EJOIN Gateway Management CLI" -ForegroundColor Blue
     Write-Host "  Developed by $AUTHOR" -ForegroundColor Blue
     Write-Host "================================================================" -ForegroundColor Blue
     Write-Host ""
@@ -148,7 +148,7 @@ function New-VirtualEnvironment {
     
     Write-Log "Creating virtual environment..."
     
-    $venvDir = "$env:USERPROFILE\.ejoinctl\venv"
+    $venvDir = "$env:USERPROFILE\.bop\venv"
     $parentDir = Split-Path $venvDir -Parent
     
     if (-not (Test-Path $parentDir)) {
@@ -172,18 +172,18 @@ function New-VirtualEnvironment {
     return $venvDir
 }
 
-function Install-Ejoinctl {
-    Write-Log "Installing ejoinctl..."
+function Install-BoxOfPorts {
+    Write-Log "Installing BoxOfPorts..."
     
     # Check if we're in the source directory
-    if ((Test-Path "pyproject.toml") -and (Get-Content "pyproject.toml" | Select-String -Pattern "ejoinctl")) {
+    if ((Test-Path "pyproject.toml") -and (Get-Content "pyproject.toml" | Select-String -Pattern "bop")) {
         Write-Log "Installing from local source..."
         python -m pip install -e .
     } else {
-        Write-Error "Please run this script from the ejoinctl source directory"
+        Write-Error "Please run this script from the bop source directory"
     }
     
-    Write-Log "✓ ejoinctl installation complete"
+    Write-Log "✓ bop installation complete"
 }
 
 function New-WrapperScript {
@@ -196,12 +196,12 @@ function New-WrapperScript {
         New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
     }
     
-    $wrapperScript = "$wrapperDir\ejoinctl.bat"
+    $wrapperScript = "$wrapperDir\bop.bat"
     
     $batchContent = @"
 @echo off
 call "$VenvDir\Scripts\activate.bat"
-python -m ejoinctl.cli %*
+python -m boxofports %*
 "@
     
     Set-Content -Path $wrapperScript -Value $batchContent
@@ -237,7 +237,7 @@ function Update-Path {
 function New-ConfigDirectory {
     Write-Log "Creating configuration directory..."
     
-    $configDir = "$env:USERPROFILE\.config\ejoinctl"
+    $configDir = "$env:USERPROFILE\.config\bop"
     if (-not (Test-Path $configDir)) {
         New-Item -ItemType Directory -Path $configDir -Force | Out-Null
     }
@@ -255,14 +255,14 @@ function Test-Installation {
     Write-Log "Testing installation..."
     
     try {
-        $helpOutput = ejoinctl --help 2>$null
+        $helpOutput = bop --help 2>$null
         if ($helpOutput) {
-            Write-Log "✓ ejoinctl is working correctly"
+            Write-Log "✓ bop is working correctly"
         } else {
-            Write-Warning "ejoinctl command not found. You may need to restart your PowerShell session."
+            Write-Warning "bop command not found. You may need to restart your PowerShell session."
         }
     } catch {
-        Write-Warning "ejoinctl command not found. You may need to restart your PowerShell session."
+        Write-Warning "bop command not found. You may need to restart your PowerShell session."
         Write-Log "Try running: refreshenv (if using Chocolatey) or restart PowerShell"
     }
 }
@@ -272,15 +272,17 @@ function Show-Completion {
     Write-Host "  Installation Complete!" -ForegroundColor Green
     Write-Host "================================================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "ejoinctl has been successfully installed!" -ForegroundColor Green
+    Write-Host "BoxOfPorts has been successfully installed!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Quick start commands:"
-    Write-Host "  ejoinctl --help                 - Show help"
-    Write-Host "  ejoinctl test-connection        - Test gateway connection"
+    Write-Host "  bop --version              - Show version information"
+    Write-Host "  bop --help                 - Show help"
+    Write-Host "  bop test-connection        - Test gateway connection"
+    Write-Host "  bop inbox list             - List SMS messages"
     Write-Host ""
     Write-Host "Configuration:"
-    Write-Host "  Config directory: $env:USERPROFILE\.config\ejoinctl"
-    Write-Host "  Virtual environment: $env:USERPROFILE\.ejoinctl\venv"
+    Write-Host "  Config directory: $env:USERPROFILE\.config\bop"
+    Write-Host "  Virtual environment: $env:USERPROFILE\.bop\venv"
     Write-Host ""
     Write-Host "Documentation:"
     Write-Host "  README.md - Main documentation"
@@ -291,8 +293,8 @@ function Show-Completion {
     Write-Host "Website: https://altheamesh.com"
     Write-Host ""
     
-    if (-not (Get-Command ejoinctl -ErrorAction SilentlyContinue)) {
-        Write-Host "Note: Restart your PowerShell session to use ejoinctl" -ForegroundColor Yellow
+    if (-not (Get-Command bop -ErrorAction SilentlyContinue)) {
+        Write-Host "Note: Restart your PowerShell session to use bop" -ForegroundColor Yellow
     }
 }
 
@@ -306,9 +308,9 @@ function Main {
     Show-Banner
     
     # Check if already installed
-    if ((Get-Command ejoinctl -ErrorAction SilentlyContinue) -and (-not $Force)) {
-        Write-Warning "ejoinctl is already installed. Use -Force to reinstall."
-        ejoinctl --help
+    if ((Get-Command bop -ErrorAction SilentlyContinue) -and (-not $Force)) {
+        Write-Warning "bop is already installed. Use -Force to reinstall."
+        bop --help
         exit 0
     }
     
@@ -329,7 +331,7 @@ function Main {
     $pipCmd = Test-Pip $pythonCmd
     Install-SystemDependencies
     $venvDir = New-VirtualEnvironment $pythonCmd
-    Install-Ejoinctl
+    Install-BoxOfPorts
     $wrapperDir = New-WrapperScript $venvDir
     Update-Path $wrapperDir
     New-ConfigDirectory

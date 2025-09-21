@@ -1,6 +1,6 @@
-# ejoinctl Deployment Guide
+# BoxOfPorts Deployment Guide
 
-Complete instructions for deploying and running ejoinctl on macOS, Windows, and Docker environments.
+Complete instructions for deploying and running BoxOfPorts (`bop`) on macOS, Windows, and Docker environments.
 
 **Developed by Althea Signals Network LLC**  
 Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
@@ -43,42 +43,42 @@ brew install python@3.11
 # Visit: https://www.python.org/downloads/macos/
 ```
 
-#### Step 2: Clone and Install ejoinctl
+#### Step 2: Clone and Install bop
 ```bash
 # Create working directory
-mkdir -p ~/ejoinctl
-cd ~/ejoinctl
+mkdir -p ~/bop
+cd ~/bop
 
 # Clone repository (if available) or extract package
-git clone https://github.com/altheamesh/ejoinctl.git
-cd ejoinctl
+git clone https://github.com/altheamesh/bop.git
+cd bop
 
 # Or if you have the package directly:
-# tar -xzf ejoinctl-1.0.0.tar.gz
-# cd ejoinctl-1.0.0
+# tar -xzf bop-1.0.0.tar.gz
+# cd bop-1.0.0
 
 # Install in virtual environment (recommended)
 python3 -m venv venv
 source venv/bin/activate
 
-# Install ejoinctl
+# Install bop
 pip install -e .
 
 # Verify installation
-ejoinctl --help
+bop --help
 ```
 
 #### Step 3: Create Desktop Shortcut (Optional)
 ```bash
 # Create application launcher
-cat > ~/Desktop/ejoinctl.command << 'EOF'
+cat > ~/Desktop/bop.command << 'EOF'
 #!/bin/bash
-cd ~/ejoinctl/ejoinctl
+cd ~/bop/bop
 source venv/bin/activate
-python -m ejoinctl.cli "$@"
+python -m bop.cli "$@"
 EOF
 
-chmod +x ~/Desktop/ejoinctl.command
+chmod +x ~/Desktop/bop.command
 ```
 
 ### Option 2: System-wide Installation
@@ -87,19 +87,19 @@ chmod +x ~/Desktop/ejoinctl.command
 sudo pip3 install -e .
 
 # Verify
-ejoinctl --help
+bop --help
 ```
 
 ### macOS Configuration
 
 #### Create Configuration Directory
 ```bash
-mkdir -p ~/.config/ejoinctl
+mkdir -p ~/.config/bop
 ```
 
 #### Sample Configuration File
 ```bash
-cat > ~/.config/ejoinctl/config.ini << 'EOF'
+cat > ~/.config/bop/config.ini << 'EOF'
 [default]
 host = 192.168.1.100
 port = 80
@@ -140,15 +140,15 @@ pip --version
    - ✅ Install pip
    - ✅ Install for all users (if admin)
 
-#### Step 2: Install ejoinctl
+#### Step 2: Install bop
 ```powershell
 # Create working directory
-New-Item -ItemType Directory -Path "$env:USERPROFILE\ejoinctl" -Force
-Set-Location "$env:USERPROFILE\ejoinctl"
+New-Item -ItemType Directory -Path "$env:USERPROFILE\bop" -Force
+Set-Location "$env:USERPROFILE\bop"
 
 # Clone repository or extract package
-git clone https://github.com/altheamesh/ejoinctl.git
-Set-Location ejoinctl
+git clone https://github.com/altheamesh/bop.git
+Set-Location bop
 
 # Create virtual environment (recommended)
 python -m venv venv
@@ -156,11 +156,11 @@ python -m venv venv
 # Activate virtual environment
 .\venv\Scripts\Activate.ps1
 
-# Install ejoinctl
+# Install bop
 pip install -e .
 
 # Verify installation
-python -m ejoinctl.cli --help
+python -m bop.cli --help
 ```
 
 #### Step 3: Create Batch File (Optional)
@@ -168,11 +168,11 @@ python -m ejoinctl.cli --help
 # Create convenient launcher
 @"
 @echo off
-cd /d "%USERPROFILE%\ejoinctl\ejoinctl"
+cd /d "%USERPROFILE%\bop\bop"
 call venv\Scripts\activate.bat
-python -m ejoinctl.cli %*
+python -m bop.cli %*
 pause
-"@ | Out-File -FilePath "$env:USERPROFILE\Desktop\ejoinctl.bat" -Encoding ASCII
+"@ | Out-File -FilePath "$env:USERPROFILE\Desktop\bop.bat" -Encoding ASCII
 ```
 
 ### Option 2: Using Windows Subsystem for Linux (WSL)
@@ -187,7 +187,7 @@ wsl --install
 
 #### Create Configuration Directory
 ```powershell
-New-Item -ItemType Directory -Path "$env:USERPROFILE\.config\ejoinctl" -Force
+New-Item -ItemType Directory -Path "$env:USERPROFILE\.config\bop" -Force
 ```
 
 #### Sample Configuration File
@@ -204,7 +204,7 @@ timeout = 30
 host = 192.168.1.234
 username = root
 password = zyg0-poPx-tHey
-"@ | Out-File -FilePath "$env:USERPROFILE\.config\ejoinctl\config.ini" -Encoding UTF8
+"@ | Out-File -FilePath "$env:USERPROFILE\.config\bop\config.ini" -Encoding UTF8
 ```
 
 ## 🐳 Docker Deployment
@@ -234,23 +234,23 @@ RUN pip install --no-cache-dir -e .
 RUN mkdir -p /app/data
 
 # Set entrypoint
-ENTRYPOINT ["python", "-m", "ejoinctl.cli"]
+ENTRYPOINT ["python", "-m", "bop.cli"]
 CMD ["--help"]
 ```
 
 #### Build and Run
 ```bash
 # Build image
-docker build -t ejoinctl:1.0.0 .
+docker build -t bop:1.0.0 .
 
 # Run commands
-docker run --rm ejoinctl:1.0.0 --help
+docker run --rm bop:1.0.0 --help
 
 # Run with persistent data
 docker run --rm \
   -v $(pwd)/data:/app/data \
   -v $(pwd)/config:/app/config \
-  ejoinctl:1.0.0 \
+  bop:1.0.0 \
   --host 192.168.1.100 --user admin --password secret \
   test-connection
 ```
@@ -262,9 +262,9 @@ docker run --rm \
 version: '3.8'
 
 services:
-  ejoinctl:
+  bop:
     build: .
-    container_name: ejoinctl
+    container_name: bop
     volumes:
       # Mount configuration
       - ./config:/app/config:ro
@@ -280,26 +280,26 @@ services:
       - EJOIN_PASSWORD=your_password
       - PYTHONUNBUFFERED=1
     networks:
-      - ejoinctl_network
+      - bop_network
     restart: unless-stopped
     
   # Optional: Web dashboard (future feature)
-  # ejoinctl-web:
+  # bop-web:
   #   build: 
   #     context: .
   #     dockerfile: Dockerfile.web
   #   ports:
   #     - "8080:8080"
   #   depends_on:
-  #     - ejoinctl
+  #     - bop
 
 networks:
-  ejoinctl_network:
+  bop_network:
     driver: bridge
 
 volumes:
-  ejoinctl_data:
-  ejoinctl_config:
+  bop_data:
+  bop_config:
 ```
 
 #### Create Directory Structure
@@ -321,10 +321,10 @@ EOF
 docker-compose up -d
 
 # Run commands
-docker-compose exec ejoinctl python -m ejoinctl.cli --help
+docker-compose exec bop python -m bop.cli --help
 
 # View logs
-docker-compose logs -f ejoinctl
+docker-compose logs -f bop
 
 # Stop services
 docker-compose down
@@ -343,12 +343,12 @@ EJOIN_USER=admin
 EJOIN_PASSWORD=your_secure_password
 
 # Application settings
-EJOINCTL_LOG_LEVEL=INFO
-EJOINCTL_DATA_DIR=/app/data
-EJOINCTL_CONFIG_DIR=/app/config
+BOXOFPORTS_LOG_LEVEL=INFO
+BOXOFPORTS_DATA_DIR=/app/data
+BOXOFPORTS_CONFIG_DIR=/app/config
 
 # Database settings
-EJOINCTL_DB_PATH=/app/data/ejoinctl.db
+BOXOFPORTS_DB_PATH=/app/data/bop.db
 EOF
 ```
 
@@ -357,39 +357,39 @@ EOF
 ### macOS Quick Start
 ```bash
 # After installation
-source ~/ejoinctl/ejoinctl/venv/bin/activate
+source ~/bop/bop/venv/bin/activate
 
 # Test connection
-ejoinctl --host 192.168.1.100 --user admin --password secret test-connection
+bop --host 192.168.1.100 --user admin --password secret test-connection
 
 # Send SMS
-ejoinctl --host 192.168.1.100 --user admin --password secret \
+bop --host 192.168.1.100 --user admin --password secret \
   sms send --to "+1234567890" --text "Hello from macOS!" --ports "1A"
 ```
 
 ### Windows Quick Start
 ```powershell
 # After installation (PowerShell)
-Set-Location "$env:USERPROFILE\ejoinctl\ejoinctl"
+Set-Location "$env:USERPROFILE\bop\bop"
 .\venv\Scripts\Activate.ps1
 
 # Test connection
-python -m ejoinctl.cli --host 192.168.1.100 --user admin --password secret test-connection
+python -m bop.cli --host 192.168.1.100 --user admin --password secret test-connection
 
 # Send SMS
-python -m ejoinctl.cli --host 192.168.1.100 --user admin --password secret `
+python -m bop.cli --host 192.168.1.100 --user admin --password secret `
   sms send --to "+1234567890" --text "Hello from Windows!" --ports "1A"
 ```
 
 ### Docker Quick Start
 ```bash
 # Test connection
-docker run --rm ejoinctl:1.0.0 \
+docker run --rm bop:1.0.0 \
   --host 192.168.1.100 --user admin --password secret \
   test-connection
 
 # Send SMS
-docker run --rm ejoinctl:1.0.0 \
+docker run --rm bop:1.0.0 \
   --host 192.168.1.100 --user admin --password secret \
   sms send --to "+1234567890" --text "Hello from Docker!" --ports "1A"
 ```
@@ -399,13 +399,13 @@ docker run --rm ejoinctl:1.0.0 \
 ### Configuration File Locations
 
 #### macOS/Linux
-- System-wide: `/etc/ejoinctl/config.ini`
-- User-specific: `~/.config/ejoinctl/config.ini`
+- System-wide: `/etc/bop/config.ini`
+- User-specific: `~/.config/bop/config.ini`
 - Local project: `./config/config.ini`
 
 #### Windows
-- System-wide: `C:\ProgramData\ejoinctl\config.ini`
-- User-specific: `%USERPROFILE%\.config\ejoinctl\config.ini`
+- System-wide: `C:\ProgramData\bop\config.ini`
+- User-specific: `%USERPROFILE%\.config\bop\config.ini`
 - Local project: `.\config\config.ini`
 
 ### Environment Variables
@@ -417,18 +417,18 @@ export EJOIN_USER=admin
 export EJOIN_PASSWORD=secret
 
 # Application settings
-export EJOINCTL_LOG_LEVEL=INFO
-export EJOINCTL_TIMEOUT=30
-export EJOINCTL_RETRIES=3
+export BOXOFPORTS_LOG_LEVEL=INFO
+export BOXOFPORTS_TIMEOUT=30
+export BOXOFPORTS_RETRIES=3
 ```
 
 ### Logging Configuration
 ```bash
 # Enable debug logging
-ejoinctl --verbose --host 192.168.1.100 test-connection
+bop --verbose --host 192.168.1.100 test-connection
 
 # Log to file
-ejoinctl --host 192.168.1.100 test-connection 2>&1 | tee ejoinctl.log
+bop --host 192.168.1.100 test-connection 2>&1 | tee bop.log
 ```
 
 ## 🛠️ Troubleshooting
@@ -469,11 +469,11 @@ telnet 192.168.1.100 80
 #### For High-Volume SMS Operations
 ```bash
 # Increase timeout and retries
-export EJOINCTL_TIMEOUT=60
-export EJOINCTL_RETRIES=5
+export BOXOFPORTS_TIMEOUT=60
+export BOXOFPORTS_RETRIES=5
 
 # Use specific intervals
-ejoinctl sms spray --intvl-ms 100 --ports "1A-10D" --to "+1234567890" --text "Bulk message"
+bop sms spray --intvl-ms 100 --ports "1A-10D" --to "+1234567890" --text "Bulk message"
 ```
 
 #### For Multiple Gateways
@@ -488,10 +488,10 @@ ejoinctl sms spray --intvl-ms 100 --ports "1A-10D" --to "+1234567890" --text "Bu
 ```bash
 # Use environment variables instead of command line
 export EJOIN_PASSWORD=secure_password
-ejoinctl --host 192.168.1.100 --user admin test-connection
+bop --host 192.168.1.100 --user admin test-connection
 
 # Use configuration files with restricted permissions
-chmod 600 ~/.config/ejoinctl/config.ini
+chmod 600 ~/.config/bop/config.ini
 ```
 
 ### Network Security
@@ -510,7 +510,7 @@ chmod 600 ~/.config/ejoinctl/config.ini
 ### Version Updates
 ```bash
 # Check current version
-ejoinctl --version
+bop --version
 
 # Update to latest version
 git pull origin main
@@ -520,15 +520,15 @@ pip install -e . --upgrade
 ### Backup and Recovery
 ```bash
 # Backup configuration and data
-tar -czf ejoinctl-backup-$(date +%Y%m%d).tar.gz ~/.config/ejoinctl ./data
+tar -czf bop-backup-$(date +%Y%m%d).tar.gz ~/.config/bop ./data
 
 # Restore from backup
-tar -xzf ejoinctl-backup-20250101.tar.gz
+tar -xzf bop-backup-20250101.tar.gz
 ```
 
 ---
 
-**ejoinctl v1.0.0 Deployment Guide**  
+**BoxOfPorts Deployment Guide**  
 Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
 
 For technical support: support@altheamesh.com  

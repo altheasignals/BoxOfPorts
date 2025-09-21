@@ -1,8 +1,8 @@
-# SMS Inbox Management Implementation Summary
+# BoxOfPorts SMS Inbox Management Implementation Summary
 
 ## ✅ Implementation Complete
 
-The SMS inbox management functionality has been successfully implemented for the ejoinctl CLI. This provides a robust, user-friendly interface for managing incoming SMS messages on EJOIN Multi-WAN Routers.
+The SMS inbox management functionality has been successfully implemented for the BoxOfPorts CLI (`bop`). This provides a robust, user-friendly interface for managing incoming SMS messages on EJOIN Multi-WAN Routers.
 
 ## 🎯 Key Features Implemented
 
@@ -65,18 +65,18 @@ The SMS inbox management functionality has been successfully implemented for the
 ### Command Examples:
 ```bash
 # Basic inbox management
-ejoinctl inbox list                    # List recent messages
-ejoinctl inbox summary                 # Get statistics
-ejoinctl inbox stop                    # Check STOP messages
+bop inbox list                    # List recent messages
+bop inbox summary                 # Get statistics
+bop inbox stop                    # Check STOP messages
 
 # Advanced filtering
-ejoinctl inbox list --type stop --port 1A
-ejoinctl inbox search "balance" --details
-ejoinctl inbox list --no-delivery-reports --count 50
+bop inbox list --type stop --port 1A
+bop inbox search "balance" --details
+bop inbox list --no-delivery-reports --count 50
 
 # Compliance & automation
-ejoinctl inbox stop --json > compliance_stops.json
-ejoinctl inbox summary --json | jq '.stop_messages'
+bop inbox stop --json > compliance_stops.json
+bop inbox summary --json | jq '.stop_messages'
 ```
 
 ### Integration Ready:
@@ -151,15 +151,15 @@ ejoinctl inbox summary --json | jq '.stop_messages'
 ## 📋 Files Modified/Created
 
 ### New Files:
-- `ejoinctl/inbox.py` - Inbox service implementation
-- `ejoinctl/__main__.py` - Module execution entry point
+- `bop/inbox.py` - Inbox service implementation
+- `bop/__main__.py` - Module execution entry point
 - `INBOX_DOCUMENTATION.md` - User documentation
 - `INBOX_IMPLEMENTATION_SUMMARY.md` - This summary
 
 ### Modified Files:
-- `ejoinctl/api_models.py` - Enhanced with SMS models
-- `ejoinctl/client.py` - Added inbox API methods
-- `ejoinctl/cli.py` - Added inbox command group
+- `bop/api_models.py` - Enhanced with SMS models
+- `bop/client.py` - Added inbox API methods
+- `bop/cli.py` - Added inbox command group
 - `README.md` - Updated with inbox features
 
 ## 🎉 Success Metrics
@@ -173,7 +173,7 @@ The implementation successfully provides:
 - ✅ **JSON API support** for automation and integration
 - ✅ **Comprehensive documentation** for users and developers
 
-This implementation significantly enhances the ejoinctl CLI's capabilities, providing professional-grade SMS inbox management that meets both interactive and automated use cases.
+This implementation significantly enhances BoxOfPorts' capabilities, providing professional-grade SMS inbox management that meets both interactive and automated use cases.
 
 ---
 

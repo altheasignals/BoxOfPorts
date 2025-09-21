@@ -1,16 +1,17 @@
-# ejoinctl - EJOIN Multi-WAN Router Management CLI
+# BoxOfPorts - SMS Gateway Management CLI
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/altheamesh/ejoinctl)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/altheamesh/boxofports)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 
-**Professional command-line interface for EJOIN Multi-WAN Router HTTP API v2.2 management**
+**SMS Gateway Management CLI for EJOIN Multi-WAN Router Operators**  
+*"Box of Rain" - Grateful Dead inspired tool for managing your box of ports*
 
 Developed by [Althea Signals Network LLC](https://altheamesh.com) - The leader in decentralized telecommunications infrastructure.
 
 ## 🌟 Overview
 
-ejoinctl is a comprehensive, production-ready CLI tool designed for managing EJOIN multi-WAN routers. Built with enterprise-grade reliability and ease of use in mind, it provides powerful SMS operations, device management, real-time monitoring, and advanced templating capabilities.
+BoxOfPorts (`bop`) is a comprehensive CLI tool designed for SMS gateway operators managing EJOIN multi-WAN routers. Built for the daily reality of managing dozens of gateways with failing ports, SIM card swaps, and compliance monitoring, it provides practical SMS operations, inbox management, device control, and automation capabilities.
 
 ### Key Features
 
@@ -34,67 +35,128 @@ ejoinctl is a comprehensive, production-ready CLI tool designed for managing EJO
 
 ### Installation
 
-#### Option 1: Direct Installation (Recommended)
+BoxOfPorts supports three installation modes to accommodate different use cases:
+
+#### Option 1: 🛠️ Development Mode (pyenv + editable install)
+**Perfect for developers and operators who modify the code**
+
 ```bash
 # Clone the repository
-git clone https://github.com/altheamesh/ejoinctl.git
-cd ejoinctl
+git clone https://github.com/altheamesh/bop.git
+cd bop
 
-# Install dependencies
-pip install -e .
+# Run the installer and select option 1
+./install.sh
 
-# Verify installation
-ejoinctl --help
+# Or install directly if you have pyenv
+./install-dev.sh
 ```
 
-#### Option 2: Using Docker
+**Benefits:**
+- Code changes take effect immediately
+- Perfect for development and testing
+- Uses pyenv for Python version management
+- No sudo required
+
+#### Option 2: 👤 User Mode (local installation)
+**Recommended for most users**
+
+```bash
+# Clone the repository
+git clone https://github.com/altheamesh/bop.git
+cd bop
+
+# Run the installer and select option 2
+./install.sh
+
+# Or install directly
+./install-user.sh
+```
+
+**Benefits:**
+- Clean isolated installation in ~/.local/bin
+- No sudo required
+- Doesn't affect system Python
+- Easy to update and remove
+
+#### Option 3: 🌐 System Mode (global installation)
+**For administrators managing multi-user systems**
+
+```bash
+# Clone the repository
+git clone https://github.com/altheamesh/bop.git
+cd bop
+
+# Run the installer and select option 3
+./install.sh
+
+# Or install directly with sudo
+sudo ./install-system.sh
+```
+
+**Benefits:**
+- Available to all users on the system
+- Centralized maintenance
+- User data remains private per user
+- Requires sudo/root privileges
+
+#### Option 4: Using Docker
 ```bash
 # Build the container
-docker build -t ejoinctl .
+docker build -t bop .
 
 # Run commands
-docker run --rm ejoinctl --help
+docker run --rm bop --help
 ```
+
+### Choosing the Right Installation Mode
+
+- **👨‍💻 Developer/Operator**: Use Development Mode for immediate code changes
+- **🧑‍💻 Regular User**: Use User Mode for clean, isolated installation
+- **👨‍💼 System Admin**: Use System Mode for enterprise/multi-user environments
+- **🐳 Container User**: Use Docker for containerized deployments
+
+> **Note**: Regardless of installation mode, all user data (configs, databases, profiles) remains private in each user's home directory.
 
 ### Basic Usage
 
 #### Option 1: Quick Commands (specify connection details each time)
 ```bash
 # Test connection to your gateway
-ejoinctl --host 192.168.1.100 --user admin --password your_password test-connection
+bop --host 192.168.1.100 --user admin --password your_password test-connection
 
 # Test connection with custom port (host:port format)
-ejoinctl --host 13.228.130.204:60140 --user root --password your_password test-connection
+bop --host 13.228.130.204:60140 --user root --password your_password test-connection
 
 # Send SMS via specific port
-ejoinctl --host 192.168.1.100 --user admin --password your_password \
-  sms send --to "+1234567890" --text "Hello from ejoinctl!" --ports "1A"
+bop --host 192.168.1.100 --user admin --password your_password \
+  sms send --to "+1234567890" --text "Hello from bop!" --ports "1A"
 ```
 
 #### Option 2: Profile-Based Usage (Recommended)
 ```bash
 # Create profiles for your servers (one-time setup)
-ejoinctl config add-profile remote --host 13.228.130.204:60140 --user root --password your_password
-ejoinctl config add-profile local --host 192.168.1.100 --user admin --password your_password
+bop config add-profile remote --host 13.228.130.204:60140 --user root --password your_password
+bop config add-profile local --host 192.168.1.100 --user admin --password your_password
 
 # Switch between profiles
-ejoinctl config switch remote
+bop config switch remote
 
 # Now use commands without specifying connection details!
-ejoinctl test-connection
-ejoinctl sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
-ejoinctl ops lock --ports "1A-1D"
+bop test-connection
+bop sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
+bop ops lock --ports "1A-1D"
 
 # Switch to different server instantly
-ejoinctl config switch local
-ejoinctl test-connection  # Now connects to local server
+bop config switch local
+bop test-connection  # Now connects to local server
 ```
 
 ## 📖 Documentation
 
 ### Command Structure
 ```
-ejoinctl [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
+bop [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 ```
 
 ### Global Options
@@ -108,48 +170,48 @@ ejoinctl [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 
 #### Profile Management
 ```bash
-ejoinctl config add-profile <name>  # Add server profile
-ejoinctl config list                # List all profiles
-ejoinctl config switch <name>       # Switch to profile
-ejoinctl config current             # Show current profile
-ejoinctl config show [name]         # Show profile details
-ejoinctl config remove <name>       # Remove profile
+bop config add-profile <name>  # Add server profile
+bop config list                # List all profiles
+bop config switch <name>       # Switch to profile
+bop config current             # Show current profile
+bop config show [name]         # Show profile details
+bop config remove <name>       # Remove profile
 ```
 
 #### SMS Operations
 ```bash
-ejoinctl sms send     # Send SMS with templating support
-ejoinctl sms spray    # Spray SMS across multiple ports quickly
+bop sms send     # Send SMS with templating support
+bop sms spray    # Spray SMS across multiple ports quickly
 ```
 
 #### Inbox Management
 ```bash
-ejoinctl inbox list     # List received messages with filtering
-ejoinctl inbox search   # Search messages by content
-ejoinctl inbox stop     # Show STOP/unsubscribe messages
-ejoinctl inbox summary  # Inbox statistics and overview
-ejoinctl inbox show     # Show detailed message information
+bop inbox list     # List received messages with filtering
+bop inbox search   # Search messages by content
+bop inbox stop     # Show STOP/unsubscribe messages
+bop inbox summary  # Inbox statistics and overview
+bop inbox show     # Show detailed message information
 ```
 
 #### Device Operations  
 ```bash
-ejoinctl ops lock     # Lock specified ports
-ejoinctl ops unlock   # Unlock specified ports
+bop ops lock     # Lock specified ports
+bop ops unlock   # Unlock specified ports
 ```
 
 #### Status Monitoring
 ```bash
-ejoinctl status subscribe  # Subscribe to status notifications
+bop status subscribe  # Subscribe to status notifications
 ```
 
 #### Utility
 ```bash
-ejoinctl test-connection  # Test gateway connectivity
+bop test-connection  # Test gateway connectivity
 ```
 
 ## 🎨 Template System
 
-ejoinctl includes a powerful Jinja2-based template system for dynamic SMS content:
+bop includes a powerful Jinja2-based template system for dynamic SMS content:
 
 ### Built-in Variables
 - `{{port}}` - Current port identifier
@@ -159,10 +221,10 @@ ejoinctl includes a powerful Jinja2-based template system for dynamic SMS conten
 ### Example Templates
 ```bash
 # Basic templating
-ejoinctl sms send --text "Alert from port {{port}} at {{ts}}" --ports "1A"
+bop sms send --text "Alert from port {{port}} at {{ts}}" --ports "1A"
 
 # With custom variables and filters
-ejoinctl sms send \
+bop sms send \
   --text "{{company | upper}} Alert: Port {{port}} Status {{status}}" \
   --ports "1A,2B" --var "company=Acme Corp" --var "status=OK"
 ```
@@ -175,7 +237,7 @@ ejoinctl sms send \
 
 ## 🔌 Port Specifications
 
-ejoinctl supports flexible port specification formats:
+bop supports flexible port specification formats:
 
 ### Single Ports
 - `1A` - Slot 1, Port A
@@ -195,7 +257,7 @@ ejoinctl supports flexible port specification formats:
 
 ### Bulk SMS Campaign
 ```bash
-ejoinctl sms send --to "+1234567890" \
+bop sms send --to "+1234567890" \
   --text "Campaign #{{idx}} from {{port}}" \
   --ports "1A-4D" --repeat 2
 ```
@@ -203,38 +265,38 @@ ejoinctl sms send --to "+1234567890" \
 ### Emergency Alert System
 ```bash
 # Lock all ports
-ejoinctl ops lock --ports "1A-10D"
+bop ops lock --ports "1A-10D"
 
 # Send alert
-ejoinctl sms send --to "+1234567890" \
+bop sms send --to "+1234567890" \
   --text "EMERGENCY: System locked at {{ts}}" --ports "1A"
 ```
 
 ### SMS Inbox Management
 ```bash
 # Monitor STOP messages (compliance)
-ejoinctl inbox stop
+bop inbox stop
 
 # Get inbox overview
-ejoinctl inbox summary
+bop inbox summary
 
 # Find messages containing specific text
-ejoinctl inbox search "balance"
+bop inbox search "balance"
 
 # List recent messages excluding delivery reports
-ejoinctl inbox list --count 20 --no-delivery-reports
+bop inbox list --count 20 --no-delivery-reports
 
 # Export STOP messages for compliance
-ejoinctl inbox stop --json > stop_messages.json
+bop inbox stop --json > stop_messages.json
 ```
 
 ### Multi-Gateway Management
 ```bash
 # Gateway 1
-ejoinctl --host 192.168.1.100 sms send --to "+1234567890" --text "From GW1" --ports "1A"
+bop --host 192.168.1.100 sms send --to "+1234567890" --text "From GW1" --ports "1A"
 
 # Gateway 2  
-ejoinctl --host 192.168.1.101 sms send --to "+1234567890" --text "From GW2" --ports "1A"
+bop --host 192.168.1.101 sms send --to "+1234567890" --text "From GW2" --ports "1A"
 ```
 
 ## 🐳 Docker Usage
@@ -242,21 +304,21 @@ ejoinctl --host 192.168.1.101 sms send --to "+1234567890" --text "From GW2" --po
 ### Build and Run
 ```bash
 # Build the image
-docker build -t ejoinctl .
+docker build -t bop .
 
 # Run with mounted config
-docker run --rm -v $(pwd)/config:/app/config ejoinctl \
+docker run --rm -v $(pwd)/config:/app/config bop \
   --host 192.168.1.100 --user admin --password your_password test-connection
 
 # Interactive mode
-docker run --rm -it ejoinctl bash
+docker run --rm -it bop bash
 ```
 
 ### Docker Compose
 ```yaml
 version: '3.8'
 services:
-  ejoinctl:
+  bop:
     build: .
     volumes:
       - ./config:/app/config
@@ -272,8 +334,8 @@ services:
 ### Setting up Development Environment
 ```bash
 # Clone repository
-git clone https://github.com/altheamesh/ejoinctl.git
-cd ejoinctl
+git clone https://github.com/altheamesh/bop.git
+cd bop
 
 # Install in development mode
 pip install -e ".[dev]"
@@ -285,7 +347,7 @@ pytest
 ruff check .
 
 # Type checking
-mypy ejoinctl/
+mypy bop/
 ```
 
 ### Running Tests
@@ -297,7 +359,7 @@ pytest
 pytest tests/test_ports.py
 
 # Run with coverage
-pytest --cov=ejoinctl
+pytest --cov=bop
 ```
 
 ## 📋 Requirements
@@ -322,19 +384,19 @@ pytest --cov=ejoinctl
 #### Connection Timeouts
 ```bash
 # Increase timeout
-ejoinctl --host 192.168.1.100 --timeout 60 test-connection
+bop --host 192.168.1.100 --timeout 60 test-connection
 ```
 
 #### Authentication Errors
 ```bash
 # Verify credentials
-ejoinctl --host 192.168.1.100 --user admin --password correct_password test-connection
+bop --host 192.168.1.100 --user admin --password correct_password test-connection
 ```
 
 #### Port Specification Errors
 ```bash
 # Use dry-run to verify port parsing
-ejoinctl sms send --ports "1A-1D" --text "test" --to "+1234567890" --dry-run
+bop sms send --ports "1A-1D" --text "test" --to "+1234567890" --dry-run
 ```
 
 ## 📞 Support
@@ -344,6 +406,24 @@ For technical support, feature requests, or licensing inquiries:
 - **Email**: support@altheamesh.com
 - **Website**: [https://altheamesh.com](https://altheamesh.com)
 - **Documentation**: [Full documentation available online]
+
+## 📚 Complete Documentation
+
+This README provides a quick start guide. For comprehensive documentation, see the [docs/](docs/) directory:
+
+### 📖 User Guides
+- **[Usage Guide](docs/usage/USAGE_GUIDE.md)** - Complete usage examples and tutorials
+- **[Inbox Documentation](docs/usage/INBOX_DOCUMENTATION.md)** - SMS inbox management guide
+
+### 🚀 Deployment Guides
+- **[Deployment Guide](docs/deployment/DEPLOYMENT.md)** - Comprehensive deployment guide for all platforms
+- **[Distribution Summary](docs/deployment/DISTRIBUTION_SUMMARY.md)** - Distribution package overview
+
+### 🛠️ Developer Resources
+- **[Test Summary](docs/development/TEST_SUMMARY.md)** - Testing implementation and results
+- **[Development Documentation](docs/development/)** - Architecture and implementation details
+
+> 💡 **Tip**: Start with the [Documentation Index](docs/README.md) for a complete overview of available resources.
 
 ## 📄 License
 
@@ -362,5 +442,7 @@ cutting-edge technology and open protocols.
 
 ---
 
-**ejoinctl v1.0.0** - Professional EJOIN Gateway Management  
+**BoxOfPorts** - SMS Gateway Management CLI  
+*"Box of Rain" - Grateful Dead inspired*  
+Command: `bop`  
 Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.

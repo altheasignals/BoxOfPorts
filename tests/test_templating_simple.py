@@ -1,7 +1,7 @@
 """Simple tests for SMS templating functionality."""
 
 import pytest
-from ejoinctl.templating import SMSTemplateEngine
+from boxofports.templating import render_sms_template
 
 
 def test_basic_render():

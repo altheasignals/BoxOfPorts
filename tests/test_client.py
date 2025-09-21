@@ -4,9 +4,9 @@ import pytest
 from unittest.mock import AsyncMock, patch
 import httpx
 
-from ejoinctl.http import APIClient
-from ejoinctl.config import GatewayConfig
-from ejoinctl.models import (
+from boxofports.http import APIClient
+from boxofports.config import GatewayConfig
+from boxofports.models import (
     SMSTask,
     SendSMSRequest,
     SendSMSResponse,

@@ -1,5 +1,5 @@
 # # System / Architecture Prompt for Codegen
-You are scaffolding a **Python 3.11** command-line application named **ejoinctl** that wraps the **EJOIN Multi-WAN Router HTTP API v2.2**. The goal is to give operators a fast, reliable CLI for day-to-day tasks: sending test SMS (with variable substitution and per-port routing), monitoring tasks and delivery, browsing the inbox, basic device ops (switch SIM, lock/unlock, reboot, save config), and initial proxy/allowlist config.
+You are scaffolding a **Python 3.11** command-line application named **bop** that wraps the **EJOIN Multi-WAN Router HTTP API v2.2**. The goal is to give operators a fast, reliable CLI for day-to-day tasks: sending test SMS (with variable substitution and per-port routing), monitoring tasks and delivery, browsing the inbox, basic device ops (switch SIM, lock/unlock, reboot, save config), and initial proxy/allowlist config.
 ## Authoritative API (must implement exactly)
 Use the following endpoints and payloads as specified:
 * **Device/port status (subscribe & push):** /goip_get_status.html?url=...&period=...&all_sims=... (server supplies a report URL; device pushes dev-status and port-status JSON). Message bodies and fields are defined in §3.1.3–3.1.4.ejoin_multiwan_router_http_api_… 
@@ -33,7 +33,7 @@ Use the following endpoints and payloads as specified:
 
 ⠀Project layout
 
-ejoinctl/
+bop/
   __init__.py
   config.py           # env & profile loader
   http.py             # httpx client factory, auth, retries, timeouts
@@ -53,7 +53,7 @@ tests/
 ## CLI: required commands & behavior
 ### 1) Send test SMS with variable substitution and per-port routing
 
-ejoinctl sms send \
+bop sms send \
   --to +15551234567 \
   --text "Port {{port}} says hi at {{ts}}" \
   --ports 1A,2B,3C,4-8 \
@@ -68,64 +68,64 @@ ejoinctl sms send \
 
 ⠀2) “Spray” the same number via multiple ports quickly
 
-ejoinctl sms spray --to +15551234567 --text "Probe from {{port}}" --ports 1A-8D --intvl-ms 250
+bop sms spray --to +15551234567 --text "Probe from {{port}}" --ports 1A-8D --intvl-ms 250
 * Same as above; respect intvl and tmo. (§5.3.1 attributes intvl, tmo)ejoin_multiwan_router_http_api_… 
 
 ⠀3) Track delivery / progress
 
-ejoinctl sms watch --tids 1201,1202 --poll
+bop sms watch --tids 1201,1202 --poll
 * If your environment can’t expose a callback URL, support **polling** with /goip_get_tasks.html and print aggregates: sending/sent/failed/unsent plus per-destination details if present. (§5.3.2, §5.3.6)ejoin_multiwan_router_http_api_… ejoin_multiwan_router_http_api_… 
 * If --listen :8080 is provided, spin up an optional uvicorn/FastAPI endpoint to accept status-report pushes and update the display in real time. (§5.3.2)ejoin_multiwan_router_http_api_… 
 
 ⠀4) Pause / resume / delete queued tasks
 
-ejoinctl sms pause  --tids 1201,1202
-ejoinctl sms resume --tids 1201,1202
-ejoinctl sms rm     --tids 1201,1202
+bop sms pause  --tids 1201,1202
+bop sms resume --tids 1201,1202
+bop sms rm     --tids 1201,1202
 * Implement per spec with bodies {"tids":[...]} and print result codes. (§5.3.3–5.3.5)ejoin_multiwan_router_http_api_… 
 
 ⠀5) Browse queued tasks
 
-ejoinctl sms queue --port 1 --pos 0 --num 25 --content
+bop sms queue --port 1 --pos 0 --num 25 --content
 * Calls /goip_get_tasks.html with has_content=1 when --content is set. (§5.3.6)ejoin_multiwan_router_http_api_… 
 
 ⠀6) Inbox (received messages)
 
-ejoinctl inbox pull --start-id 1 --limit 50 --delete
+bop inbox pull --start-id 1 --limit 50 --delete
 * Calls /goip_get_sms.html with sms_id, sms_num, sms_del. Decode base64 payloads. Print port, timestamp, sender, recipient, text, and whether it’s a delivery report. (§7.2)ejoin_multiwan_router_http_api_… 
 
 ⠀7) Device/port status
 
-ejoinctl status subscribe --callback https://ops.example.com/ejoin --period 60 --all-sims
-ejoinctl status tail      # pretty-print dev-status / port-status as they arrive
+bop status subscribe --callback https://ops.example.com/ejoin --period 60 --all-sims
+bop status tail      # pretty-print dev-status / port-status as they arrive
 * Send /goip_get_status.html?url=...&period=...&all_sims=1 to set the report URL. Render both dev-status (aggregate) and port-status (on change). (§3.1.1–3.1.4)ejoin_multiwan_router_http_api_… 
 
 ⠀8) Operations: lock/unlock/switch/reset/save/reboot/redial
 
-ejoinctl ops lock    --ports 1A,2B
-ejoinctl ops unlock  --ports 1A
-ejoinctl ops switch  --ports 2.02      # switch SIM to slot 2 on port 2
-ejoinctl ops reset   --ports 3C        # reboot module on port
-ejoinctl ops save
-ejoinctl ops reboot  # device reboot
-ejoinctl ops redial  --ports 1A --mode flight --delay 5
+bop ops lock    --ports 1A,2B
+bop ops unlock  --ports 1A
+bop ops switch  --ports 2.02      # switch SIM to slot 2 on port 2
+bop ops reset   --ports 3C        # reboot module on port
+bop ops save
+bop ops reboot  # device reboot
+bop ops redial  --ports 1A --mode flight --delay 5
 * Use /goip_send_cmd.html with body {"type":"command","op":"...", "ports":"...", ...} or with ops[] when op=multiple. Respect mode 0=flight, 1=fast and optional delay (seconds). (§4.1.2–4.1.3)ejoin_multiwan_router_http_api_… 
 
 ⠀**IMEI note:** If IMEI is configurable via op=set + parameter name, expose:
 
-ejoinctl ops set --param imei --value 86xxxxxxxxxxxxx --ports 2B
+bop ops set --param imei --value 86xxxxxxxxxxxxx --ports 2B
 Wire this generically using par_name(n) semantics if present; otherwise document that IMEI requires device-specific parameter support. (§4.1.2, parameterized get/set)
 ejoin_multiwan_router_http_api_…
 ### 9) Proxy and access rules (initially minimal)
 
-ejoinctl proxy enable --mode socks5
-ejoinctl proxy add --mode socks5 --name foo --port 1080 --interfaces 0 --active
-ejoinctl proxy ls  --mode socks5
-ejoinctl proxy-user add --mode http --name alice --pwd secret --interfaces 0
-ejoinctl proxy-urls whitelist enable --mode http
-ejoinctl proxy-urls whitelist add --mode http --url "3,*.example.com"
-ejoinctl ip allow  --enable --add 192.168.1.0/24
-ejoinctl ip deny   --enable --add "*"
+bop proxy enable --mode socks5
+bop proxy add --mode socks5 --name foo --port 1080 --interfaces 0 --active
+bop proxy ls  --mode socks5
+bop proxy-user add --mode http --name alice --pwd secret --interfaces 0
+bop proxy-urls whitelist enable --mode http
+bop proxy-urls whitelist add --mode http --url "3,*.example.com"
+bop ip allow  --enable --add 192.168.1.0/24
+bop ip deny   --enable --add "*"
 * Implement per §8 (proxy) and §9–10 (IP lists), including warning that blacklist "*" blocks all IPs unless whitelist is enabled.ejoin_multiwan_router_http_api_… ejoin_multiwan_router_http_api_… 
 
 ⠀UX & ergonomics
@@ -150,29 +150,29 @@ ejoinctl ip deny   --enable --add "*"
 **1** **Probe a number across 4 ports**
 
 ⠀
-ejoinctl sms send --to +15551234567 --text "Hi from {{port}} at {{ts}}" --ports 1A,1B,1C,1D --intvl-ms 200
+bop sms send --to +15551234567 --text "Hi from {{port}} at {{ts}}" --ports 1A,1B,1C,1D --intvl-ms 200
 # Expect: task-status table with code 0 OK for each tid.
 **2** **Watch delivery**
 
 ⠀
-ejoinctl sms watch --tids 101,102 --poll
+bop sms watch --tids 101,102 --poll
 # Expect: aggregates updating until sent==total or failed>0 with reasons.
 **3** **Check inbox and delete fetched**
 
 ⠀
-ejoinctl inbox pull --start-id 1 --limit 100 --delete
+bop inbox pull --start-id 1 --limit 100 --delete
 # Expect: table with sender, ts, text; next_sms printed.
 **4** **Switch SIM and reboot module**
 
 ⠀
-ejoinctl ops switch --ports 2.02
-ejoinctl ops reset  --ports 2B
+bop ops switch --ports 2.02
+bop ops reset  --ports 2B
 **5** **Enable socks5 proxy on all SIM WANs**
 
 ⠀
-ejoinctl proxy add --mode socks5 --name ops --port 1080 --interfaces 0 --active
-ejoinctl proxy enable --mode socks5
-ejoinctl proxy ls --mode socks5
+bop proxy add --mode socks5 --name ops --port 1080 --interfaces 0 --active
+bop proxy enable --mode socks5
+bop proxy ls --mode socks5
 ## Implementation hints
 * Normalize port tokens: accept 1A..1D, 1.01..1.04, ranges like 4-32 (expand to all ports per device capability; keep it purely syntactic on client side).
 * For **status subscribe**, just set the URL once; the device then POSTs status periodically or on change. (§3.1)ejoin_multiwan_router_http_api_… 

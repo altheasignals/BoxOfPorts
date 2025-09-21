@@ -6,8 +6,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ejoinctl.store import SQLiteStorage
-from ejoinctl.models import (
+from boxofports.store import SQLiteStorage
+from boxofports.models import (
     SMSTask,
     SMSReport,
     InboxMessage,

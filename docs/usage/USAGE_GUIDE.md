@@ -1,7 +1,7 @@
-# 🚀 Complete ejoinctl Usage Guide
+# 🚀 Complete BoxOfPorts Usage Guide
 
 ## Overview
-ejoinctl is a comprehensive CLI tool for managing EJOIN Multi-WAN Router HTTP API v2.2. It provides SMS operations, device management, status monitoring, and more.
+BoxOfPorts (`bop`) is a comprehensive CLI tool for managing EJOIN Multi-WAN Router HTTP API v2.2. It provides SMS operations, inbox management, device control, and compliance monitoring for SMS gateway operators.
 
 ## 📋 Available Gateways (from server_access.csv)
 - **RYL2371245SM**: 192.168.1.234:80 (root/zyg0-poPx-tHey)
@@ -12,7 +12,7 @@ ejoinctl is a comprehensive CLI tool for managing EJOIN Multi-WAN Router HTTP AP
 
 ### Test Gateway Connection
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' test-connection
 ```
 
 **Output**: ✓ Connection successful! Device appears to be responding normally
@@ -20,10 +20,10 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 ### Test Gateway with Custom Port
 ```bash
 # Using explicit port parameter
-python -m ejoinctl.cli --host 13.228.130.204 --port 60140 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 13.228.130.204 --port 60140 --user root --password 'zyg0-poPx-tHey' test-connection
 
 # Using host:port format (recommended)
-python -m ejoinctl.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' test-connection
 ```
 
 ---
@@ -32,20 +32,20 @@ python -m ejoinctl.cli --host 13.228.130.204:60140 --user root --password 'zyg0-
 
 ### 1. Basic SMS Send
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" --text "Hello World" --ports "1A"
 ```
 
 ### 1b. SMS Send with Custom Port
 ```bash
 # Using host:port format
-python -m ejoinctl.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" --text "Hello from remote gateway" --ports "1A"
 ```
 
 ### 2. SMS with Template Variables
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" \
   --text "Hello from port {{port}} at {{ts}}" \
   --ports "1A"
@@ -53,7 +53,7 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 
 ### 3. Multi-Port SMS with Custom Variables
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" \
   --text "Alert from {{company | upper}} - Port {{port}} Status: {{status}}" \
   --ports "1A,2B,3A" \
@@ -62,7 +62,7 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 
 ### 4. Port Range SMS
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" \
   --text "Range test from {{port}} #{{idx}}" \
   --ports "1A-1D"
@@ -70,7 +70,7 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 
 ### 5. SMS Spray (Multiple Ports Quickly)
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms spray --to "+1234567890" \
   --text "Spray from {{port}}" \
   --ports "1A,2A,3A"
@@ -78,7 +78,7 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 
 ### 6. Dry Run (Preview Without Sending)
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" \
   --text "Test message" --ports "1A-1C" \
   --dry-run
@@ -86,7 +86,7 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 
 ### 7. Advanced Template with Filters
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" \
   --text "{{company | upper}} Alert: Port {{port}} at {{ts | truncate(19)}}" \
   --ports "1A,2B,3C" --var "company=TechCorp" \
@@ -99,19 +99,19 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 
 ### 1. Lock Ports
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   ops lock --ports "1A,2A"
 ```
 
 ### 2. Unlock Ports
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   ops unlock --ports "1A,2A"
 ```
 
 ### 3. Lock Port Range
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   ops lock --ports "1A-1D"
 ```
 
@@ -121,7 +121,7 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 
 ### 1. Subscribe to Status Updates
 ```bash
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   status subscribe --callback "http://example.com/webhook" --period 30 --all-sims
 ```
 
@@ -178,32 +178,32 @@ Pass custom variables using `--var key=value`:
 ### Test All Gateways
 ```bash
 # Gateway 1
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' test-connection
 
 # Gateway 2
-python -m ejoinctl.cli --host 192.168.1.150 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 192.168.1.150 --user root --password 'zyg0-poPx-tHey' test-connection
 
 # Gateway 3
-python -m ejoinctl.cli --host 192.168.1.109 --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --host 192.168.1.109 --user root --password 'zyg0-poPx-tHey' test-connection
 ```
 
 ### Switch Between Gateways
 Simply change the `--host` parameter to target different gateways:
 ```bash
 # Use Gateway 2 for SMS
-python -m ejoinctl.cli --host 192.168.1.150 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.150 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" --text "From Gateway 2" --ports "1A"
 ```
 
 ### Remote Gateways with Custom Ports
 ```bash
 # Connect to remote gateway with custom port
-python -m ejoinctl.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 13.228.130.204:60140 --user root --password 'zyg0-poPx-tHey' \
   test-connection
 
 # Environment variable approach
 export EJOIN_HOST="13.228.130.204:60140"
-python -m ejoinctl.cli --user root --password 'zyg0-poPx-tHey' test-connection
+python -m bop.cli --user root --password 'zyg0-poPx-tHey' test-connection
 ```
 
 ---
@@ -213,7 +213,7 @@ python -m ejoinctl.cli --user root --password 'zyg0-poPx-tHey' test-connection
 ### 1. Bulk SMS Campaign
 ```bash
 # Send to multiple ports with sequential numbering
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" \
   --text "Campaign message #{{idx + 1}} from {{port}}" \
   --ports "1A-4D" --dry-run
@@ -222,10 +222,10 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 ### 2. Emergency Alert System
 ```bash
 # Lock all ports first, then send alert
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   ops lock --ports "1A-10D"
 
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   sms send --to "+1234567890" \
   --text "EMERGENCY: All ports locked at {{ts}}" \
   --ports "1A"
@@ -234,7 +234,7 @@ python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tH
 ### 3. Status Monitoring Setup
 ```bash
 # Subscribe to real-time status updates
-python -m ejoinctl.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
+python -m bop.cli --host 192.168.1.234 --user root --password 'zyg0-poPx-tHey' \
   status subscribe --callback "https://yourdomain.com/status-webhook" \
   --period 60 --all-sims
 ```
@@ -304,13 +304,13 @@ Instead of specifying `--host`, `--user`, `--password` every time, create profil
 ### 1. Create Your First Profile
 ```bash
 # Add a remote server profile
-python -m ejoinctl.cli config add-profile remote \
+python -m bop.cli config add-profile remote \
   --host 13.228.130.204:60140 \
   --user root \
   --password 'zyg0-poPx-tHey'
 
 # Add a local server profile  
-python -m ejoinctl.cli config add-profile local \
+python -m bop.cli config add-profile local \
   --host 192.168.1.234 \
   --user root \
   --password 'zyg0-poPx-tHey'
@@ -318,7 +318,7 @@ python -m ejoinctl.cli config add-profile local \
 
 ### 2. List All Profiles
 ```bash
-python -m ejoinctl.cli config list
+python -m bop.cli config list
 ```
 **Output**:
 ```
@@ -334,38 +334,38 @@ python -m ejoinctl.cli config list
 ### 3. Switch Between Profiles
 ```bash
 # Switch to local profile
-python -m ejoinctl.cli config switch local
+python -m bop.cli config switch local
 
 # Check current profile
-python -m ejoinctl.cli config current
+python -m bop.cli config current
 ```
 
 ### 4. Use Commands Without Specifying Connection Details
 ```bash
 # No need for --host, --user, --password anymore!
-python -m ejoinctl.cli test-connection
-python -m ejoinctl.cli sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
+python -m bop.cli test-connection
+python -m bop.cli sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
 ```
 
 ### 5. Profile Commands Summary
 ```bash
 # Profile management
-python -m ejoinctl.cli config add-profile <name> --host <host:port> --user <user> --password <pass>
-python -m ejoinctl.cli config list                    # Show all profiles
-python -m ejoinctl.cli config switch <name>           # Switch to profile
-python -m ejoinctl.cli config current                 # Show current profile
-python -m ejoinctl.cli config show [name]            # Show profile details
-python -m ejoinctl.cli config remove <name>          # Delete profile
+python -m bop.cli config add-profile <name> --host <host:port> --user <user> --password <pass>
+python -m bop.cli config list                    # Show all profiles
+python -m bop.cli config switch <name>           # Switch to profile
+python -m bop.cli config current                 # Show current profile
+python -m bop.cli config show [name]            # Show profile details
+python -m bop.cli config remove <name>          # Delete profile
 ```
 
 ### 6. Override Profile Settings
 You can still override profile settings with CLI arguments:
 ```bash
 # Use different host temporarily
-python -m ejoinctl.cli --host 192.168.1.999 test-connection
+python -m bop.cli --host 192.168.1.999 test-connection
 
 # Use different port temporarily
-python -m ejoinctl.cli --port 8080 test-connection
+python -m bop.cli --port 8080 test-connection
 ```
 
 ---

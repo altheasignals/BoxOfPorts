@@ -1,16 +1,16 @@
-# ejoinctl - EJOIN Multi-WAN Router Management CLI
+# bop - EJOIN Multi-WAN Router Management CLI
 # Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
 # 
-# Professional Makefile for building, testing, and deploying ejoinctl
+# Professional Makefile for building, testing, and deploying bop
 
 .PHONY: help install install-dev test test-all lint format clean run build docker-build docker-run docker-compose-up docker-compose-down package release deploy docs
 
 # Project metadata
-PROJECT_NAME := ejoinctl
+PROJECT_NAME := bop
 VERSION := 1.0.0
 AUTHOR := "Althea Signals Network LLC"
-DOCKER_IMAGE := ejoinctl:$(VERSION)
-DOCKER_LATEST := ejoinctl:latest
+DOCKER_IMAGE := bop:$(VERSION)
+DOCKER_LATEST := bop:latest
 
 # Colors for output
 RED := \033[31m
@@ -21,7 +21,7 @@ RESET := \033[0m
 
 # Default target
 help:
-	@echo "$(BLUE)ejoinctl v$(VERSION) - EJOIN Multi-WAN Router Management CLI$(RESET)"
+	@echo "$(BLUE)bop v$(VERSION) - EJOIN Multi-WAN Router Management CLI$(RESET)"
 	@echo "$(BLUE)Developed by $(AUTHOR)$(RESET)"
 	@echo ""
 	@echo "$(GREEN)Available targets:$(RESET)"
@@ -75,7 +75,7 @@ test:
 
 test-all:
 	@echo "$(GREEN)Running all tests...$(RESET)"
-	pytest tests/ -v --cov=ejoinctl --cov-report=html --cov-report=term
+	pytest tests/ -v --cov=bop --cov-report=html --cov-report=term
 	@echo "$(GREEN)✓ All tests completed$(RESET)"
 
 test-integration:
@@ -86,13 +86,13 @@ test-integration:
 # Code quality targets
 lint:
 	@echo "$(GREEN)Running linting checks...$(RESET)"
-	ruff check ejoinctl/ tests/
-	mypy ejoinctl/ --ignore-missing-imports
+	ruff check bop/ tests/
+	mypy bop/ --ignore-missing-imports
 	@echo "$(GREEN)✓ Linting checks passed$(RESET)"
 
 format:
 	@echo "$(GREEN)Formatting code...$(RESET)"
-	ruff format ejoinctl/ tests/
+	ruff format bop/ tests/
 	@echo "$(GREEN)✓ Code formatted$(RESET)"
 
 # Clean up targets
@@ -150,7 +150,7 @@ compose-down:
 
 compose-logs:
 	@echo "$(GREEN)Showing Docker Compose logs...$(RESET)"
-	docker-compose logs -f ejoinctl
+	docker-compose logs -f bop
 
 # Deployment targets
 setup-dirs:
@@ -162,7 +162,7 @@ setup-dirs:
 deploy-local: install
 	@echo "$(GREEN)Deploying locally...$(RESET)"
 	@echo "$(PROJECT_NAME) is ready to use!"
-	@echo "Try: python -m ejoinctl.cli --help"
+	@echo "Try: python -m bop.cli --help"
 	@echo "$(GREEN)✓ Local deployment complete$(RESET)"
 
 deploy-docker: docker-build setup-dirs
@@ -173,12 +173,12 @@ deploy-docker: docker-build setup-dirs
 # Utility targets
 run:
 	@echo "$(GREEN)Running $(PROJECT_NAME) CLI...$(RESET)"
-	python -m ejoinctl.cli --help
+	python -m bop.cli --help
 
 version:
 	@echo "$(BLUE)$(PROJECT_NAME) v$(VERSION)$(RESET)"
 	@echo "$(BLUE)Developed by $(AUTHOR)$(RESET)"
-	@python -c "import ejoinctl; print(f'Package version: {ejoinctl.__version__}')" 2>/dev/null || echo "Package not installed"
+	@python -c "import bop; print(f'Package version: {bop.__version__}')" 2>/dev/null || echo "Package not installed"
 
 docs:
 	@echo "$(GREEN)Documentation available:$(RESET)"

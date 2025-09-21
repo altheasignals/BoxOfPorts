@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime
 
-from ejoinctl.templating import SMSTemplateEngine
+from boxofports.templating import SMSTemplateEngine
 from jinja2 import TemplateError
 
 

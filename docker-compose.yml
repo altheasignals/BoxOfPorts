@@ -1,15 +1,15 @@
-# ejoinctl Docker Compose Configuration
+# bop Docker Compose Configuration
 # Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
 
 version: '3.8'
 
 services:
-  ejoinctl:
+  bop:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ejoinctl-app
-    hostname: ejoinctl
+    container_name: bop-app
+    hostname: bop
     restart: unless-stopped
     
     # Environment variables
@@ -21,11 +21,11 @@ services:
       - EJOIN_PASSWORD=${EJOIN_PASSWORD:-admin}
       
       # Application settings
-      - EJOINCTL_LOG_LEVEL=${EJOINCTL_LOG_LEVEL:-INFO}
-      - EJOINCTL_DATA_DIR=/app/data
-      - EJOINCTL_CONFIG_DIR=/app/config
-      - EJOINCTL_TIMEOUT=${EJOINCTL_TIMEOUT:-30}
-      - EJOINCTL_RETRIES=${EJOINCTL_RETRIES:-3}
+      - BOXOFPORTS_LOG_LEVEL=${BOXOFPORTS_LOG_LEVEL:-INFO}
+      - BOXOFPORTS_DATA_DIR=/app/data
+      - BOXOFPORTS_CONFIG_DIR=/app/config
+      - BOXOFPORTS_TIMEOUT=${BOXOFPORTS_TIMEOUT:-30}
+      - BOXOFPORTS_RETRIES=${BOXOFPORTS_RETRIES:-3}
       
       # Python settings
       - PYTHONUNBUFFERED=1
@@ -36,15 +36,15 @@ services:
       # Configuration files (read-only)
       - ./config:/app/config:ro
       # Data persistence
-      - ejoinctl_data:/app/data
+      - bop_data:/app/data
       # Logs
-      - ejoinctl_logs:/app/logs
+      - bop_logs:/app/logs
       # Optional: custom configuration
       - ./gateways.csv:/app/config/gateways.csv:ro
     
     # Network configuration
     networks:
-      - ejoinctl_network
+      - bop_network
     
     # Resource limits
     deploy:
@@ -58,7 +58,7 @@ services:
     
     # Health check
     healthcheck:
-      test: ["CMD", "python", "-c", "import ejoinctl; print('healthy')"]
+      test: ["CMD", "python", "-c", "import bop; print('healthy')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -68,7 +68,7 @@ services:
     command: ["--help"]
     
     # Security settings
-    user: ejoinctl
+    user: bop
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=100m
@@ -80,71 +80,71 @@ services:
       - NET_ADMIN  # Only if needed for network operations
 
   # Optional: Web dashboard (future feature)
-  ejoinctl-web:
+  bop-web:
     build:
       context: .
       dockerfile: Dockerfile
       target: web  # Future multi-stage build
-    container_name: ejoinctl-web
+    container_name: bop-web
     profiles:
       - web  # Only start with --profile web
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8080}:8080"
     depends_on:
-      ejoinctl:
+      bop:
         condition: service_healthy
     networks:
-      - ejoinctl_network
+      - bop_network
     environment:
-      - EJOINCTL_WEB_HOST=0.0.0.0
-      - EJOINCTL_WEB_PORT=8080
+      - BOXOFPORTS_WEB_HOST=0.0.0.0
+      - BOXOFPORTS_WEB_PORT=8080
     volumes:
-      - ejoinctl_data:/app/data:ro
-      - ejoinctl_logs:/app/logs:ro
+      - bop_data:/app/data:ro
+      - bop_logs:/app/logs:ro
 
   # Optional: Database for advanced features (future)
-  ejoinctl-db:
+  bop-db:
     image: postgres:15-alpine
-    container_name: ejoinctl-db
+    container_name: bop-db
     profiles:
       - database
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=ejoinctl
-      - POSTGRES_USER=ejoinctl
+      - POSTGRES_DB=bop
+      - POSTGRES_USER=bop
       - POSTGRES_PASSWORD=${DB_PASSWORD:-secure_password}
     volumes:
-      - ejoinctl_db_data:/var/lib/postgresql/data
+      - bop_db_data:/var/lib/postgresql/data
     networks:
-      - ejoinctl_network
+      - bop_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ejoinctl"]
+      test: ["CMD-SHELL", "pg_isready -U bop"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 networks:
-  ejoinctl_network:
+  bop_network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.20.0.0/16
 
 volumes:
-  ejoinctl_data:
+  bop_data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ./data
   
-  ejoinctl_logs:
+  bop_logs:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ./logs
   
-  ejoinctl_db_data:
+  bop_db_data:
     driver: local

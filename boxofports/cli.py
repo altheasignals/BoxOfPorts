@@ -1,4 +1,4 @@
-"""CLI interface for ejoinctl using Typer."""
+"""CLI interface for BoxOfPorts using Typer."""
 
 import hashlib
 import random
@@ -14,8 +14,9 @@ from .http import create_sync_client, EjoinHTTPError
 from .ports import parse_port_spec, format_ports_for_api
 from .store import initialize_store, get_store
 from .templating import render_sms_template, parse_template_variables
+from .__version__ import get_full_version_info
 
-app = typer.Typer(help="CLI tool for EJOIN Multi-WAN Router HTTP API v2.2")
+app = typer.Typer(help="BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators")
 sms_app = typer.Typer(help="SMS operations")
 ops_app = typer.Typer(help="Device operations") 
 status_app = typer.Typer(help="Status monitoring")
@@ -31,6 +32,13 @@ app.add_typer(config_app, name="config")
 console = Console()
 
 
+def version_callback(value: bool):
+    """Print version information and exit."""
+    if value:
+        console.print(get_full_version_info())
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
@@ -39,8 +47,9 @@ def main(
     user: Optional[str] = typer.Option(None, "--user", help="Device username"),
     password: Optional[str] = typer.Option(None, "--pass", "--password", help="Device password"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose logging"),
+    version: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True, help="Show version information"),
 ):
-    """ejoinctl - CLI tool for EJOIN Multi-WAN Router."""
+    """BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators."""
     try:
         config = config_manager.get_config()
         
@@ -66,7 +75,7 @@ def main(
         ctx.obj['verbose'] = verbose
         
     except Exception as e:
-        console.print(f"[red]Error initializing ejoinctl: {e}[/red]")
+        console.print(f"[red]Error initializing BoxOfPorts: {e}[/red]")
         raise typer.Exit(1)
 
 
@@ -356,7 +365,7 @@ def config_list_profiles():
     
     if not profiles:
         console.print("[yellow]No profiles configured yet[/yellow]")
-        console.print("Use 'ejoinctl config add-profile' to create one")
+        console.print("Use 'bop config add-profile' to create one")
         return
     
     table = Table(title="Server Profiles")
@@ -394,7 +403,7 @@ def config_switch_profile(
             console.print(f"  User: {profile_config.username}")
     else:
         console.print(f"[red]Error: Profile '{name}' not found[/red]")
-        console.print("Use 'ejoinctl config list' to see available profiles")
+        console.print("Use 'bop config list' to see available profiles")
         raise typer.Exit(1)
 
 
@@ -407,7 +416,7 @@ def config_show_profile(
         name = config_manager.get_current_profile()
         if name is None:
             console.print("[yellow]No current profile set[/yellow]")
-            console.print("Specify a profile name or use 'ejoinctl config switch <name>'")
+            console.print("Specify a profile name or use 'bop config switch <name>'")
             return
     
     profile_config = config_manager.get_profile_config(name)
@@ -451,7 +460,7 @@ def config_remove_profile(
         elif not current and profiles:
             console.print(f"[yellow]Consider switching to another profile:[/yellow]")
             for profile in profiles[:3]:
-                console.print(f"  ejoinctl config switch {profile}")
+                console.print(f"  bop config switch {profile}")
     else:
         console.print(f"[red]Error: Profile '{name}' not found[/red]")
         raise typer.Exit(1)
@@ -473,9 +482,9 @@ def config_current_profile():
         if profiles:
             console.print("Available profiles:")
             for profile in profiles:
-                console.print(f"  ejoinctl config switch {profile}")
+                console.print(f"  bop config switch {profile}")
         else:
-            console.print("No profiles configured. Use 'ejoinctl config add-profile' to create one.")
+            console.print("No profiles configured. Use 'bop config add-profile' to create one.")
 
 
 # ==============================================================================

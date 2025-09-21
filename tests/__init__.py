@@ -1,1 +1,1 @@
-"""Test package for ejoinctl."""
+"""Tests for boxofports package."""

@@ -1,4 +1,4 @@
-"""Configuration management for ejoinctl."""
+"""Configuration management for BoxOfPorts."""
 
 import json
 import os
@@ -57,7 +57,7 @@ class EjoinConfig:
     max_retries: int = 3
     
     # Database settings
-    db_path: Path = field(default_factory=lambda: Path("./ejoinctl.db"))
+    db_path: Path = field(default_factory=lambda: Path("./boxofports.db"))
     
     # Webhook receiver settings
     webhook_host: str = "0.0.0.0"
@@ -70,7 +70,7 @@ class EjoinConfig:
             load_dotenv(env_file)
         else:
             # Try to load from common locations
-            for env_path in [Path(".env"), Path.home() / ".ejoinctl.env"]:
+            for env_path in [Path(".env"), Path.home() / ".boxofports.env"]:
                 if env_path.exists():
                     load_dotenv(env_path)
                     break
@@ -93,7 +93,7 @@ class EjoinConfig:
             password=os.getenv("EJOIN_PASS", ""),
             connect_timeout=float(os.getenv("EJOIN_CONNECT_TIMEOUT", "10.0")),
             read_timeout=float(os.getenv("EJOIN_READ_TIMEOUT", "30.0")),
-            db_path=Path(os.getenv("EJOIN_DB_PATH", "./ejoinctl.db")),
+            db_path=Path(os.getenv("EJOIN_DB_PATH", "./boxofports.db")),
             webhook_host=os.getenv("EJOIN_WEBHOOK_HOST", "0.0.0.0"),
             webhook_port=int(os.getenv("EJOIN_WEBHOOK_PORT", "8080")),
         )
@@ -135,7 +135,7 @@ class ConfigManager:
     def __init__(self):
         self._current_config: Optional[EjoinConfig] = None
         self._profiles: Dict[str, EjoinConfig] = {}
-        self._config_dir = Path.home() / ".ejoinctl"
+        self._config_dir = Path.home() / ".boxofports"
         self._profiles_file = self._config_dir / "profiles.json"
         self._current_profile_file = self._config_dir / "current_profile"
         self._current_profile: Optional[str] = None
@@ -210,7 +210,7 @@ class ConfigManager:
                 if not self._profiles:
                     raise ValueError(
                         "No configuration available. Either set environment variables "
-                        "(EJOIN_HOST, etc.) or create a profile with 'ejoinctl config add-profile'."
+                        "(EJOIN_HOST, etc.) or create a profile with 'bop config add-profile'."
                     )
                 # Use the first available profile
                 first_profile = next(iter(self._profiles.keys()))

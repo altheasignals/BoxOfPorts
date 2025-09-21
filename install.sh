@@ -1,359 +1,106 @@
 #!/bin/bash
-# ejoinctl Installation Script
-# Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
-#
-# Cross-platform installation script for ejoinctl
-# Supports macOS, Linux, and Windows (via WSL)
 
-set -e
+# BoxOfPorts Multi-Mode Installation Script
+# Supports three installation modes for different use cases
 
-# Colors for output
-RED='\033[31m'
-GREEN='\033[32m'
-YELLOW='\033[33m'
-BLUE='\033[34m'
-RESET='\033[0m'
+set -e  # Exit on any error
 
-# Project information
-PROJECT_NAME="ejoinctl"
-VERSION="1.0.0"
-AUTHOR="Althea Signals Network LLC"
-MIN_PYTHON_VERSION="3.11"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Functions
-log() {
-    echo -e "${GREEN}[INFO]${RESET} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${RESET} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${RESET} $1"
-    exit 1
-}
-
-banner() {
-    echo -e "${BLUE}"
-    echo "════════════════════════════════════════════════════════════════"
-    echo "  ejoinctl v${VERSION} - EJOIN Gateway Management CLI"
-    echo "  Developed by ${AUTHOR}"
-    echo "════════════════════════════════════════════════════════════════"
-    echo -e "${RESET}"
-}
-
-# Check if running as root (not recommended)
-check_root() {
-    if [[ $EUID -eq 0 ]]; then
-        warn "Running as root is not recommended!"
-        read -p "Continue anyway? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            error "Installation cancelled"
-        fi
-    fi
-}
-
-# Detect operating system
-detect_os() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        OS="macOS"
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        OS="Linux"
-    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]] || [[ -n "$WSL_DISTRO_NAME" ]]; then
-        OS="Windows/WSL"
-    else
-        warn "Unknown operating system: $OSTYPE"
-        OS="Unknown"
-    fi
-    log "Detected OS: $OS"
-}
+echo "🎁 BoxOfPorts Installation Script"
+echo "=================================="
+echo ""
+echo "BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
+echo "Inspired by 'Box of Rain - Grateful Dead'"
+echo ""
 
 # Check Python version
-check_python() {
-    log "Checking Python installation..."
-    
-    if command -v python3 &> /dev/null; then
-        PYTHON_CMD="python3"
-    elif command -v python &> /dev/null; then
-        PYTHON_CMD="python"
-    else
-        error "Python is not installed. Please install Python ${MIN_PYTHON_VERSION}+ first."
-    fi
-    
-    # Check Python version
-    PYTHON_VERSION=$($PYTHON_CMD -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-    log "Found Python $PYTHON_VERSION"
-    
-    # Version comparison
-    if [[ $(echo -e "${PYTHON_VERSION}\n${MIN_PYTHON_VERSION}" | sort -V | head -n1) != "${MIN_PYTHON_VERSION}" ]]; then
-        error "Python ${MIN_PYTHON_VERSION}+ required. Found: ${PYTHON_VERSION}"
-    fi
-    
-    log "✓ Python version check passed"
-}
+echo "📋 Checking Python version..."
+if ! python3 --version | grep -E "Python 3\.(11|12|13)" > /dev/null; then
+    echo "❌ Python 3.11 or higher required"
+    echo "   Current version: $(python3 --version)"
+    exit 1
+fi
+echo "✅ Python version OK: $(python3 --version)"
 
-# Check pip installation
-check_pip() {
-    log "Checking pip installation..."
-    
-    if command -v pip3 &> /dev/null; then
-        PIP_CMD="pip3"
-    elif command -v pip &> /dev/null; then
-        PIP_CMD="pip"
-    else
-        error "pip is not installed. Please install pip first."
-    fi
-    
-    log "✓ Found pip: $PIP_CMD"
-}
+# Detect environment capabilities
+echo "🔍 Detecting environment capabilities..."
 
-# Install system dependencies (if needed)
-install_system_deps() {
-    log "Checking system dependencies..."
-    
-    case $OS in
-        "macOS")
-            # Check for Homebrew
-            if ! command -v brew &> /dev/null; then
-                warn "Homebrew not found. Some features may require additional setup."
+HAS_PYENV=false
+if command -v pyenv > /dev/null 2>&1; then
+    HAS_PYENV=true
+    echo "✅ pyenv detected"
+fi
+
+HAS_SUDO=false
+if sudo -n true 2>/dev/null; then
+    HAS_SUDO=true
+    echo "✅ sudo access available"
+elif [ "$(id -u)" = "0" ]; then
+    HAS_SUDO=true
+    echo "✅ running as root"
+fi
+
+echo ""
+echo "🎯 Installation Mode Selection"
+echo "=============================="
+echo ""
+echo "Choose your installation mode based on your use case:"
+echo ""
+echo "1. 🛠️  DEVELOPMENT MODE (pyenv + editable install)"
+echo "   • For developers and operators who modify the code"
+echo "   • Immediate code changes without reinstalling"
+echo "   • Best for development and testing"
+echo "   • Requires: pyenv"
+if [ "$HAS_PYENV" = false ]; then
+    echo "   ❌ pyenv not detected - install pyenv first"
+fi
+echo ""
+
+echo "2. 👤 USER MODE (local installation)"
+echo "   • For regular users who just want to use bop"
+echo "   • No sudo required, installs to ~/.local/bin"
+echo "   • Clean isolated installation"
+echo "   • Recommended for most users"
+echo ""
+
+echo "3. 🌐 SYSTEM MODE (global installation)"
+echo "   • For administrators managing multi-user systems"
+echo "   • Installs to /usr/local/bin for all users"
+echo "   • Requires sudo privileges"
+echo "   • User data still remains private per user"
+if [ "$HAS_SUDO" = false ]; then
+    echo "   ❌ sudo access required but not available"
+fi
+echo ""
+
+# Get user choice
+while true; do
+    read -p "Select installation mode (1-3): " choice
+    case $choice in
+        1)
+            if [ "$HAS_PYENV" = false ]; then
+                echo "❌ pyenv is required for development mode"
+                echo "   Install pyenv first: https://github.com/pyenv/pyenv#installation"
+                continue
             fi
+            echo "🛠️  Installing in DEVELOPMENT MODE..."
+            exec "$SCRIPT_DIR/install-dev.sh"
             ;;
-        "Linux")
-            # Check for package managers and install dependencies
-            if command -v apt-get &> /dev/null; then
-                log "Installing dependencies with apt..."
-                sudo apt-get update
-                sudo apt-get install -y python3-pip python3-venv build-essential
-            elif command -v yum &> /dev/null; then
-                log "Installing dependencies with yum..."
-                sudo yum install -y python3-pip python3-devel gcc
-            elif command -v pacman &> /dev/null; then
-                log "Installing dependencies with pacman..."
-                sudo pacman -S --noconfirm python-pip base-devel
-            else
-                warn "Unknown package manager. You may need to install dependencies manually."
+        2)
+            echo "👤 Installing in USER MODE..."
+            exec "$SCRIPT_DIR/install-user.sh"
+            ;;
+        3)
+            if [ "$HAS_SUDO" = false ]; then
+                echo "❌ sudo access is required for system mode"
+                continue
             fi
-            ;;
-        "Windows/WSL")
-            log "WSL detected. Using Linux package manager..."
-            if command -v apt-get &> /dev/null; then
-                sudo apt-get update
-                sudo apt-get install -y python3-pip python3-venv build-essential
-            fi
-            ;;
-    esac
-    
-    log "✓ System dependencies check complete"
-}
-
-# Create virtual environment
-create_venv() {
-    log "Creating virtual environment..."
-    
-    VENV_DIR="$HOME/.ejoinctl/venv"
-    mkdir -p "$(dirname "$VENV_DIR")"
-    
-    $PYTHON_CMD -m venv "$VENV_DIR"
-    source "$VENV_DIR/bin/activate"
-    
-    # Upgrade pip
-    pip install --upgrade pip
-    
-    log "✓ Virtual environment created at $VENV_DIR"
-}
-
-# Install ejoinctl
-install_ejoinctl() {
-    log "Installing ejoinctl..."
-    
-    # If we're in the source directory, install from local
-    if [[ -f "pyproject.toml" ]] && grep -q "ejoinctl" pyproject.toml; then
-        log "Installing from local source..."
-        pip install -e .
-    else
-        # For future: install from package repository
-        error "Please run this script from the ejoinctl source directory"
-    fi
-    
-    log "✓ ejoinctl installation complete"
-}
-
-# Create wrapper script
-create_wrapper() {
-    log "Creating wrapper script..."
-    
-    WRAPPER_SCRIPT="$HOME/.local/bin/ejoinctl"
-    mkdir -p "$(dirname "$WRAPPER_SCRIPT")"
-    
-    cat > "$WRAPPER_SCRIPT" << EOF
-#!/bin/bash
-# ejoinctl wrapper script
-# Copyright (c) 2025 Althea Signals Network LLC
-
-source "$HOME/.ejoinctl/venv/bin/activate"
-python -m ejoinctl.cli "\$@"
-EOF
-    
-    chmod +x "$WRAPPER_SCRIPT"
-    
-    log "✓ Wrapper script created at $WRAPPER_SCRIPT"
-}
-
-# Update shell configuration
-update_shell_config() {
-    log "Updating shell configuration..."
-    
-    # Detect shell
-    SHELL_NAME=$(basename "$SHELL")
-    
-    case $SHELL_NAME in
-        "bash")
-            SHELL_RC="$HOME/.bashrc"
-            [[ -f "$HOME/.bash_profile" ]] && SHELL_RC="$HOME/.bash_profile"
-            ;;
-        "zsh")
-            SHELL_RC="$HOME/.zshrc"
-            ;;
-        "fish")
-            SHELL_RC="$HOME/.config/fish/config.fish"
+            echo "🌐 Installing in SYSTEM MODE..."
+            exec "$SCRIPT_DIR/install-system.sh"
             ;;
         *)
-            warn "Unknown shell: $SHELL_NAME. You may need to update PATH manually."
-            return
+            echo "❌ Invalid choice. Please enter 1, 2, or 3."
             ;;
     esac
-    
-    # Add to PATH if not already there
-    if [[ -f "$SHELL_RC" ]] && ! grep -q "$HOME/.local/bin" "$SHELL_RC"; then
-        echo "" >> "$SHELL_RC"
-        echo "# Added by ejoinctl installer" >> "$SHELL_RC"
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
-        log "✓ Updated $SHELL_RC"
-    fi
-    
-    # Source the config for current session
-    export PATH="$HOME/.local/bin:$PATH"
-}
-
-# Create configuration directory
-create_config() {
-    log "Creating configuration directory..."
-    
-    CONFIG_DIR="$HOME/.config/ejoinctl"
-    mkdir -p "$CONFIG_DIR"
-    
-    # Copy example configuration if available
-    if [[ -f "server_access.csv" ]]; then
-        cp "server_access.csv" "$CONFIG_DIR/gateways.csv.example"
-        log "✓ Example gateway configuration copied"
-    fi
-    
-    log "✓ Configuration directory created at $CONFIG_DIR"
-}
-
-# Test installation
-test_installation() {
-    log "Testing installation..."
-    
-    if command -v ejoinctl &> /dev/null; then
-        ejoinctl --help > /dev/null
-        log "✓ ejoinctl is working correctly"
-    else
-        warn "ejoinctl command not found in PATH. You may need to restart your shell."
-        log "Try running: source ~/.bashrc (or ~/.zshrc)"
-    fi
-}
-
-# Show completion message
-show_completion() {
-    echo -e "${GREEN}"
-    echo "════════════════════════════════════════════════════════════════"
-    echo "  Installation Complete!"
-    echo "════════════════════════════════════════════════════════════════"
-    echo -e "${RESET}"
-    echo "ejoinctl has been successfully installed!"
-    echo ""
-    echo "Quick start commands:"
-    echo "  ejoinctl --help                 - Show help"
-    echo "  ejoinctl test-connection        - Test gateway connection"
-    echo ""
-    echo "Configuration:"
-    echo "  Config directory: ~/.config/ejoinctl"
-    echo "  Virtual environment: ~/.ejoinctl/venv"
-    echo ""
-    echo "Documentation:"
-    echo "  README.md - Main documentation"
-    echo "  DEPLOYMENT.md - Deployment guide"
-    echo "  USAGE_GUIDE.md - Complete usage examples"
-    echo ""
-    echo "Support: support@altheamesh.com"
-    echo "Website: https://altheamesh.com"
-    echo ""
-    if ! command -v ejoinctl &> /dev/null; then
-        echo -e "${YELLOW}Note: Restart your shell or run 'source ~/.bashrc' to use ejoinctl${RESET}"
-    fi
-}
-
-# Main installation function
-main() {
-    banner
-    
-    # Parse arguments
-    SKIP_DEPS=false
-    FORCE=false
-    
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --skip-deps)
-                SKIP_DEPS=true
-                shift
-                ;;
-            --force)
-                FORCE=true
-                shift
-                ;;
-            --help|-h)
-                echo "Usage: $0 [OPTIONS]"
-                echo ""
-                echo "Options:"
-                echo "  --skip-deps    Skip system dependency installation"
-                echo "  --force        Force installation even if already installed"
-                echo "  --help, -h     Show this help message"
-                exit 0
-                ;;
-            *)
-                error "Unknown option: $1"
-                ;;
-        esac
-    done
-    
-    # Check if already installed
-    if command -v ejoinctl &> /dev/null && [[ "$FORCE" != true ]]; then
-        warn "ejoinctl is already installed. Use --force to reinstall."
-        ejoinctl --help
-        exit 0
-    fi
-    
-    # Installation steps
-    check_root
-    detect_os
-    check_python
-    check_pip
-    
-    if [[ "$SKIP_DEPS" != true ]]; then
-        install_system_deps
-    fi
-    
-    create_venv
-    install_ejoinctl
-    create_wrapper
-    update_shell_config
-    create_config
-    test_installation
-    show_completion
-}
-
-# Run main function
-main "$@"
+done

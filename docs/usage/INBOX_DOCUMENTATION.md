@@ -1,8 +1,8 @@
-# SMS Inbox Management Documentation
+# BoxOfPorts SMS Inbox Management Documentation
 
 ## Overview
 
-The ejoinctl CLI now provides comprehensive SMS inbox management capabilities, allowing you to retrieve, filter, search, and analyze received SMS messages from your EJOIN Multi-WAN Router.
+The BoxOfPorts CLI (`bop`) provides comprehensive SMS inbox management capabilities, allowing you to retrieve, filter, search, and analyze received SMS messages from your EJOIN Multi-WAN Router.
 
 ## Features
 
@@ -33,31 +33,31 @@ List received SMS messages with various filtering options.
 
 ```bash
 # List all messages (default: 50 messages)
-ejoinctl inbox list
+bop inbox list
 
 # List all messages from start
-ejoinctl inbox list --count 0
+bop inbox list --count 0
 
 # List only STOP messages
-ejoinctl inbox list --type stop
+bop inbox list --type stop
 
 # List messages from specific port
-ejoinctl inbox list --port 1A
+bop inbox list --port 1A
 
 # List messages containing specific text
-ejoinctl inbox list --contains "balance"
+bop inbox list --contains "balance"
 
 # List messages from specific sender
-ejoinctl inbox list --sender "12345"
+bop inbox list --sender "12345"
 
 # Exclude delivery reports
-ejoinctl inbox list --no-delivery-reports
+bop inbox list --no-delivery-reports
 
 # Show only delivery reports
-ejoinctl inbox list --delivery-reports-only
+bop inbox list --delivery-reports-only
 
 # Output as JSON
-ejoinctl inbox list --json
+bop inbox list --json
 ```
 
 **Options:**
@@ -77,13 +77,13 @@ Search for messages containing specific text.
 
 ```bash
 # Search for messages containing "STOP"
-ejoinctl inbox search "STOP"
+bop inbox search "STOP"
 
 # Search with detailed output
-ejoinctl inbox search "balance" --details
+bop inbox search "balance" --details
 
 # Search from specific starting point
-ejoinctl inbox search "urgent" --start-id 100
+bop inbox search "urgent" --start-id 100
 ```
 
 **Options:**
@@ -97,10 +97,10 @@ Quickly view all STOP/unsubscribe messages.
 
 ```bash
 # Show all STOP messages
-ejoinctl inbox stop
+bop inbox stop
 
 # Output STOP messages as JSON
-ejoinctl inbox stop --json
+bop inbox stop --json
 ```
 
 **Options:**
@@ -113,10 +113,10 @@ Get comprehensive inbox statistics and summary.
 
 ```bash
 # Show inbox summary
-ejoinctl inbox summary
+bop inbox summary
 
 # Output summary as JSON
-ejoinctl inbox summary --json
+bop inbox summary --json
 ```
 
 **Provides:**
@@ -133,10 +133,10 @@ Show detailed information about a specific message.
 
 ```bash
 # Show details for message ID 123
-ejoinctl inbox show 123
+bop inbox show 123
 
 # Search from different starting point
-ejoinctl inbox show 456 --start-id 400
+bop inbox show 456 --start-id 400
 ```
 
 ## Message Types and Classification
@@ -203,34 +203,34 @@ Messages are automatically scanned for important keywords:
 
 ```bash
 # Find all STOP messages from port 1A
-ejoinctl inbox list --type stop --port 1A
+bop inbox list --type stop --port 1A
 
 # Find urgent messages (system classification)
-ejoinctl inbox search "urgent" --details
+bop inbox search "urgent" --details
 
 # Get recent messages excluding delivery reports
-ejoinctl inbox list --count 20 --no-delivery-reports
+bop inbox list --count 20 --no-delivery-reports
 
 # Find balance-related messages
-ejoinctl inbox search "balance"
+bop inbox search "balance"
 
 # Check messages from specific short code
-ejoinctl inbox list --sender "12345"
+bop inbox list --sender "12345"
 ```
 
 ### Monitoring Scenarios
 
 ```bash
 # Daily STOP message check
-ejoinctl inbox stop
+bop inbox stop
 
 # Quick inbox health check
-ejoinctl inbox summary
+bop inbox summary
 
 # Find issues or alerts
-ejoinctl inbox search "error"
-ejoinctl inbox search "failed"
-ejoinctl inbox search "urgent"
+bop inbox search "error"
+bop inbox search "failed"
+bop inbox search "urgent"
 ```
 
 ## Integration Examples
@@ -241,10 +241,10 @@ ejoinctl inbox search "urgent"
 #!/bin/bash
 # Check for new STOP messages and alert
 
-STOP_COUNT=$(ejoinctl inbox stop --json | jq length)
+STOP_COUNT=$(bop inbox stop --json | jq length)
 if [ $STOP_COUNT -gt 0 ]; then
     echo "⚠️ Found $STOP_COUNT STOP messages!"
-    ejoinctl inbox stop
+    bop inbox stop
 fi
 ```
 
@@ -252,18 +252,18 @@ fi
 
 ```bash
 # Get STOP messages as JSON and process
-ejoinctl inbox stop --json | jq '.[].sender' | sort | uniq
+bop inbox stop --json | jq '.[].sender' | sort | uniq
 
 # Get summary statistics
-ejoinctl inbox summary --json | jq '.total_messages'
+bop inbox summary --json | jq '.total_messages'
 ```
 
 ## Best Practices
 
 ### Regular Monitoring
-1. **Daily STOP Check**: `ejoinctl inbox stop`
-2. **Weekly Summary**: `ejoinctl inbox summary`
-3. **Filter Important**: `ejoinctl inbox list --no-delivery-reports`
+1. **Daily STOP Check**: `bop inbox stop`
+2. **Weekly Summary**: `bop inbox summary`
+3. **Filter Important**: `bop inbox list --no-delivery-reports`
 
 ### Performance Tips
 1. Use `--count` to limit results for large inboxes
@@ -272,21 +272,21 @@ ejoinctl inbox summary --json | jq '.total_messages'
 4. Use `--json` for programmatic processing
 
 ### STOP Message Management
-1. Regularly monitor: `ejoinctl inbox stop`
-2. Export for compliance: `ejoinctl inbox stop --json > stops.json`
-3. Track by port: `ejoinctl inbox list --type stop --port 1A`
+1. Regularly monitor: `bop inbox stop`
+2. Export for compliance: `bop inbox stop --json > stops.json`
+3. Track by port: `bop inbox list --type stop --port 1A`
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **No messages found**
-   - Check router connectivity: `ejoinctl test-connection`
+   - Check router connectivity: `bop test-connection`
    - Verify SMS inbox has messages
    - Try different start-id: `--start-id 1`
 
 2. **Classification seems wrong**
-   - View raw content: `ejoinctl inbox show <id>`
+   - View raw content: `bop inbox show <id>`
    - Check message content for classification keywords
 
 3. **Filtering not working**
@@ -297,13 +297,13 @@ ejoinctl inbox summary --json | jq '.total_messages'
 ### Debug Commands
 ```bash
 # Check basic connectivity
-ejoinctl test-connection
+bop test-connection
 
 # View raw message data
-ejoinctl inbox show 1
+bop inbox show 1
 
 # Test small batch first
-ejoinctl inbox list --count 5
+bop inbox list --count 5
 ```
 
 ## API Integration
@@ -323,4 +323,4 @@ The inbox functionality uses the EJOIN HTTP API v2.2 SMS inbox endpoints:
 
 ---
 
-*For more information, use `ejoinctl inbox --help` or `ejoinctl inbox <command> --help`*
+*For more information, use `bop inbox --help` or `bop inbox <command> --help`*

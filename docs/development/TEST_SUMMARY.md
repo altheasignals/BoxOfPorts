@@ -1,7 +1,7 @@
-# Test Summary - ejoinctl CLI Application
+# BoxOfPorts - Test Summary
 
 ## Overview
-This document summarizes the test implementation for the ejoinctl CLI application, a comprehensive tool for managing EJOIN Multi-WAN Router HTTP API v2.2.
+This document summarizes the test implementation for BoxOfPorts (`bop`), a comprehensive CLI tool for managing EJOIN Multi-WAN Router HTTP API v2.2.
 
 ## Test Structure
 
