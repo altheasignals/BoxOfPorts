@@ -55,8 +55,10 @@ RUN pip install --no-cache-dir -e .
 RUN mkdir -p /app/data /app/config /app/logs && \
     chown -R boxofports:boxofports /app
 
-# Copy configuration examples
-COPY server_access.csv ./config/gateways.csv.example
+# Copy configuration examples (create empty example)
+RUN echo "# Example gateway configuration file" > ./config/gateways.csv.example && \
+    echo "# Format: name,host,port,username,password" >> ./config/gateways.csv.example && \
+    echo "# gateway1,192.168.1.100,22,admin,password" >> ./config/gateways.csv.example
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /app/entrypoint.sh
