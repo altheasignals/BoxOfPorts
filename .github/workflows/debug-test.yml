@@ -1,0 +1,42 @@
+name: Debug Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Debug environment
+        run: |
+          echo "=== Debug Information ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo ""
+          echo "=== Files in repo ==="
+          ls -la
+          echo ""
+          echo "=== Docker files ==="
+          ls -la Docker* || echo "No Dockerfile found"
+          echo ""
+          echo "=== Workflow files ==="
+          ls -la .github/workflows/
+          echo ""
+          echo "=== Python project info ==="
+          cat pyproject.toml | head -20 || echo "No pyproject.toml found"
+          echo ""
+          echo "=== Docker version ==="
+          docker --version
+          echo ""
+          echo "=== Python version ==="
+          python3 --version
+          echo ""
+          echo "=== Test Docker build (dry run) ==="
+          docker build --help > /dev/null && echo "Docker build is available" || echo "Docker build failed"
