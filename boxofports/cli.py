@@ -214,9 +214,12 @@ def status_subscribe(
     ctx: typer.Context,
     callback: str = typer.Option(..., "--callback", help="Callback URL for status reports"),
     period: int = typer.Option(60, "--period", help="Report period in seconds"),
-    all_sims: bool = typer.Option(False, "--all-sims", help="Get all SIM card status"),
 ):
-    """Subscribe to device/port status notifications."""
+    """Subscribe to device/port status notifications.
+    
+    NOTE: This REPLACES any existing webhook subscription.
+    The device can only send notifications to ONE callback URL at a time.
+    """
     config = ctx.obj['config']
     
     try:
@@ -225,17 +228,21 @@ def status_subscribe(
             "url": callback,
             "period": period,
         }
-        if all_sims:
-            params["all_sims"] = "1"
         
         response = client.get_json("/goip_get_status.html", params=params)
-        console.print(f"[green]Status subscription flowing like a river[/green]")
-        console.print(f"Callback URL: {callback}")
-        console.print(f"Report period: {period} seconds")
-        console.print(f"All SIMs: {'Yes' if all_sims else 'No'}")
+        
+        console.print(f"[green]✓ Webhook subscription configured[/green]")
+        console.print(f"[yellow]ℹ  This REPLACES any previous webhook subscription[/yellow]")
+        console.print("")
+        console.print(f"📡 Callback URL: {callback}")
+        console.print(f"⏰ Reports every: {period} seconds")
+        console.print(f"📱 Includes: All SIM card statuses, signal levels, carrier info")
+        console.print("")
+        console.print(f"[dim]The device will now send comprehensive status reports to your callback URL[/dim]")
+        console.print(f"[dim]To stop notifications: bop status subscribe --callback '' --period 0[/dim]")
         
     except EjoinHTTPError as e:
-        console.print(f"[red]Eyes of the world closed — {e}[/red]")
+        console.print(f"[red]The music stoped — {e}[/red]")
         raise typer.Exit(1)
 
 
