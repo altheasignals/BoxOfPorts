@@ -18,10 +18,8 @@ Publish steps:
 
 ## User Installation
 
-One-liner (replace <GITHUB_OWNER> with your GitHub handle or org):
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | bash
+curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/install-bop.sh | bash
 ```
 
 This installs a `bop` wrapper to `/usr/local/bin/bop` by default.
