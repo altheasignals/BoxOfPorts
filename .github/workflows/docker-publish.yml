@@ -26,12 +26,12 @@ jobs:
         id: meta
         run: |
           VERSION=$(python - <<'PY'
-import tomllib, sys
-with open('pyproject.toml','rb') as f:
-    d=tomllib.load(f)
-print(d['project']['version'])
-PY
-)
+          import tomllib, sys
+          with open('pyproject.toml','rb') as f:
+              d=tomllib.load(f)
+          print(d['project']['version'])
+          PY
+          )
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Login to Docker Hub
