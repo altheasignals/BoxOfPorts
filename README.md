@@ -10,6 +10,14 @@ bop --help
 
 For details, see docs/DISTRIBUTION.md.
 
+## Uninstalling
+
+To avoid version conflicts when switching installation methods:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/<GITHUB_OWNER>/gateway-manager/main/scripts/uninstall-bop.sh | bash
+```
+
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/altheasignals/boxofports)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)

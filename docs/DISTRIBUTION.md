@@ -57,8 +57,32 @@ Advanced:
 - Apple Silicon forcing platform: `BOP_DOCKER_PLATFORM=linux/arm64 bop --help`
 - Pass env vars through: `BOXOFPORTS_LOG_LEVEL=DEBUG bop gateway list`
 
+## Uninstalling
+
+To avoid version conflicts, use the uninstaller script:
+
+```bash
+# Download and run the uninstaller
+curl -fsSL https://raw.githubusercontent.com/altheasignals/gateway-manager/main/scripts/uninstall-bop.sh | bash
+
+# Or if you have the repo locally:
+./scripts/uninstall-bop.sh
+```
+
+Options:
+- `--list-only` - Just show what's installed without removing anything
+- `--auto-docker` - Automatically remove Docker installations only
+
+The uninstaller detects:
+- pip global and user installations 
+- Docker wrapper scripts
+- Docker images
+- Configuration directories (`~/.boxofports`)
+- Development/editable installations
+
 ## Notes for Maintainers
 
 - Ensure `pyproject.toml` [project.version] is kept in sync with release tags.
 - The Dockerfile already sets a non-root user and defines volumes for `/app/config`, `/app/data`, `/app/logs`.
 - Entry point forwards args to `python -m boxofports.cli`.
+- The uninstaller excludes cloud storage directories (Google Drive, iCloud, etc.) to avoid slow scans.
