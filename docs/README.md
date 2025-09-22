@@ -12,12 +12,6 @@ Welcome to the BoxOfPorts documentation! This directory contains comprehensive g
 - **[Deployment Guide](deployment/DEPLOYMENT.md)** - Comprehensive deployment guide for all platforms
 - **[Distribution Summary](deployment/DISTRIBUTION_SUMMARY.md)** - Distribution package overview
 
-### 🛠️ Development Documentation
-- **[Test Summary](development/TEST_SUMMARY.md)** - Testing implementation and results
-- **[Inbox Implementation](development/INBOX_IMPLEMENTATION_SUMMARY.md)** - Inbox feature implementation details
-- **[Rebrand Summary](development/REBRAND_SUMMARY.md)** - Project rebranding documentation
-- **[Application Prompt](development/ejoinctl_application_prompt.md)** - Original application requirements
-
 ## 🚀 Quick Start
 
 New to BoxOfPorts? Start here:
@@ -41,10 +35,10 @@ New to BoxOfPorts? Start here:
 - Multi-user setup guides
 
 ### For Developers
-- Architecture and design decisions
-- Testing methodology and results
-- Development setup instructions
-- API and integration details
+- Contribution guidelines
+- Code architecture overview
+- Testing and CI/CD processes
+- API documentation for EJOIN gateways
 
 ## 🎯 Finding What You Need
 
@@ -56,6 +50,8 @@ New to BoxOfPorts? Start here:
 | Manage SMS inbox | [Inbox Documentation](usage/INBOX_DOCUMENTATION.md) |
 | Run tests | [Test Summary](development/TEST_SUMMARY.md) |
 | Understand architecture | [Distribution Summary](deployment/DISTRIBUTION_SUMMARY.md) |
+| Review the EJOIN Gateways API | [Distribution Summary](dev/ejoin_multiwan_router_http_api_en_v2.2.pdf) |
+
 
 ## 🔗 External Resources
 
