@@ -1,5 +1,15 @@
 # BoxOfPorts - SMS Gateway Management CLI
 
+Quick install (Docker Hub + wrapper):
+
+```bash
+# Replace <GITHUB_OWNER> with your GitHub username or org
+curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/scripts/install-bop.sh | bash
+bop --help
+```
+
+For details, see docs/DISTRIBUTION.md.
+
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/altheasignals/boxofports)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
