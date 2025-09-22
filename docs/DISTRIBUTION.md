@@ -63,7 +63,7 @@ To avoid version conflicts, use the uninstaller script:
 
 ```bash
 # Download and run the uninstaller
-curl -fsSL https://raw.githubusercontent.com/altheasignals/gateway-manager/main/scripts/uninstall-bop.sh | bash
+curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/uninstall-bop.sh | bash
 
 # Or if you have the repo locally:
 ./scripts/uninstall-bop.sh

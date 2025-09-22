@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# BoxOfPorts Cloud CLI Wrapper
+# "If you get confused, listen to the music play" — keep it kind and simple.
+set -euo pipefail
+
+DOCKER_IMAGE="altheasignals/boxofports:latest"
+CONFIG_DIR="${BOXOFPORTS_CONFIG_DIR:-${HOME}/.boxofports}"
+DATA_DIR_DEFAULT="${PWD}"
+LOG_LEVEL_DEFAULT="${BOXOFPORTS_LOG_LEVEL:-INFO}"
+
+# Detect if stdout is a TTY for -t allocation
+if [ -t 1 ]; then
+  TTY_ARGS="-it"
+else
+  TTY_ARGS="-i"
+fi
+
+# Ensure config directory exists with safe perms
+mkdir -p "${CONFIG_DIR}"
+chmod 700 "${CONFIG_DIR}" 2>/dev/null || true
+
+# Helper: print usage
+usage() {
+  cat <<EOF
+BoxOfPorts wrapper for Docker image: ${DOCKER_IMAGE}
+
+Usage:
+  bop [--update] [--image IMAGE[:TAG]] [--config DIR] [--data DIR] [--log-level LEVEL] -- <bop args>
+  bop <bop args>
+
+Examples:
+  bop --help
+  bop gateway list
+  bop --config ~/.boxofports -- data-dir example -- gateway status
+
+Optional wrapper flags (parsed before '--' or before bop command):
+  --update                 Pull latest image before running
+  --image IMAGE[:TAG]      Override Docker image (default: ${DOCKER_IMAGE})
+  --config DIR             Config directory to mount at /app/config (default: ${CONFIG_DIR})
+  --data DIR               Data directory to mount at /app/data (default: current dir)
+  --log-level LEVEL        Sets BOXOFPORTS_LOG_LEVEL (default: ${LOG_LEVEL_DEFAULT})
+  -h, --help               Show this help and exit
+
+All remaining arguments are passed to 'boxofports' CLI inside the container.
+EOF
+}
+
+UPDATE_IMAGE="false"
+DATA_DIR="${DATA_DIR_DEFAULT}"
+LOG_LEVEL="${LOG_LEVEL_DEFAULT}"
+
+# Parse wrapper-level args
+WRAPPER_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --update)
+      UPDATE_IMAGE="true"; shift ;;
+    --image)
+      DOCKER_IMAGE="$2"; shift 2 ;;
+    --config)
+      CONFIG_DIR="$2"; shift 2 ;;
+    --data)
+      DATA_DIR="$2"; shift 2 ;;
+    --log-level)
+      LOG_LEVEL="$2"; shift 2 ;;
+    -h|--help)
+      usage; exit 0 ;;
+    --)
+      shift; break ;;
+    --*)
+      # Unknown wrapper flag; stop parsing and pass through to CLI
+      break ;;
+    *)
+      # First non-flag means start of bop args
+      break ;;
+  esac
+done
+
+# Pull latest if requested or if image not present
+if [[ "${UPDATE_IMAGE}" == "true" ]]; then
+  docker pull "${DOCKER_IMAGE}" 1>/dev/null || docker pull "${DOCKER_IMAGE}"
+else
+  if ! docker image inspect "${DOCKER_IMAGE}" >/dev/null 2>&1; then
+    docker pull "${DOCKER_IMAGE}" || true
+  fi
+fi
+
+# Ensure data dir exists
+mkdir -p "${DATA_DIR}"
+
+# Pass through selected env vars if set
+ENV_PASSTHRU=(
+  "BOXOFPORTS_DATA_DIR"
+  "BOXOFPORTS_CONFIG_DIR"
+  "BOXOFPORTS_LOG_LEVEL"
+  "HTTP_PROXY" "HTTPS_PROXY" "NO_PROXY"
+)
+ENV_ARGS=()
+for var in "${ENV_PASSTHRU[@]}"; do
+  if [[ -n "${!var-}" ]]; then
+    ENV_ARGS+=("-e" "${var}=${!var}")
+  fi
+done
+
+# Always set a log level from wrapper unless user already set it
+if [[ -z "${BOXOFPORTS_LOG_LEVEL-}" ]]; then
+  ENV_ARGS+=("-e" "BOXOFPORTS_LOG_LEVEL=${LOG_LEVEL}")
+fi
+
+# Build volume args
+VOLUME_ARGS=(
+  "-v" "${CONFIG_DIR}:/app/config"
+  "-v" "${DATA_DIR}:/app/data"
+  "-v" "${HOME}/.cache:/home/boxofports/.cache"
+)
+
+# Platform arg (optional, helpful on Apple Silicon)
+PLATFORM_ARG=()
+if command -v docker >/dev/null 2>&1; then
+  if docker info --format '{{json .ServerVersion}}' >/dev/null 2>&1; then
+    : # docker is available
+  fi
+  # Let Docker auto-select platform; override via BOP_DOCKER_PLATFORM
+  if [[ -n "${BOP_DOCKER_PLATFORM-}" ]]; then
+    PLATFORM_ARG=("--platform" "${BOP_DOCKER_PLATFORM}")
+  fi
+fi
+
+# Run the container, forwarding remaining args to CLI
+exec docker run --rm ${TTY_ARGS} \
+  "${ENV_ARGS[@]}" \
+  "${VOLUME_ARGS[@]}" \
+  "${PLATFORM_ARG[@]}" \
+  "${DOCKER_IMAGE}" "$@"
