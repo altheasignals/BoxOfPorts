@@ -105,8 +105,11 @@ Works through `bashcompinit` compatibility layer. Common locations:
 
 ### Activation
 After installation, completion is activated by:
-- **Bash**: `source ~/.bashrc` or restart shell
-- **Zsh**: `autoload -U compinit && compinit` or restart shell
+- **Recommended**: Simply restart your shell or open a new terminal
+- **Alternative**: Run `exec $SHELL` to reload your current shell
+- **If completion doesn't work**: 
+  - **Zsh**: Try `exec zsh`
+  - **Bash**: Try `exec bash`
 
 ## 🧪 Testing
 
@@ -196,7 +199,8 @@ If installation fails due to permissions:
 
 ### Zsh Compatibility
 If using zsh and completion doesn't work:
-1. Ensure `bashcompinit` is loaded:
+1. **Most common solution**: Just restart your terminal or run `exec zsh`
+2. **If that doesn't work**, ensure `bashcompinit` is loaded:
    ```bash
    autoload -U +X bashcompinit && bashcompinit
    ```

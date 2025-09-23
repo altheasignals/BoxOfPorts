@@ -50,6 +50,14 @@ def main(
     version: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True, help="Show version information"),
 ):
     """BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators."""
+    # Check if this is a completion command - if so, skip configuration initialization
+    command_name = ctx.invoked_subcommand
+    if command_name == "completion":
+        # For completion commands, we don't need configuration
+        ctx.ensure_object(dict)
+        ctx.obj['verbose'] = verbose
+        return
+    
     try:
         config = config_manager.get_config()
         
@@ -370,7 +378,8 @@ fi'''
                     comp_file = comp_dir / "_bop"
                     comp_file.write_text(completion_script)
                     console.print(f"[green]✓ Zsh completion installed to {comp_file}[/green]")
-                    console.print("[dim]Run 'autoload -U compinit && compinit' or restart your shell[/dim]")
+                    console.print("[dim]Restart your shell or open a new terminal to activate completion[/dim]")
+                    console.print("[dim]If completion doesn't work, try: exec zsh[/dim]")
                     return
                 except (PermissionError, OSError):
                     continue
@@ -387,7 +396,8 @@ fi'''
                     comp_file = comp_dir / "bop"
                     comp_file.write_text(completion_script)
                     console.print(f"[green]✓ Bash completion installed to {comp_file}[/green]")
-                    console.print("[dim]Run 'source ~/.bashrc' or restart your shell[/dim]")
+                    console.print("[dim]Restart your shell or open a new terminal to activate completion[/dim]")
+                    console.print("[dim]If completion doesn't work, try: exec bash[/dim]")
                     return
                 except (PermissionError, OSError):
                     continue
@@ -396,7 +406,9 @@ fi'''
         fallback_file = home / ".bop-completion.bash"
         fallback_file.write_text(completion_script)
         console.print(f"[yellow]✓ Completion saved to {fallback_file}[/yellow]")
-        console.print(f"[dim]Add 'source {fallback_file}' to your shell config (~/.bashrc or ~/.zshrc)[/dim]")
+        console.print(f"[dim]Add this line to your shell config (~/.bashrc or ~/.zshrc):[/dim]")
+        console.print(f"[cyan]source {fallback_file}[/cyan]")
+        console.print("[dim]Then restart your shell or run: exec $SHELL[/dim]")
     
     else:
         # Just print the completion script

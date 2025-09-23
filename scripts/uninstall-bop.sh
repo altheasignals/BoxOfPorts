@@ -245,10 +245,10 @@ interactive_removal() {
     # Build removal menu
     local menu_items=()
     local menu_descriptions=()
+    local i=1
     
     if [[ ${#DETECTED_INSTALLATIONS[@]} -gt 0 ]]; then
         echo -e "${RED}Installations:${NC}"
-        local i=1
         for detection in "${DETECTED_INSTALLATIONS[@]}"; do
             IFS='|' read -r path description method <<< "$detection"
             menu_items+=("install|$path|$method")
@@ -339,7 +339,7 @@ interactive_removal() {
                 "config"|"data"|"development")
                     if [[ -d "$path" ]]; then
                         echo -n "⚠️  About to delete directory: $path - are you sure? [y/N]: "
-                        read -r confirm
+                        read -r confirm </dev/tty
                         if [[ "$confirm" =~ ^[Yy]$ ]]; then
                             rm -rf "$path" && echo "✓ Removed: $path" || echo "✗ Failed to remove: $path"
                         else
