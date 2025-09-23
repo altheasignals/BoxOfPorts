@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # BoxOfPorts Uninstaller - "Sometimes the light's all shinin' on me"
 # Detects and removes all forms of BoxOfPorts installations to avoid conflicts
+# Safe for remote execution: curl -fsSL https://...uninstall-bop.sh | bash
 set -euo pipefail
 
 # Colors for output
@@ -18,7 +19,8 @@ DETECTED_DATA=()
 print_header() {
     echo -e "${BLUE}"
     echo "BoxOfPorts Uninstaller"
-    echo "======================"
+    echo "Sometimes the light's all shinin' on me"
+    echo "======================================="
     echo "Scanning for all installations to avoid version conflicts..."
     echo -e "${NC}"
 }

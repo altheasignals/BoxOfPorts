@@ -3,27 +3,72 @@
 # "Once in a while you get shown the light" — let's make install one-liners easy.
 set -euo pipefail
 
-PREFIX="${PREFIX:-/usr/local}"
+# Default to user-local installation to avoid permission issues
+PREFIX="${PREFIX:-$HOME/.local}"
 BIN_DIR="${BIN_DIR:-${PREFIX}/bin}"
 WRAPPER_URL_DEFAULT="${WRAPPER_URL:-}"
+SYSTEM_INSTALL=false
 
 usage() {
   cat <<EOF
 Install BoxOfPorts wrapper
 
+Options:
+  --system          Install system-wide (requires elevated privileges)
+  --user            Install for current user only (default)
+  -h, --help        Show this help message
+
 Environment variables:
-  PREFIX            Installation prefix (default: /usr/local)
-  BIN_DIR           Binary directory (default: "+${BIN_DIR}+")
+  PREFIX            Installation prefix (default: ~/.local for user, /usr/local for system)
+  BIN_DIR           Binary directory (default: PREFIX/bin)
   WRAPPER_URL       URL to fetch wrapper from; if empty, uses GitHub raw for this repo
   IMAGE             Docker image to embed in wrapper (default: altheasignals/boxofports:latest)
 
-Example:
+Examples:
+  # User installation (default - no sudo required)
   curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/install-bop.sh | bash
+  
+  # System-wide installation (requires sudo)
+  curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/install-bop.sh | sudo bash -s -- --system
 EOF
 }
 
-if [[ "${1-}" == "-h" || "${1-}" == "--help" ]]; then
-  usage; exit 0
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --system)
+      SYSTEM_INSTALL=true
+      PREFIX="${PREFIX:-/usr/local}"
+      BIN_DIR="${BIN_DIR:-${PREFIX}/bin}"
+      shift
+      ;;
+    --user)
+      SYSTEM_INSTALL=false
+      PREFIX="${PREFIX:-$HOME/.local}"
+      BIN_DIR="${BIN_DIR:-${PREFIX}/bin}"
+      shift
+      ;;
+    -h|--help)
+      usage; exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage; exit 1
+      ;;
+  esac
+done
+
+# Warn for system installation
+if [[ "$SYSTEM_INSTALL" == "true" ]]; then
+  echo "⚠️  System-wide installation requested. This requires elevated privileges."
+  if [[ $EUID -ne 0 ]]; then
+    echo "❌ This script is not running as root. For system-wide installation, run:"
+    echo "   curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/install-bop.sh | sudo bash -s -- --system"
+    exit 1
+  fi
+else
+  echo "📦 Installing BoxOfPorts wrapper for current user..."
+  echo "   Installation directory: $BIN_DIR"
 fi
 
 mkdir -p "${BIN_DIR}"
@@ -49,7 +94,15 @@ fi
 
 install -m 0755 "${TMP_WRAPPER}" "${BIN_DIR}/bop"
 
-echo "Installed 'bop' to ${BIN_DIR}/bop"
+echo "✅ Installed 'bop' to ${BIN_DIR}/bop"
+
+# Add PATH guidance for user installations
+if [[ "$SYSTEM_INSTALL" == "false" ]] && [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+  echo ""
+  echo "📝 Note: Add $BIN_DIR to your PATH if not already present:"
+  echo "   For bash: echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.bashrc && source ~/.bashrc"
+  echo "   For zsh:  echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.zshrc && source ~/.zshrc"
+fi
 
 # Install shell completion
 install_completion() {
@@ -116,4 +169,8 @@ else
   echo "⚠ Completion script not available from source - tab completion will not be installed"
 fi
 
-echo "Try: bop --help"
+echo ""
+echo "🎉 Installation complete! Try: bop --help"
+echo ""
+echo "To uninstall later, run:"
+echo "   curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/uninstall-bop.sh | bash"

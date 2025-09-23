@@ -18,11 +18,19 @@ Publish steps:
 
 ## User Installation
 
+### Default: User Installation (No sudo required)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/install-bop.sh | bash
 ```
 
-This installs a `bop` wrapper to `/usr/local/bin/bop` by default.
+This installs a `bop` wrapper to `~/.local/bin/bop` by default.
+
+### System-wide Installation (Requires elevated privileges)
+```bash
+curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/install-bop.sh | sudo bash -s -- --system
+```
+
+This installs to `/usr/local/bin/bop` and is available to all users.
 
 Options:
 - Set IMAGE override at install time:
@@ -30,9 +38,9 @@ Options:
   IMAGE=altheasignals/boxofports:1.0.0 \
   curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | bash
   ```
-- Install to a custom prefix (e.g., in CI):
+- Install to a custom directory:
   ```bash
-  PREFIX=$HOME/.local BIN_DIR=$HOME/.local/bin \
+  PREFIX=/opt/boxofports BIN_DIR=/opt/boxofports/bin \
   curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | bash
   ```
 

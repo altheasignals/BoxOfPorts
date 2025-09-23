@@ -1,21 +1,30 @@
 # BoxOfPorts - SMS Gateway Management CLI
 
-Quick install (Docker Hub + wrapper):
+## 🚀 Quick Install
+
+### User Installation (Recommended)
+**No sudo required** - Installs to your user directory:
 
 ```bash
-# Replace <GITHUB_OWNER> with your GitHub username or org
-curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/scripts/install-bop.sh | bash
+curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | bash
 bop --help
+```
+
+### System-wide Installation
+**Requires elevated privileges** - Available to all users:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | sudo bash -s -- --system
 ```
 
 For details, see docs/DISTRIBUTION.md.
 
-## Uninstalling
+## 🗑️ Uninstalling
 
-To avoid version conflicts when switching installation methods:
+To cleanly remove BoxOfPorts (detects all installation methods):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<GITHUB_OWNER>/gateway-manager/main/scripts/uninstall-bop.sh | bash
+curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/uninstall-bop.sh | bash
 ```
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/altheasignals/boxofports)
@@ -53,41 +62,53 @@ BoxOfPorts (`bop`) is a comprehensive CLI tool designed for SMS gateway operator
 
 ### Installation
 
-BoxOfPorts supports three installation modes to accommodate different use cases:
+BoxOfPorts supports multiple installation approaches:
 
-#### Option 1: 👤 User Mode (local installation)
-**Recommended for most users**
+#### Option 1: 🌐 Cloud Installation (Recommended)
+**Uses Docker - No Python setup required**
+
+```bash
+# User installation (no sudo needed)
+curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | bash
+
+# System-wide installation (requires sudo)
+curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | sudo bash -s -- --system
+```
+
+**Benefits:**
+- No Python or dependencies to manage
+- Always uses latest stable version
+- Clean isolation via Docker
+- Easy to update and remove
+- Works on any system with Docker
+
+#### Option 2: 👤 Local Python Installation
+**For users who prefer local Python setup**
 
 ```bash
 # Clone the repository
 git clone https://github.com/altheasignals/BoxOfPorts.git
 cd BoxOfPorts
 
-# Run the installer and select option 2
-./install.sh
-
-# Or install directly
+# Run the local installer
 ./install-user.sh
 ```
 
 **Benefits:**
-- Clean isolated installation in ~/.local/bin
-- No sudo required
-- Doesn't affect system Python
-- Easy to update and remove
+- Direct Python installation
+- Full control over dependencies
+- No Docker required
+- Installs to ~/.local/bin
 
-#### Option 2: 🛠️ Development Mode (pyenv + editable install)
-**Perfect for developers and operators who modify the code**
+#### Option 3: 🛠️ Development Mode
+**For developers and contributors**
 
 ```bash
 # Clone the repository
 git clone https://github.com/altheasignals/BoxOfPorts.git
 cd BoxOfPorts
 
-# Run the installer and select option 1
-./install.sh
-
-# Or install directly if you have pyenv
+# Development setup with pyenv
 ./install-dev.sh
 ```
 
@@ -95,28 +116,7 @@ cd BoxOfPorts
 - Code changes take effect immediately
 - Perfect for development and testing
 - Uses pyenv for Python version management
-- No sudo required
-
-#### Option 3: 🌐 System Mode (global installation)
-**For administrators managing multi-user systems**
-
-```bash
-# Clone the repository
-git clone https://github.com/altheasignals/BoxOfPorts.git
-cd BoxOfPorts
-
-# Run the installer and select option 3
-./install.sh
-
-# Or install directly with sudo
-sudo ./install-system.sh
-```
-
-**Benefits:**
-- Available to all users on the system
-- Centralized maintenance
-- User data remains private per user
-- Requires sudo/root privileges
+- Editable installation
 
 #### Option 4: Using Docker
 ```bash
@@ -130,14 +130,13 @@ docker run --rm bop --help
 docker run --rm bop --host 192.168.1.100 --user admin --password your_password test-connection
 ```
 
-### Choosing the Right Installation Mode
+### Choosing the Right Installation Method
 
-- **👨‍💻 Developer/Operator**: Use Development Mode for immediate code changes
-- **🧑‍💻 Regular User**: Use User Mode for clean, isolated installation
-- **👨‍💼 System Admin**: Use System Mode for enterprise/multi-user environments
-- **🐳 Container User**: Use Docker for containerized deployments
+- **🎆 Most Users**: Cloud Installation (Option 1) - No Python setup, always current
+- **🔧 Power Users**: Local Python Installation (Option 2) - Full control, no Docker
+- **👨‍💻 Developers**: Development Mode (Option 3) - Code changes, testing, contributions
 
-> **Note**: Regardless of installation mode, all user data (configs, databases, profiles) remains private in each user's home directory.
+> **Note**: All user data (configs, databases, profiles) remains private in your home directory regardless of installation method.
 
 ### Basic Usage
 
