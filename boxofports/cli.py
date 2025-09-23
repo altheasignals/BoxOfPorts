@@ -32,6 +32,57 @@ app.add_typer(config_app, name="config")
 console = Console()
 
 
+def get_config_or_exit(ctx: typer.Context) -> EjoinConfig:
+    """Get configuration for commands that require gateway connection.
+    
+    Provides helpful guidance if no configuration is available.
+    """
+    try:
+        config = config_manager.get_config()
+        
+        # Override with CLI options if provided
+        cli_host = ctx.obj.get('cli_host')
+        cli_port = ctx.obj.get('cli_port')
+        cli_user = ctx.obj.get('cli_user')
+        cli_password = ctx.obj.get('cli_password')
+        
+        if cli_host:
+            host_part, port_part = parse_host_port(cli_host, config.port)
+            config.host = host_part
+            config.port = port_part
+        if cli_port:
+            config.port = cli_port
+        if cli_user:
+            config.username = cli_user
+        if cli_password:
+            config.password = cli_password
+        
+        # Initialize store if not already done
+        if 'store_initialized' not in ctx.obj:
+            initialize_store(config.db_path)
+            ctx.obj['store_initialized'] = True
+        
+        return config
+        
+    except Exception as e:
+        console.print(f"[yellow]🎵 Hey now! Gateway configuration needed for this command[/yellow]")
+        console.print("")
+        console.print("[blue]→ Quick setup with a profile:[/blue]")
+        console.print("   bop config add-profile mygateway \\")
+        console.print("     --host 192.168.1.100 --user admin --password yourpass")
+        console.print("")
+        console.print("[blue]→ Or set environment variables:[/blue]")
+        console.print("   export EJOIN_HOST=192.168.1.100")
+        console.print("   export EJOIN_USER=admin")
+        console.print("   export EJOIN_PASSWORD=yourpass")
+        console.print("")
+        console.print("[blue]→ Or use CLI options:[/blue]")
+        console.print("   bop --host 192.168.1.100 --user admin --password yourpass <command>")
+        console.print("")
+        console.print("[dim]Run 'bop config --help' for more configuration options[/dim]")
+        raise typer.Exit(1)
+
+
 def version_callback(value: bool):
     """Print version information and exit."""
     if value:
@@ -50,41 +101,25 @@ def main(
     version: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True, help="Show version information"),
 ):
     """BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators."""
-    # Check if this is a completion command - if so, skip configuration initialization
+    
+    # Initialize minimal context - store CLI options for lazy config loading
+    ctx.ensure_object(dict)
+    ctx.obj['verbose'] = verbose
+    ctx.obj['cli_host'] = host
+    ctx.obj['cli_port'] = port 
+    ctx.obj['cli_user'] = user
+    ctx.obj['cli_password'] = password
+    
+    # Commands that don't need gateway configuration  
     command_name = ctx.invoked_subcommand
-    if command_name == "completion":
-        # For completion commands, we don't need configuration
-        ctx.ensure_object(dict)
-        ctx.obj['verbose'] = verbose
+    config_free_commands = {'completion', 'config'}
+    
+    if command_name in config_free_commands:
+        # These commands work without gateway config
         return
     
-    try:
-        config = config_manager.get_config()
-        
-        # Override config with command line arguments if provided
-        if host:
-            # Parse host:port format if provided
-            host_part, port_part = parse_host_port(host, config.port)
-            config.host = host_part
-            config.port = port_part
-        if port:
-            config.port = port
-        if user:
-            config.username = user
-        if password:
-            config.password = password
-        
-        # Initialize store
-        initialize_store(config.db_path)
-        
-        # Store config in context for subcommands
-        ctx.ensure_object(dict)
-        ctx.obj['config'] = config
-        ctx.obj['verbose'] = verbose
-        
-    except Exception as e:
-        console.print(f"[red]Error initializing BoxOfPorts: {e}[/red]")
-        raise typer.Exit(1)
+    # Don't initialize gateway configuration here - let individual commands handle it
+    # This allows config commands to work without gateway config
 
 
 @sms_app.command("send")
@@ -100,7 +135,7 @@ def sms_send(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be sent without sending"),
 ):
     """Send test SMS with template support and per-port routing."""
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         # Parse ports and template variables
@@ -228,7 +263,7 @@ def status_subscribe(
     NOTE: This REPLACES any existing webhook subscription.
     The device can only send notifications to ONE callback URL at a time.
     """
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         client = create_sync_client(config)
@@ -260,7 +295,7 @@ def ops_lock(
     ports: str = typer.Option(..., "--ports", help="Ports to lock"),
 ):
     """Lock specified ports."""
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         port_list = parse_port_spec(ports)
@@ -286,7 +321,7 @@ def ops_unlock(
     ports: str = typer.Option(..., "--ports", help="Ports to unlock"),
 ):
     """Unlock specified ports."""
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         port_list = parse_port_spec(ports)
@@ -418,7 +453,7 @@ fi'''
 @app.command("test-connection")
 def test_connection(ctx: typer.Context):
     """Test connection to the EJOIN device."""
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         console.print(f"[blue]Testing connection to {config.base_url}[/blue]")
@@ -633,7 +668,7 @@ def inbox_list(
     from .api_models import MessageType, SMSInboxFilter
     import json
     
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         inbox_service = SMSInboxService(config)
@@ -744,7 +779,7 @@ def inbox_search(
     """Search for messages containing specific text."""
     from .inbox import SMSInboxService
     
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         inbox_service = SMSInboxService(config)
@@ -807,7 +842,7 @@ def inbox_stop(
     from .inbox import SMSInboxService
     import json
     
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         inbox_service = SMSInboxService(config)
@@ -863,7 +898,7 @@ def inbox_summary(
     from .inbox import SMSInboxService
     import json
     
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         inbox_service = SMSInboxService(config)
@@ -927,7 +962,7 @@ def inbox_show(
     """Show detailed information about a specific message."""
     from .inbox import SMSInboxService
     
-    config = ctx.obj['config']
+    config = get_config_or_exit(ctx)
     
     try:
         inbox_service = SMSInboxService(config)
