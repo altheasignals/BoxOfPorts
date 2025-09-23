@@ -298,6 +298,111 @@ def ops_unlock(
         raise typer.Exit(1)
 
 
+@app.command("completion")
+def completion(
+    shell: str = typer.Option("bash", "--shell", help="Shell type (bash, zsh)"),
+    install: bool = typer.Option(False, "--install", help="Install completion for current user"),
+):
+    """Generate shell completion script or install completion."""
+    import os
+    from pathlib import Path
+    
+    completion_script = '''#!/usr/bin/env bash
+# BoxOfPorts (bop) CLI completion script
+# "Such a long long time to be gone, and a short time to be there"
+
+_bop_completion() {
+    local cur prev
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    
+    # Main commands
+    local main_commands="sms ops status inbox config test-connection completion"
+    
+    case ${COMP_CWORD} in
+        1)
+            COMPREPLY=($(compgen -W "${main_commands} --host --port --user --password --verbose --version --help" -- ${cur}))
+            ;;
+        2)
+            case "${prev}" in
+                sms) COMPREPLY=($(compgen -W "send spray" -- ${cur})) ;;
+                ops) COMPREPLY=($(compgen -W "lock unlock" -- ${cur})) ;;
+                status) COMPREPLY=($(compgen -W "subscribe" -- ${cur})) ;;
+                inbox) COMPREPLY=($(compgen -W "list search stop summary show" -- ${cur})) ;;
+                config) COMPREPLY=($(compgen -W "add-profile list switch show remove current" -- ${cur})) ;;
+                completion) COMPREPLY=($(compgen -W "--shell --install" -- ${cur})) ;;
+            esac
+            ;;
+        *)
+            # Context-aware completions for options
+            case "${prev}" in
+                --shell) COMPREPLY=($(compgen -W "bash zsh" -- ${cur})) ;;
+                --type) COMPREPLY=($(compgen -W "regular stop system delivery_report" -- ${cur})) ;;
+                --ports) COMPREPLY=($(compgen -W "1A 1B 1C 1D 2A 2B 1A-1D 1.01 2.02" -- ${cur})) ;;
+            esac
+            ;;
+    esac
+}
+
+complete -F _bop_completion bop
+
+# ZSH compatibility
+if [[ -n ${ZSH_VERSION-} ]]; then
+    autoload -U +X bashcompinit && bashcompinit
+    complete -F _bop_completion bop
+fi'''
+    
+    if install:
+        # Install completion for current user
+        user_shell = os.path.basename(os.environ.get('SHELL', 'bash'))
+        home = Path.home()
+        
+        if user_shell == 'zsh' or shell == 'zsh':
+            # Try common zsh completion directories
+            for comp_dir in [
+                home / ".zsh" / "completions",
+                home / ".oh-my-zsh" / "completions",
+                Path("/usr/local/share/zsh/site-functions"),
+            ]:
+                try:
+                    comp_dir.mkdir(parents=True, exist_ok=True)
+                    comp_file = comp_dir / "_bop"
+                    comp_file.write_text(completion_script)
+                    console.print(f"[green]✓ Zsh completion installed to {comp_file}[/green]")
+                    console.print("[dim]Run 'autoload -U compinit && compinit' or restart your shell[/dim]")
+                    return
+                except (PermissionError, OSError):
+                    continue
+        
+        else:  # bash
+            # Try common bash completion directories
+            for comp_dir in [
+                home / ".bash_completion.d",
+                Path("/usr/local/etc/bash_completion.d"),
+                Path("/etc/bash_completion.d"),
+            ]:
+                try:
+                    comp_dir.mkdir(parents=True, exist_ok=True)
+                    comp_file = comp_dir / "bop"
+                    comp_file.write_text(completion_script)
+                    console.print(f"[green]✓ Bash completion installed to {comp_file}[/green]")
+                    console.print("[dim]Run 'source ~/.bashrc' or restart your shell[/dim]")
+                    return
+                except (PermissionError, OSError):
+                    continue
+        
+        # Fallback: save to home directory
+        fallback_file = home / ".bop-completion.bash"
+        fallback_file.write_text(completion_script)
+        console.print(f"[yellow]✓ Completion saved to {fallback_file}[/yellow]")
+        console.print(f"[dim]Add 'source {fallback_file}' to your shell config (~/.bashrc or ~/.zshrc)[/dim]")
+    
+    else:
+        # Just print the completion script
+        console.print(completion_script)
+
+
 @app.command("test-connection")
 def test_connection(ctx: typer.Context):
     """Test connection to the EJOIN device."""
