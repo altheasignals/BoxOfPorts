@@ -42,7 +42,6 @@ RUN groupadd -r boxofports && useradd -r -g boxofports -m boxofports
 # Copy requirements first for better caching
 COPY pyproject.toml .
 COPY README.md .
-COPY LICENSE .
 
 # Copy application source code
 COPY boxofports/ ./boxofports/
@@ -72,7 +71,7 @@ USER boxofports
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import boxofports; print('boxofports is healthy')" || exit 1
+    CMD boxofports --version || exit 1
 
 # Expose potential web interface port (future feature)
 EXPOSE 8080

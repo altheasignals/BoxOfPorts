@@ -2,7 +2,7 @@
 # BoxOfPorts Installation Script
 # Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
 #
-# Cross-platform installation script for BoxOfPorts (bop)
+# Cross-platform installation script for BoxOfPorts CLI (boxofports)
 # Supports macOS, Linux, and Windows (via WSL)
 
 set -e
@@ -15,7 +15,7 @@ BLUE='\033[34m'
 RESET='\033[0m'
 
 # Project information
-PROJECT_NAME="bop"
+PROJECT_NAME="boxofports"
 VERSION="1.0.0"
 AUTHOR="Althea Signals Network LLC"
 MIN_PYTHON_VERSION="3.11"
@@ -38,7 +38,7 @@ banner() {
     echo -e "${BLUE}"
     echo "════════════════════════════════════════════════════════════════"
     echo "  BoxOfPorts v${VERSION} - SMS Gateway Management CLI"
-    echo "  Command: bop"
+    echo "  Command: boxofports"
     echo "  Developed by ${AUTHOR}"
     echo "  🎵 Like 'Box of Rain', but for ports 🎵"
     echo "════════════════════════════════════════════════════════════════"
@@ -154,7 +154,7 @@ install_system_deps() {
 create_venv() {
     log "Creating virtual environment..."
     
-    VENV_DIR="$HOME/.bop/venv"
+    VENV_DIR="$HOME/.boxofports/venv"
     mkdir -p "$(dirname "$VENV_DIR")"
     
     $PYTHON_CMD -m venv "$VENV_DIR"
@@ -166,27 +166,27 @@ create_venv() {
     log "✓ Virtual environment created at $VENV_DIR"
 }
 
-# Install bop
-install_bop() {
-    log "Installing bop..."
+# Install boxofports
+install_boxofports() {
+    log "Installing boxofports..."
     
     # If we're in the source directory, install from local
-    if [[ -f "pyproject.toml" ]] && grep -q "bop" pyproject.toml; then
+    if [[ -f "pyproject.toml" ]] && grep -q "boxofports" pyproject.toml; then
         log "Installing from local source..."
         pip install -e .
     else
         # For future: install from package repository
-        error "Please run this script from the bop source directory"
+        error "Please run this script from the boxofports source directory"
     fi
     
-    log "✓ bop installation complete"
+    log "✓ boxofports installation complete"
 }
 
 # Create wrapper script
 create_wrapper() {
     log "Creating wrapper script..."
     
-    WRAPPER_SCRIPT="$HOME/.local/bin/bop"
+    WRAPPER_SCRIPT="$HOME/.local/bin/boxofports"
     mkdir -p "$(dirname "$WRAPPER_SCRIPT")"
     
     cat > "$WRAPPER_SCRIPT" << EOF
@@ -194,7 +194,7 @@ create_wrapper() {
 # BoxOfPorts wrapper script
 # Copyright (c) 2025 Althea Signals Network LLC
 
-source "$HOME/.bop/venv/bin/activate"
+source "$HOME/.boxofports/venv/bin/activate"
 python -m boxofports "\$@"
 EOF
     
@@ -230,7 +230,7 @@ update_shell_config() {
     # Add to PATH if not already there
     if [[ -f "$SHELL_RC" ]] && ! grep -q "$HOME/.local/bin" "$SHELL_RC"; then
         echo "" >> "$SHELL_RC"
-        echo "# Added by bop installer" >> "$SHELL_RC"
+        echo "# Added by boxofports installer" >> "$SHELL_RC"
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
         log "✓ Updated $SHELL_RC"
     fi
@@ -243,7 +243,7 @@ update_shell_config() {
 create_config() {
     log "Creating configuration directory..."
     
-    CONFIG_DIR="$HOME/.config/bop"
+    CONFIG_DIR="$HOME/.config/boxofports"
     mkdir -p "$CONFIG_DIR"
     
     # Copy example configuration if available
@@ -259,11 +259,11 @@ create_config() {
 test_installation() {
     log "Testing installation..."
     
-    if command -v bop &> /dev/null; then
-        bop --help > /dev/null
-        log "✓ bop is working correctly"
+    if command -v boxofports &> /dev/null; then
+        boxofports --help > /dev/null
+        log "✓ boxofports is working correctly"
     else
-        warn "bop command not found in PATH. You may need to restart your shell."
+        warn "boxofports command not found in PATH. You may need to restart your shell."
         log "Try running: source ~/.bashrc (or ~/.zshrc)"
     fi
 }
@@ -278,14 +278,14 @@ show_completion() {
     echo "BoxOfPorts has been successfully installed!"
     echo ""
     echo "Quick start commands:"
-    echo "  bop --version              - Show version information"
-    echo "  bop --help                 - Show help"
-    echo "  bop test-connection        - Test gateway connection"
-    echo "  bop inbox list             - List SMS messages"
+    echo "  boxofports --version              - Show version information"
+    echo "  boxofports --help                 - Show help"
+    echo "  boxofports test-connection        - Test gateway connection"
+    echo "  boxofports inbox list             - List SMS messages"
     echo ""
     echo "Configuration:"
-    echo "  Config directory: ~/.config/bop"
-    echo "  Virtual environment: ~/.bop/venv"
+    echo "  Config directory: ~/.config/boxofports"
+    echo "  Virtual environment: ~/.boxofports/venv"
     echo ""
     echo "Documentation:"
     echo "  README.md - Main documentation"
@@ -295,8 +295,8 @@ show_completion() {
 echo "Support: support@altheasignals.net"
     echo "Website: https://altheasignals.net"
     echo ""
-    if ! command -v bop &> /dev/null; then
-        echo -e "${YELLOW}Note: Restart your shell or run 'source ~/.bashrc' to use bop${RESET}"
+    if ! command -v boxofports &> /dev/null; then
+        echo -e "${YELLOW}Note: Restart your shell or run 'source ~/.bashrc' to use boxofports${RESET}"
     fi
 }
 
@@ -334,9 +334,9 @@ main() {
     done
     
     # Check if already installed
-    if command -v bop &> /dev/null && [[ "$FORCE" != true ]]; then
-        warn "bop is already installed. Use --force to reinstall."
-        bop --help
+    if command -v boxofports &> /dev/null && [[ "$FORCE" != true ]]; then
+        warn "boxofports is already installed. Use --force to reinstall."
+        boxofports --help
         exit 0
     fi
     
@@ -351,7 +351,7 @@ main() {
     fi
     
     create_venv
-    install_bop
+    install_boxofports
     create_wrapper
     update_shell_config
     create_config

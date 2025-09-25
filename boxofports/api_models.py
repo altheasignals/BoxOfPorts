@@ -258,6 +258,57 @@ class IPListResponse(BaseResponse):
     ipset: List[str] = Field(..., description="IP address list")
 
 
+# IMEI Batch Processing Models
+class IMEIPortChange(BaseModel):
+    """Single port IMEI change specification."""
+    port: int = Field(..., ge=1, le=64, description="Port number (1-64)")
+    slot: int = Field(1, ge=1, le=4, description="Slot number (typically 1)")
+    imei: str = Field(..., pattern=r'^\d{15}$', description="15-digit IMEI value")
+    
+    @validator('imei')
+    @classmethod
+    def validate_imei(cls, v: str) -> str:
+        if not v.isdigit() or len(v) != 15:
+            raise ValueError('IMEI must be exactly 15 digits')
+        return v
+
+
+class IMEIBatchRequest(BaseModel):
+    """Batch request to set IMEI for multiple ports."""
+    changes: List[IMEIPortChange] = Field(..., min_items=1, description="List of IMEI changes to apply")
+    
+    @validator('changes')
+    @classmethod
+    def validate_unique_ports(cls, v: List[IMEIPortChange]) -> List[IMEIPortChange]:
+        ports_seen = set()
+        for change in v:
+            port_key = (change.port, change.slot)
+            if port_key in ports_seen:
+                raise ValueError(f'Duplicate port/slot combination: {change.port}.{change.slot:02d}')
+            ports_seen.add(port_key)
+        return v
+
+
+class SlotUnlock(BaseModel):
+    """Single slot unlock specification."""
+    port: int = Field(..., ge=1, le=64, description="Port number (1-64)")
+    slot: int = Field(1, ge=1, le=4, description="Slot number (typically 1)")
+
+
+class UnlockSlotsRequest(BaseModel):
+    """Request to unlock multiple slots after IMEI changes."""
+    slots: List[SlotUnlock] = Field(..., min_items=1, description="List of slots to unlock")
+
+
+class IMEIBatchResponse(BaseModel):
+    """Response from IMEI batch configuration request."""
+    success: bool = Field(..., description="Whether the operation succeeded")
+    message: str = Field(..., description="Status message")
+    ports_changed: int = Field(0, description="Number of ports that were changed")
+    reboot_required: bool = Field(True, description="Whether device reboot is required")
+    workflow_step: str = Field(..., description="Current step in the IMEI workflow")
+
+
 # Enhanced SMS Inbox Models
 from datetime import datetime
 from enum import Enum
@@ -397,6 +448,7 @@ class SMSInboxFilter(BaseModel):
     contains_text: Optional[str] = Field(None, description="Filter by text content")
     sender: Optional[str] = Field(None, description="Filter by sender number")
     port: Optional[str] = Field(None, description="Filter by receiving port")
+    ports: Optional[List[str]] = Field(None, description="Filter by multiple receiving ports (from CSV)")
     since: Optional[datetime] = Field(None, description="Messages since this timestamp")
     until: Optional[datetime] = Field(None, description="Messages until this timestamp")
     keywords: Optional[List[str]] = Field(None, description="Filter by keywords")

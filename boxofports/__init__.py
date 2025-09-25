@@ -5,7 +5,7 @@ A comprehensive command-line tool designed for SMS gateway operators managing
 EJOIN multi-WAN routers. Built for the daily reality of managing dozens of 
 gateways with failing ports, SIM card swaps, and compliance monitoring.
 
-Command: bop
+Command: boxofports (local) / bop (Docker wrapper)
 Like rain in a box, but for ports
 
 Developed by Althea Signals Network LLC

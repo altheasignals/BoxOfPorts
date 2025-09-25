@@ -7,7 +7,7 @@
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | bash
-bop --help
+boxofports --help
 ```
 
 ### System-wide Installation
@@ -38,7 +38,7 @@ Developed by [Althea Signals Network LLC](https://altheasignals.net) - The leade
 
 ## 🌟 Overview
 
-BoxOfPorts (`bop`) is a comprehensive CLI tool designed for SMS gateway operators managing EJOIN multi-WAN routers. Built for the daily reality of managing dozens of gateways with failing ports, SIM card swaps, and compliance monitoring, it provides practical SMS operations, inbox management, device control, and automation capabilities.
+BoxOfPorts provides both a local CLI (`boxofports`) and a Docker wrapper (`bop`) designed for SMS gateway operators managing EJOIN multi-WAN routers. Built for the daily reality of managing dozens of gateways with failing ports, SIM card swaps, and compliance monitoring, it provides practical SMS operations, inbox management, device control, and automation capabilities.
 
 ### Key Features
 
@@ -121,13 +121,13 @@ cd BoxOfPorts
 #### Option 4: Using Docker
 ```bash
 # Build the container
-docker build -t bop .
+docker build -t altheasignals/boxofports .
 
 # Run commands
-docker run --rm bop --help
+docker run --rm altheasignals/boxofports boxofports --help
 
 # Run with connection parameters
-docker run --rm bop --host 192.168.1.100 --user admin --password your_password test-connection
+docker run --rm altheasignals/boxofports boxofports --host 192.168.1.100 --user admin --password your_password test-connection
 ```
 
 ### Choosing the Right Installation Method
@@ -140,43 +140,77 @@ docker run --rm bop --host 192.168.1.100 --user admin --password your_password t
 
 ### Basic Usage
 
-#### Option 1: Quick Commands (specify connection details each time)
+#### Local CLI Usage (Direct Installation)
 ```bash
 # Test connection to your gateway
-bop --host 192.168.1.100 --user admin --password your_password test-connection
+boxofports --host 192.168.1.100 --user admin --password your_password test-connection
 
-# Test connection with custom port (host:port format)
-bop --host 203.0.113.100:60140 --user root --password your_password test-connection
+# Test connection with custom port (host:port format) 
+boxofports --host 203.0.113.100:60140 --user root --password your_password test-connection
 
 # Send SMS via specific port
-bop --host 192.168.1.100 --user admin --password your_password \
-  sms send --to "+1234567890" --text "Hello from bop!" --ports "1A"
+boxofports --host 192.168.1.100 --user admin --password your_password \
+  sms send --to "+1234567890" --text "Hello from BoxOfPorts!" --ports "1A"
 ```
 
-#### Option 2: Profile-Based Usage (Recommended)
+#### Docker Wrapper Usage (Container-based)
+```bash
+# Test connection to your gateway
+boxofports --host 192.168.1.100 --user admin --password your_password test-connection
+
+# Test connection with custom port (host:port format)
+boxofports --host 203.0.113.100:60140 --user root --password your_password test-connection
+
+# Send SMS via specific port  
+boxofports --host 192.168.1.100 --user admin --password your_password \
+  sms send --to "+1234567890" --text "Hello from BoxOfPorts!" --ports "1A"
+```
+
+#### Profile-Based Usage (Recommended)
+
+**Local CLI (boxofports):**
 ```bash
 # Create profiles for your servers (one-time setup)
-bop config add-profile remote --host 203.0.113.100:60140 --user root --password your_password
-bop config add-profile local --host 192.168.1.100 --user admin --password your_password
+boxofports config add-profile remote --host 203.0.113.100:60140 --user root --password your_password
+boxofports config add-profile local --host 192.168.1.100 --user admin --password your_password
 
 # Switch between profiles
-bop config switch remote
+boxofports config switch remote
 
 # Now use commands without specifying connection details!
-bop test-connection
-bop sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
-bop ops lock --ports "1A-1D"
+boxofports test-connection
+boxofports sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
+boxofports ops lock --ports "1A-1D"
 
 # Switch to different server instantly
-bop config switch local
-bop test-connection  # Now connects to local server
+boxofports config switch local
+boxofports test-connection  # Now connects to local server
+```
+
+**Docker Wrapper (bop):**
+```bash
+# Create profiles for your servers (one-time setup)
+boxofports config add-profile remote --host 203.0.113.100:60140 --user root --password your_password
+boxofports config add-profile local --host 192.168.1.100 --user admin --password your_password
+
+# Switch between profiles
+boxofports config switch remote
+
+# Now use commands without specifying connection details!
+boxofports test-connection
+boxofports sms send --to "+1234567890" --text "Hello from {{port}}" --ports "2A"
+boxofports ops lock --ports "1A-1D"
+
+# Switch to different server instantly
+boxofports config switch local
+boxofports test-connection  # Now connects to local server
 ```
 
 ## 📖 Documentation
 
 ### Command Structure
 ```
-bop [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
+boxofports [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 ```
 
 ### Global Options
@@ -188,50 +222,52 @@ bop [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 
 ### Available Commands
 
+> **Note**: Commands work identically with both `boxofports` (local CLI) and `bop` (Docker wrapper). Examples below show local CLI format.
+
 #### Profile Management
 ```bash
-bop config add-profile <name>  # Add server profile
-bop config list                # List all profiles
-bop config switch <name>       # Switch to profile
-bop config current             # Show current profile
-bop config show [name]         # Show profile details
-bop config remove <name>       # Remove profile
+boxofports config add-profile <name>  # Add server profile
+boxofports config list                # List all profiles
+boxofports config switch <name>       # Switch to profile
+boxofports config current             # Show current profile
+boxofports config show [name]         # Show profile details
+boxofports config remove <name>       # Remove profile
 ```
 
 #### SMS Operations
 ```bash
-bop sms send     # Send SMS with templating support
-bop sms spray    # Spray SMS across multiple ports quickly
+boxofports sms send     # Send SMS with templating support
+boxofports sms spray    # Spray SMS across multiple ports quickly
 ```
 
 #### Inbox Management
 ```bash
-bop inbox list     # List received messages with filtering
-bop inbox search   # Search messages by content
-bop inbox stop     # Show STOP/unsubscribe messages
-bop inbox summary  # Inbox statistics and overview
-bop inbox show     # Show detailed message information
+boxofports inbox list     # List received messages with filtering
+boxofports inbox search   # Search messages by content
+boxofports inbox stop     # Show STOP/unsubscribe messages
+boxofports inbox summary  # Inbox statistics and overview
+boxofports inbox show     # Show detailed message information
 ```
 
 #### Device Operations  
 ```bash
-bop ops lock     # Lock specified ports
-bop ops unlock   # Unlock specified ports
+boxofports ops lock     # Lock specified ports
+boxofports ops unlock   # Unlock specified ports
 ```
 
 #### Status Monitoring
 ```bash
-bop status subscribe  # Subscribe to status notifications
+boxofports status subscribe  # Subscribe to status notifications
 ```
 
 #### Utility
 ```bash
-bop test-connection  # Test gateway connectivity
+boxofports test-connection  # Test gateway connectivity
 ```
 
 ## 🎨 Template System
 
-bop includes a powerful Jinja2-based template system for dynamic SMS content:
+BoxOfPorts includes a powerful Jinja2-based template system for dynamic SMS content:
 
 ### Built-in Variables
 - `{{port}}` - Current port identifier
@@ -241,15 +277,15 @@ bop includes a powerful Jinja2-based template system for dynamic SMS content:
 ### Example Templates
 ```bash
 # Basic templating
-bop sms send --text "Alert from port {{port}} at {{ts}}" --ports "1A"
+boxofports sms send --text "Alert from port {{port}} at {{ts}}" --ports "1A"
 
 # With custom variables and filters
-bop sms send \
+boxofports sms send \
   --text "{{company | upper}} Alert: Port {{port}} Status {{status}}" \
   --ports "1A,2B" --var "company=Acme Corp" --var "status=OK"
 
 # Preview templates before sending (--dry-run)
-bop sms send --text "Alert from {{port}}" --ports "1A,2B" --dry-run
+boxofports sms send --text "Alert from {{port}}" --ports "1A,2B" --dry-run
 # Shows exactly what will be sent without actually sending
 ```
 
@@ -261,7 +297,7 @@ bop sms send --text "Alert from {{port}}" --ports "1A,2B" --dry-run
 
 ## 🔌 Port Specifications
 
-bop supports flexible port specification formats:
+BoxOfPorts supports flexible port specification formats:
 
 ### Single Ports
 - `1A` - Slot 1, Port A
@@ -281,7 +317,7 @@ bop supports flexible port specification formats:
 
 ### Let It Ripple - Bulk SMS Campaign
 ```bash
-bop sms send --to "+1234567890" \
+boxofports sms send --to "+1234567890" \
   --text "Campaign #{{idx}} from {{port}}" \
   --ports "1A-4D" --repeat 2
 ```
@@ -289,38 +325,38 @@ bop sms send --to "+1234567890" \
 ### Emergency Alert System
 ```bash
 # Lock all ports
-bop ops lock --ports "1A-10D"
+boxofports ops lock --ports "1A-10D"
 
 # Send alert
-bop sms send --to "+1234567890" \
+boxofports sms send --to "+1234567890" \
   --text "EMERGENCY: System locked at {{ts}}" --ports "1A"
 ```
 
 ### Eyes of the Inbox
 ```bash
 # Monitor STOP messages (compliance)
-bop inbox stop
+boxofports inbox stop
 
 # Get inbox overview
-bop inbox summary
+boxofports inbox summary
 
 # Find messages containing specific text
-bop inbox search "balance"
+boxofports inbox search "balance"
 
 # List recent messages excluding delivery reports
-bop inbox list --count 20 --no-delivery-reports
+boxofports inbox list --count 20 --no-delivery-reports
 
 # Export STOP messages for compliance
-bop inbox stop --json > stop_messages.json
+boxofports inbox stop --json > stop_messages.json
 ```
 
 ### Multi-Gateway Management
 ```bash
 # Gateway 1
-bop --host 192.168.1.100 sms send --to "+1234567890" --text "From GW1" --ports "1A"
+boxofports --host 192.168.1.100 sms send --to "+1234567890" --text "From GW1" --ports "1A"
 
 # Gateway 2  
-bop --host 192.168.1.101 sms send --to "+1234567890" --text "From GW2" --ports "1A"
+boxofports --host 192.168.1.101 sms send --to "+1234567890" --text "From GW2" --ports "1A"
 ```
 
 ## 🐳 Docker Usage
@@ -335,7 +371,7 @@ docker run --rm -v $(pwd)/config:/app/config bop \
   --host 192.168.1.100 --user admin --password your_password test-connection
 
 # Interactive mode
-docker run --rm -it bop bash
+docker run --rm -it boxofports bash
 ```
 
 ### Docker Compose
@@ -371,7 +407,7 @@ pytest
 ruff check .
 
 # Type checking
-mypy bop/
+mypy boxofports/
 ```
 
 ### Running Tests
@@ -383,7 +419,7 @@ pytest
 pytest tests/test_ports.py
 
 # Run with coverage
-pytest --cov=bop
+pytest --cov=boxofports
 ```
 
 ## 📋 Requirements
@@ -407,20 +443,29 @@ pytest --cov=bop
 
 #### Connection Timeouts
 ```bash
-# Increase timeout
-bop --host 192.168.1.100 --timeout 60 test-connection
+# Increase timeout (local CLI)
+boxofports --host 192.168.1.100 --timeout 60 test-connection
+
+# Or with Docker wrapper
+boxofports --host 192.168.1.100 --timeout 60 test-connection
 ```
 
 #### Authentication Errors
 ```bash
-# Verify credentials
-bop --host 192.168.1.100 --user admin --password correct_password test-connection
+# Verify credentials (local CLI)
+boxofports --host 192.168.1.100 --user admin --password correct_password test-connection
+
+# Or with Docker wrapper
+boxofports --host 192.168.1.100 --user admin --password correct_password test-connection
 ```
 
 #### Port Specification Errors
 ```bash
-# Use dry-run to verify port parsing
-bop sms send --ports "1A-1D" --text "test" --to "+1234567890" --dry-run
+# Use dry-run to verify port parsing (local CLI)
+boxofports sms send --ports "1A-1D" --text "test" --to "+1234567890" --dry-run
+
+# Or with Docker wrapper
+boxofports sms send --ports "1A-1D" --text "test" --to "+1234567890" --dry-run
 ```
 
 ## 📞 Support
@@ -468,5 +513,5 @@ cutting-edge technology and open protocols.
 
 **BoxOfPorts** - SMS Gateway Management CLI  
 *Like "Box of Rain", but for ports*  
-Command: `bop`  
+Commands: `boxofports` (local) / `bop` (Docker wrapper)  
 Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.

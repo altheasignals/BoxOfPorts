@@ -33,31 +33,31 @@ List received SMS messages with various filtering options.
 
 ```bash
 # List all messages (default: 50 messages)
-bop inbox list
+boxofports inbox list
 
 # List all messages from start
-bop inbox list --count 0
+boxofports inbox list --count 0
 
 # List only STOP messages
-bop inbox list --type stop
+boxofports inbox list --type stop
 
 # List messages from specific port
-bop inbox list --port 1A
+boxofports inbox list --port 1A
 
 # List messages containing specific text
-bop inbox list --contains "balance"
+boxofports inbox list --contains "balance"
 
 # List messages from specific sender
-bop inbox list --sender "12345"
+boxofports inbox list --sender "12345"
 
 # Exclude delivery reports
-bop inbox list --no-delivery-reports
+boxofports inbox list --no-delivery-reports
 
 # Show only delivery reports
-bop inbox list --delivery-reports-only
+boxofports inbox list --delivery-reports-only
 
 # Output as JSON
-bop inbox list --json
+boxofports inbox list --json
 ```
 
 **Options:**
@@ -77,13 +77,13 @@ Search for messages containing specific text.
 
 ```bash
 # Search for messages containing "STOP"
-bop inbox search "STOP"
+boxofports inbox search "STOP"
 
 # Search with detailed output
-bop inbox search "balance" --details
+boxofports inbox search "balance" --details
 
 # Search from specific starting point
-bop inbox search "urgent" --start-id 100
+boxofports inbox search "urgent" --start-id 100
 ```
 
 **Options:**
@@ -97,10 +97,10 @@ Quickly view all STOP/unsubscribe messages.
 
 ```bash
 # Show all STOP messages
-bop inbox stop
+boxofports inbox stop
 
 # Output STOP messages as JSON
-bop inbox stop --json
+boxofports inbox stop --json
 ```
 
 **Options:**
@@ -113,10 +113,10 @@ Get comprehensive inbox statistics and summary.
 
 ```bash
 # Show inbox summary
-bop inbox summary
+boxofports inbox summary
 
 # Output summary as JSON
-bop inbox summary --json
+boxofports inbox summary --json
 ```
 
 **Provides:**
@@ -133,10 +133,10 @@ Show detailed information about a specific message.
 
 ```bash
 # Show details for message ID 123
-bop inbox show 123
+boxofports inbox show 123
 
 # Search from different starting point
-bop inbox show 456 --start-id 400
+boxofports inbox show 456 --start-id 400
 ```
 
 ## Message Types and Classification
@@ -203,34 +203,34 @@ Messages are automatically scanned for important keywords:
 
 ```bash
 # Find all STOP messages from port 1A
-bop inbox list --type stop --port 1A
+boxofports inbox list --type stop --port 1A
 
 # Find urgent messages (system classification)
-bop inbox search "urgent" --details
+boxofports inbox search "urgent" --details
 
 # Get recent messages excluding delivery reports
-bop inbox list --count 20 --no-delivery-reports
+boxofports inbox list --count 20 --no-delivery-reports
 
 # Find balance-related messages
-bop inbox search "balance"
+boxofports inbox search "balance"
 
 # Check messages from specific short code
-bop inbox list --sender "12345"
+boxofports inbox list --sender "12345"
 ```
 
 ### Monitoring Scenarios
 
 ```bash
 # Daily STOP message check
-bop inbox stop
+boxofports inbox stop
 
 # Quick inbox health check
-bop inbox summary
+boxofports inbox summary
 
 # Find issues or alerts
-bop inbox search "error"
-bop inbox search "failed"
-bop inbox search "urgent"
+boxofports inbox search "error"
+boxofports inbox search "failed"
+boxofports inbox search "urgent"
 ```
 
 ## Integration Examples
@@ -241,10 +241,10 @@ bop inbox search "urgent"
 #!/bin/bash
 # Check for new STOP messages and alert
 
-STOP_COUNT=$(bop inbox stop --json | jq length)
+STOP_COUNT=$(boxofports inbox stop --json | jq length)
 if [ $STOP_COUNT -gt 0 ]; then
     echo "⚠️ Found $STOP_COUNT STOP messages!"
-    bop inbox stop
+    boxofports inbox stop
 fi
 ```
 
@@ -252,18 +252,18 @@ fi
 
 ```bash
 # Get STOP messages as JSON and process
-bop inbox stop --json | jq '.[].sender' | sort | uniq
+boxofports inbox stop --json | jq '.[].sender' | sort | uniq
 
 # Get summary statistics
-bop inbox summary --json | jq '.total_messages'
+boxofports inbox summary --json | jq '.total_messages'
 ```
 
 ## Best Practices
 
 ### Regular Monitoring
-1. **Daily STOP Check**: `bop inbox stop`
-2. **Weekly Summary**: `bop inbox summary`
-3. **Filter Important**: `bop inbox list --no-delivery-reports`
+1. **Daily STOP Check**: `boxofports inbox stop`
+2. **Weekly Summary**: `boxofports inbox summary`
+3. **Filter Important**: `boxofports inbox list --no-delivery-reports`
 
 ### Performance Tips
 1. Use `--count` to limit results for large inboxes
@@ -272,21 +272,21 @@ bop inbox summary --json | jq '.total_messages'
 4. Use `--json` for programmatic processing
 
 ### STOP Message Management
-1. Regularly monitor: `bop inbox stop`
-2. Export for compliance: `bop inbox stop --json > stops.json`
-3. Track by port: `bop inbox list --type stop --port 1A`
+1. Regularly monitor: `boxofports inbox stop`
+2. Export for compliance: `boxofports inbox stop --json > stops.json`
+3. Track by port: `boxofports inbox list --type stop --port 1A`
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **No messages found**
-   - Check router connectivity: `bop test-connection`
+   - Check router connectivity: `boxofports test-connection`
    - Verify SMS inbox has messages
    - Try different start-id: `--start-id 1`
 
 2. **Classification seems wrong**
-   - View raw content: `bop inbox show <id>`
+   - View raw content: `boxofports inbox show <id>`
    - Check message content for classification keywords
 
 3. **Filtering not working**
@@ -297,13 +297,13 @@ bop inbox summary --json | jq '.total_messages'
 ### Debug Commands
 ```bash
 # Check basic connectivity
-bop test-connection
+boxofports test-connection
 
 # View raw message data
-bop inbox show 1
+boxofports inbox show 1
 
 # Test small batch first
-bop inbox list --count 5
+boxofports inbox list --count 5
 ```
 
 ## API Integration
@@ -323,4 +323,4 @@ The inbox functionality uses the EJOIN HTTP API v2.2 SMS inbox endpoints:
 
 ---
 
-*For more information, use `bop inbox --help` or `bop inbox <command> --help`*
+*For more information, use `boxofports inbox --help` or `boxofports inbox <command> --help`*

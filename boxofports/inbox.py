@@ -95,9 +95,11 @@ class SMSInboxService:
         if filter_criteria.sender:
             filtered = [msg for msg in filtered if filter_criteria.sender in msg.sender]
         
-        # Filter by port
+        # Filter by port (single or multiple)
         if filter_criteria.port:
             filtered = [msg for msg in filtered if msg.port == filter_criteria.port]
+        elif filter_criteria.ports:
+            filtered = [msg for msg in filtered if msg.port in filter_criteria.ports]
         
         # Filter by timestamp range
         if filter_criteria.since:

@@ -28,14 +28,14 @@ echo ""
 echo "Testing SMS functionality..."
 
 # Get current profile
-CURRENT_PROFILE=$(bop config current | head -n1 | cut -d':' -f2 | xargs)
+CURRENT_PROFILE=$(boxofports config current | head -n1 | cut -d':' -f2 | xargs)
 if [ -z "$CURRENT_PROFILE" ] || [ "$CURRENT_PROFILE" = "No current profile set" ]; then
     echo "❌ No profile set. Please run 'Setup_Profiles.command' first."
 else
     echo "Using profile: $CURRENT_PROFILE"
     echo ""
     echo "Sending test SMS..."
-    bop sms send --to "+1234567890" --text "Touch of grey, BoxOfPorts test at $(date)" --ports "1A" --dry-run
+    boxofports sms send --to "+1234567890" --text "Touch of grey, BoxOfPorts test at $(date)" --ports "1A" --dry-run
 fi
 
 echo ""
@@ -62,10 +62,10 @@ DESKTOP_PATH="$HOME/Desktop"
 echo "Wake up to find out that you are the eyes of the world..."
 echo ""
 echo "📥 Exporting SMS inbox..."
-bop inbox list --count 50 --json > "${DESKTOP_PATH}/sms_inbox_${TIMESTAMP}.json"
+boxofports inbox list --count 50 --json > "${DESKTOP_PATH}/sms_inbox_${TIMESTAMP}.json"
 
 echo "📊 Generating inbox summary..."
-bop inbox summary > "${DESKTOP_PATH}/inbox_summary_${TIMESTAMP}.txt"
+boxofports inbox summary > "${DESKTOP_PATH}/inbox_summary_${TIMESTAMP}.txt"
 
 echo ""
 echo "✅ Files saved to Desktop:"
@@ -101,7 +101,7 @@ if [ -n "$RECIPIENT" ] && [ -n "$MESSAGE" ]; then
     echo ""
     
     # Send via multiple ports for reliability
-    bop sms spray --to "$RECIPIENT" --text "🚨 ALERT: $MESSAGE - Sent at $(date)" --ports "1A,2A,3A"
+    boxofports sms spray --to "$RECIPIENT" --text "🚨 ALERT: $MESSAGE - Sent at $(date)" --ports "1A,2A,3A"
     
     echo ""
     echo "🔥 Emergency alert sent via multiple ports! 🔥"
@@ -146,7 +146,7 @@ if [ -n "$RECIPIENT" ] && [ -n "$MESSAGE" ] && [ -n "$PORTS" ]; then
     
     # Preview first
     echo "📋 Campaign Preview:"
-    bop sms send --to "$RECIPIENT" --text "$MESSAGE from port {{port}} ({{idx}})" --ports "$PORTS" --repeat "$REPEAT" --dry-run
+    boxofports sms send --to "$RECIPIENT" --text "$MESSAGE from port {{port}} ({{idx}})" --ports "$PORTS" --repeat "$REPEAT" --dry-run
     
     echo ""
     read -p "Send this campaign? (y/N): " -n 1 -r
@@ -154,7 +154,7 @@ if [ -n "$RECIPIENT" ] && [ -n "$MESSAGE" ] && [ -n "$PORTS" ]; then
     
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "🌊 Sending ripple campaign..."
-        bop sms send --to "$RECIPIENT" --text "$MESSAGE from port {{port}} ({{idx}})" --ports "$PORTS" --repeat "$REPEAT"
+        boxofports sms send --to "$RECIPIENT" --text "$MESSAGE from port {{port}} ({{idx}})" --ports "$PORTS" --repeat "$REPEAT"
         echo "✅ Ripple campaign complete!"
     else
         echo "📋 Campaign cancelled"
@@ -189,11 +189,11 @@ echo ""
 echo "🛑 Generating STOP messages compliance report..."
 
 # Export STOP messages
-bop inbox stop --json > "${DESKTOP_PATH}/stop_messages_${TIMESTAMP}.json"
-bop inbox stop > "${DESKTOP_PATH}/stop_messages_readable_${TIMESTAMP}.txt"
+boxofports inbox stop --json > "${DESKTOP_PATH}/stop_messages_${TIMESTAMP}.json"
+boxofports inbox stop > "${DESKTOP_PATH}/stop_messages_readable_${TIMESTAMP}.txt"
 
 # Count STOP messages
-STOP_COUNT=$(bop inbox stop --json 2>/dev/null | jq length 2>/dev/null || echo "0")
+STOP_COUNT=$(boxofports inbox stop --json 2>/dev/null | jq length 2>/dev/null || echo "0")
 
 echo ""
 echo "📊 STOP Messages Analysis Complete:"
@@ -229,7 +229,7 @@ echo "====================================" >> "$RESULTS_FILE"
 echo "" >> "$RESULTS_FILE"
 
 # Test each profile
-PROFILES=$(bop config list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v '^$')
+PROFILES=$(boxofports config list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v '^$')
 
 if [ -z "$PROFILES" ]; then
     echo "❌ No profiles configured! Casey's got no train to drive!" | tee -a "$RESULTS_FILE"
@@ -239,8 +239,8 @@ else
         echo "🚂 Testing profile: $profile" | tee -a "$RESULTS_FILE"
         echo "────────────────────────────" >> "$RESULTS_FILE"
         
-        if bop config switch "$profile" >> "$RESULTS_FILE" 2>&1; then
-            if bop test-connection >> "$RESULTS_FILE" 2>&1; then
+        if boxofports config switch "$profile" >> "$RESULTS_FILE" 2>&1; then
+            if boxofports test-connection >> "$RESULTS_FILE" 2>&1; then
                 echo "✅ $profile: Connection successful - Casey's on time!" | tee -a "$RESULTS_FILE"
             else
                 echo "❌ $profile: Connection failed - Casey's trouble ahead!" | tee -a "$RESULTS_FILE"
@@ -291,7 +291,7 @@ while true; do
         1)
             echo ""
             echo "📋 Your current profiles:"
-            bop config list
+            boxofports config list
             echo ""
             ;;
         2)
@@ -306,7 +306,7 @@ while true; do
             user=${user:-admin}
             
             if [ -n "$name" ] && [ -n "$host" ] && [ -n "$password" ]; then
-                bop config add-profile "$name" --host "$host" --user "$user" --password "$password"
+                boxofports config add-profile "$name" --host "$host" --user "$user" --password "$password"
                 echo "✅ Profile '$name' added successfully!"
             else
                 echo "❌ Missing required information"
@@ -316,25 +316,25 @@ while true; do
         3)
             echo ""
             echo "🔄 Available profiles:"
-            bop config list
+            boxofports config list
             echo ""
             read -p "Switch to profile: " profile
             if [ -n "$profile" ]; then
-                bop config switch "$profile"
+                boxofports config switch "$profile"
             fi
             echo ""
             ;;
         4)
             echo ""
             echo "❌ Available profiles:"
-            bop config list
+            boxofports config list
             echo ""
             read -p "Remove profile: " profile
             if [ -n "$profile" ]; then
                 read -p "Are you sure? (y/N): " -n 1 confirm
                 echo ""
                 if [[ $confirm =~ ^[Yy]$ ]]; then
-                    bop config remove "$profile"
+                    boxofports config remove "$profile"
                 fi
             fi
             echo ""
@@ -498,7 +498,7 @@ REM 4. Double-click to run!
 When shortcuts don't work:
 1. Open Terminal/Command Prompt manually
 2. Navigate to your BoxOfPorts directory  
-3. Run `bop --help` (macOS) or `python -m boxofports.cli --help` (Windows)
+3. Run `boxofports --help` (macOS) or `python -m boxofports.cli --help` (Windows)
 4. If that works, the shortcuts just need the paths fixed
 
 ---

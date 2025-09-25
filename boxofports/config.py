@@ -210,7 +210,7 @@ class ConfigManager:
                 if not self._profiles:
                     raise ValueError(
                         "No configuration available. Either set environment variables "
-                        "(EJOIN_HOST, etc.) or create a profile with 'bop config add-profile'."
+                        "(EJOIN_HOST, etc.) or create a profile with 'boxofports config add-profile'."
                     )
                 # Use the first available profile
                 first_profile = next(iter(self._profiles.keys()))

@@ -39,18 +39,24 @@ The installer will:
 3. Download and install completion script
 4. Provide instructions for activation
 
-### Method 2: Using bop completion Command
-If bop is already installed, you can manage completion directly:
+### Method 2: Using CLI completion Commands
 
+**For local CLI (boxofports):**
 ```bash
 # Install completion for current user
-bop completion --install
+boxofports completion --install
 
 # Generate completion script for bash
-bop completion --shell bash
+boxofports completion --shell bash
 
 # Generate completion script for zsh  
-bop completion --shell zsh
+boxofports completion --shell zsh
+```
+
+**For Docker wrapper (bop):**
+```bash
+# Install completion for current user (if boxofports wrapper is installed)
+boxofports completion --install
 ```
 
 ### Method 3: Manual Installation
@@ -68,23 +74,32 @@ echo 'source ~/.bop-completion.bash' >> ~/.zshrc    # Zsh
 ## 📋 Completion Examples
 
 ### Basic Command Completion
+
+**Local CLI (boxofports):**
+```bash
+boxofports <TAB>         # Shows: sms, ops, status, inbox, config, test-connection, completion
+boxofports sms <TAB>     # Shows: send, spray  
+boxofports inbox <TAB>   # Shows: list, search, stop, summary, show
+```
+
+**Docker wrapper (bop):**
 ```bash
 bop <TAB>         # Shows: sms, ops, status, inbox, config, test-connection, completion
-bop sms <TAB>     # Shows: send, spray  
-bop inbox <TAB>   # Shows: list, search, stop, summary, show
+boxofports sms <TAB>     # Shows: send, spray  
+boxofports inbox <TAB>   # Shows: list, search, stop, summary, show
 ```
 
 ### Option Completion
 ```bash
-bop sms send <TAB>           # Shows: --to, --text, --ports, --repeat, --intvl-ms, --timeout, --var, --dry-run
-bop inbox list <TAB>         # Shows: --start-id, --count, --type, --port, --sender, --contains, --no-delivery-reports, --delivery-reports-only, --json
+boxofports sms send <TAB>           # Shows: --to, --text, --ports, --repeat, --intvl-ms, --timeout, --var, --dry-run
+boxofports inbox list <TAB>         # Shows: --start-id, --count, --type, --port, --sender, --contains, --no-delivery-reports, --delivery-reports-only, --json
 ```
 
 ### Value Completion  
 ```bash
-bop inbox list --type <TAB>  # Shows: regular, stop, system, delivery_report, keyword
-bop sms send --ports <TAB>   # Shows: 1A, 1B, 1C, 1D, 2A, 2B, 3A, 4A, 1A-1D, 2A-2D, 1A,2B,3C, 1.01, 2.02
-bop config switch <TAB>      # Shows: available profile names (dynamically loaded)
+boxofports inbox list --type <TAB>  # Shows: regular, stop, system, delivery_report, keyword
+boxofports sms send --ports <TAB>   # Shows: 1A, 1B, 1C, 1D, 2A, 2B, 3A, 4A, 1A-1D, 2A-2D, 1A,2B,3C, 1.01, 2.02
+boxofports config switch <TAB>      # Shows: available profile names (dynamically loaded)
 ```
 
 ## 🔧 Configuration
@@ -123,17 +138,25 @@ Run the included test script to verify completion functionality:
 ### Manual Testing
 Source the completion script and test interactively:
 
+**For local CLI:**
+```bash
+source ~/.boxofports-completion.bash
+boxofports <TAB><TAB>              # Test main commands
+boxofports sms send --<TAB><TAB>   # Test options
+```
+
+**For Docker wrapper:**
 ```bash
 source ~/.bop-completion.bash
 bop <TAB><TAB>              # Test main commands
-bop sms send --<TAB><TAB>   # Test options
+boxofports sms send --<TAB><TAB>   # Test options
 ```
 
 ## 📊 Completion Structure
 
 ### Command Hierarchy
 ```
-bop
+boxofports
 ├── sms
 │   ├── send (--to --text --ports --repeat --intvl-ms --timeout --var --dry-run)
 │   └── spray (--to --text --ports --intvl-ms)
@@ -160,7 +183,7 @@ bop
 ```
 
 ### Dynamic Completions
-- **Profile names**: Loaded from `bop config list` output
+- **Profile names**: Loaded from `boxofports config list` output
 - **Message types**: `regular`, `stop`, `system`, `delivery_report`, `keyword`
 - **Port examples**: Common patterns like `1A`, `1A-1D`, `1A,2B,3C`, `1.01`
 
@@ -195,7 +218,7 @@ The completion script includes subtle references to the band's spirit:
 If installation fails due to permissions:
 1. The installer will fallback to `~/.bop-completion.bash`
 2. Add `source ~/.bop-completion.bash` to your shell config manually
-3. Use `bop completion --install` for user-space installation
+3. Use `boxofports completion --install` for user-space installation
 
 ### Zsh Compatibility
 If using zsh and completion doesn't work:

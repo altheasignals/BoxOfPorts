@@ -246,6 +246,197 @@ class SyncEjoinClient:
         }
         
         return self.get_json("/goip_get_sms.html", params=params)
+    
+    def set_imei_batch(self, changes: list[dict]) -> dict[str, Any]:
+        """Set IMEI for multiple ports using the correct batch endpoint.
+        
+        Args:
+            changes: List of dicts with 'port', 'slot', 'imei' keys
+            
+        Returns:
+            API response
+        """
+        # Use direct endpoint with authentication in URL params
+        params = {
+            "username": self.config.username,
+            "password": self.config.password
+        }
+        
+        try:
+            response = self.post_json("/set_imeis", json=changes, params=params)
+            return response
+        except Exception as e:
+            # Handle empty response or non-JSON response as success
+            if "Expecting value" in str(e):
+                return {"code": 0, "reason": "OK"}
+            raise
+    
+    def save_config(self) -> dict[str, Any]:
+        """Save device configuration to make IMEI changes persistent.
+        
+        Returns:
+            API response
+        """
+        params = {
+            "username": self.config.username,
+            "password": self.config.password
+        }
+        
+        try:
+            response = self.post_json("/save_config", json={}, params=params)
+            return response
+        except Exception as e:
+            # Handle empty response or non-JSON response as success
+            if "Expecting value" in str(e):
+                return {"code": 0, "reason": "OK"}
+            raise
+    
+    def reboot_device(self) -> dict[str, Any]:
+        """Reboot device to apply IMEI changes.
+        
+        Returns:
+            API response
+        """
+        params = {
+            "username": self.config.username,
+            "password": self.config.password
+        }
+        
+        try:
+            response = self.post_json("/reboot_device", json={}, params=params)
+            return response
+        except Exception as e:
+            # Handle empty response or non-JSON response as success
+            if "Expecting value" in str(e):
+                return {"code": 0, "reason": "OK"}
+            raise
+    
+    def unlock_sims(self, slots: list[dict]) -> dict[str, Any]:
+        """Unlock SIM slots after IMEI changes and reboot.
+        
+        Args:
+            slots: List of dicts with 'port', 'slot' keys
+            
+        Returns:
+            API response
+        """
+        params = {
+            "username": self.config.username,
+            "password": self.config.password
+        }
+        
+        unlock_data = {"slots": slots}
+        
+        try:
+            response = self.post_json("/unlock_sims", json=unlock_data, params=params)
+            return response
+        except Exception as e:
+            # Handle empty response or non-JSON response as success
+            if "Expecting value" in str(e):
+                return {"code": 0, "reason": "OK"}
+            raise
+    
+    def wait_for_reboot(self, timeout: int = 90) -> bool:
+        """Wait for device to complete reboot cycle.
+        
+        Args:
+            timeout: Maximum time to wait in seconds
+            
+        Returns:
+            True if device is responsive, False if timeout
+        """
+        import time
+        start_time = time.time()
+        
+        # Wait initial period for reboot to start
+        time.sleep(10)
+        
+        while time.time() - start_time < timeout:
+            try:
+                # Try to get device status
+                response = self.get_json("/goip_get_status.html")
+                if response.get("type") == "dev-status":
+                    return True
+            except Exception:
+                # Device not ready yet, continue waiting
+                pass
+            
+            time.sleep(2)
+        
+        return False
+        
+        # If all approaches failed, return the last error
+        return {"code": 1, "reason": f"All IMEI set approaches failed. Last error: {last_error}"}
+    
+    def get_port_imei(self, ports: str) -> dict[str, Any]:
+        """Get IMEI values for specified ports.
+        
+        This method actually uses the status endpoint since IMEI values
+        are included in the device status response.
+        
+        Args:
+            ports: Port specification (e.g., '3A' or '1A,2B,3A')
+            
+        Returns:
+            Dictionary with port -> IMEI mappings
+        """
+        from .ports import parse_port_spec, port_to_decimal
+        
+        # Get device status which includes IMEI for all ports
+        status_response = self.get_json("/goip_get_status.html")
+        
+        # Parse requested ports
+        requested_ports = parse_port_spec(ports)
+        
+        # Extract IMEI values for requested ports
+        result = {"type": "imei_values", "ports": {}}
+        
+        if "status" in status_response:
+            for port_status in status_response["status"]:
+                port_id = port_status.get("port", "")
+                imei = port_status.get("imei", "")
+                
+                # Convert decimal format to alpha format for matching
+                try:
+                    from .ports import port_to_alpha
+                    alpha_port = port_to_alpha(port_id)
+                    
+                    # Check if this port was requested
+                    if alpha_port in requested_ports:
+                        result["ports"][alpha_port] = imei
+                except Exception:
+                    # If conversion fails, skip this port
+                    continue
+        
+        result["code"] = 0
+        return result
+    
+    
+    def _port_to_index(self, port: str) -> int:
+        """Convert port notation to index matching device behavior.
+        
+        Looking at the device status, it uses port format like '1.01', '2.01', etc.
+        The index should match the port number directly since it's a linear sequence.
+        
+        Args:
+            port: Port identifier like '3A', '1B', etc.
+            
+        Returns:
+            Port index (1-based to match device expectations)
+        """
+        from .ports import port_to_decimal
+        import re
+        
+        # Convert to decimal format first
+        decimal_port = port_to_decimal(port)
+        
+        # Parse decimal format to get the port number
+        match = re.match(r'(\d+)\.(\d+)', decimal_port)
+        if match:
+            port_num = int(match.group(1))
+            return port_num  # Return 1-based index
+        
+        raise ValueError(f"Invalid port format: {port}")
 
 
 def create_sync_client(config: EjoinConfig) -> SyncEjoinClient:

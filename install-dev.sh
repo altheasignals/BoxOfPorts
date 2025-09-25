@@ -107,10 +107,10 @@ echo ""
 echo "🧪 Testing installation..."
 
 if command -v bop > /dev/null 2>&1; then
-    echo "✅ bop command available"
-    bop --version
+    echo "✅ boxofports command available"
+    boxofports --version
 else
-    echo "⚠️  bop command not found in PATH"
+    echo "⚠️  boxofports command not found in PATH"
     echo "   You may need to restart your shell"
     echo "   Or run: source $SHELL_RC"
 fi
@@ -122,12 +122,12 @@ echo ""
 echo "✨ Development Benefits:"
 echo "  • Code changes are immediately active (no reinstalling)"
 echo "  • Perfect for testing and development"
-echo "  • All standard bop commands work normally"
+echo "  • All standard boxofports commands work normally"
 echo ""
 echo "🚀 Quick Start:"
-echo "  bop --version              # Check installation"
-echo "  bop --help                 # Show all commands"
-echo "  bop config add-profile     # Create your first gateway profile"
+echo "  boxofports --version              # Check installation"
+echo "  boxofports --help                 # Show all commands"
+echo "  boxofports config add-profile     # Create your first gateway profile"
 echo ""
 echo "📁 Important Locations:"
 echo "  Source code:    $(pwd)"

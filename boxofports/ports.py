@@ -4,6 +4,7 @@ import re
 from typing import Iterator, Union
 
 from .http import EjoinHTTPError
+from .csv_port_parser import expand_csv_ports_if_needed, CSVPortParseError
 
 
 class PortParseError(EjoinHTTPError):
@@ -22,9 +23,10 @@ def parse_port_spec(port_spec: str) -> list[str]:
     - Lists: "1A,2B,3C"
     - Mixed: "1A,2B,4-8,10.01-10.04"
     - All ports: "*", "all"
+    - CSV files: "ports.csv" (requires 'port' column, optional 'slot' column)
     
     Args:
-        port_spec: Port specification string
+        port_spec: Port specification string or CSV file path
         
     Returns:
         List of individual port identifiers
@@ -34,6 +36,14 @@ def parse_port_spec(port_spec: str) -> list[str]:
     """
     if not port_spec or not port_spec.strip():
         raise PortParseError("Empty port specification")
+    
+    # Check if it's a CSV file first
+    try:
+        csv_ports = expand_csv_ports_if_needed(port_spec)
+        if csv_ports is not None:
+            return csv_ports
+    except CSVPortParseError as e:
+        raise PortParseError(f"CSV parsing failed: {e}") from e
     
     port_spec = port_spec.strip()
     

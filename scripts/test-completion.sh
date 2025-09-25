@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test script for bop CLI completion
+# Test script for BoxOfPorts CLI completion (both boxofports and boxofports)
 # "What a long, strange trip completion has been..."
 
 set -e
@@ -8,16 +8,23 @@ echo "🎸 Testing BoxOfPorts CLI Tab Completion 🎸"
 echo "=============================================="
 echo ""
 
-# Source the completion script
+# Source the completion scripts
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPLETION_SCRIPT="${SCRIPT_DIR}/bop-completion.bash"
+BOP_COMPLETION_SCRIPT="${SCRIPT_DIR}/bop-completion.bash"
+BOXOFPORTS_COMPLETION_SCRIPT="${SCRIPT_DIR}/boxofports-completion.bash"
 
-if [[ ! -f "$COMPLETION_SCRIPT" ]]; then
-    echo "❌ Completion script not found at: $COMPLETION_SCRIPT"
+if [[ ! -f "$BOP_COMPLETION_SCRIPT" ]]; then
+    echo "❌ Docker wrapper completion script not found at: $BOP_COMPLETION_SCRIPT"
     exit 1
 fi
 
-source "$COMPLETION_SCRIPT"
+if [[ ! -f "$BOXOFPORTS_COMPLETION_SCRIPT" ]]; then
+    echo "❌ Local CLI completion script not found at: $BOXOFPORTS_COMPLETION_SCRIPT"
+    exit 1
+fi
+
+echo "📋 Testing Docker wrapper (bop) completion..."
+source "$BOP_COMPLETION_SCRIPT"
 
 # Function to test completion
 test_completion() {
@@ -65,12 +72,53 @@ test_completion "Message types" "bop" "inbox" "list" "--type"
 test_completion "Port examples" "bop" "sms" "send" "--ports"
 
 echo ""
+echo "📋 Testing local CLI (boxofports) completion..."
+source "$BOXOFPORTS_COMPLETION_SCRIPT"
+
+# Function to test boxofports completion
+test_boxofports_completion() {
+    local test_name="$1"
+    shift
+    
+    # Properly set up completion arrays
+    declare -a COMP_WORDS=("$@")
+    COMP_CWORD=${#COMP_WORDS[@]}
+    COMP_LINE="${COMP_WORDS[*]} "
+    
+    # Clear previous results
+    COMPREPLY=()
+    
+    # Call completion function
+    _boxofports_completion
+    
+    local actual_count=${#COMPREPLY[@]}
+    if [[ $actual_count -gt 0 ]]; then
+        echo "✅ $test_name: ${COMPREPLY[*]}"
+    else
+        echo "❌ $test_name: No completions found"
+    fi
+}
+
+echo "Testing boxofports main commands..."
+test_boxofports_completion "Main commands" "boxofports"
+
+echo ""
+echo "Testing boxofports subcommands..."
+test_boxofports_completion "SMS subcommands" "boxofports" "sms"
+test_boxofports_completion "Config subcommands" "boxofports" "config"
+
+echo ""
 echo "🎵 Completion tests complete! 🎵"
 echo ""
 echo "To test interactively in your shell:"
-echo "1. Run: source ${COMPLETION_SCRIPT}"
+echo "Docker wrapper (bop):"
+echo "1. Run: source ${BOP_COMPLETION_SCRIPT}"
 echo "2. Type: bop <TAB><TAB>"
-echo "3. Type: bop sms <TAB><TAB>"
-echo "4. Type: bop inbox list --type <TAB><TAB>"
+echo "3. Type: boxofports sms <TAB><TAB>"
+echo ""
+echo "Local CLI (boxofports):"
+echo "1. Run: source ${BOXOFPORTS_COMPLETION_SCRIPT}"
+echo "2. Type: boxofports <TAB><TAB>"
+echo "3. Type: boxofports inbox list --type <TAB><TAB>"
 echo ""
 echo "Keep on truckin' with your tab completions! 🚂"

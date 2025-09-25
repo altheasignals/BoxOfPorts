@@ -10,12 +10,12 @@ echo "======================================"
 echo ""
 echo "This installation mode is perfect for:"
 echo "• System administrators managing multi-user environments"
-echo "• Servers where multiple users need access to bop"
+echo "• Servers where multiple users need access to boxofports"
 echo "• Enterprise deployments"
 echo ""
 echo "⚠️  Important Notes:"
 echo "• Requires sudo/root privileges"
-echo "• Installs bop command globally for all users"
+echo "• Installs boxofports command globally for all users"
 echo "• User data (configs, databases) remain private per user"
 echo ""
 
@@ -50,7 +50,7 @@ echo "✅ BoxOfPorts source directory detected"
 # Create system-wide installation directory
 INSTALL_DIR="/opt/boxofports"
 VENV_PATH="$INSTALL_DIR/venv"
-BIN_PATH="/usr/local/bin/bop"
+BIN_PATH="/usr/local/bin/boxofports"
 
 echo ""
 echo "📦 Installing BoxOfPorts system-wide..."
@@ -104,8 +104,8 @@ sudo chmod -R 755 "$INSTALL_DIR"
 echo ""
 echo "🧪 Testing system installation..."
 
-if command -v bop > /dev/null 2>&1; then
-    echo "✅ bop command available globally"
+if command -v boxofports > /dev/null 2>&1; then
+    echo "✅ boxofports command available globally"
     
     # Test as regular user if not root
     if [[ $EUID -eq 0 ]] && command -v sudo > /dev/null 2>&1; then
@@ -113,10 +113,10 @@ if command -v bop > /dev/null 2>&1; then
         TEST_USER=$(getent passwd | grep '/home/' | head -1 | cut -d: -f1 2>/dev/null || echo "")
         if [[ -n "$TEST_USER" ]]; then
             echo "🧪 Testing as user: $TEST_USER"
-            sudo -u "$TEST_USER" bop --version
+            sudo -u "$TEST_USER" boxofports --version
         fi
     else
-        bop --version
+        boxofports --version
     fi
 else
     echo "❌ Installation verification failed"
@@ -128,21 +128,21 @@ echo "🎉 System-Wide Installation Complete!"
 echo "===================================="
 echo ""
 echo "✨ System Benefits:"
-echo "  • bop command available to all users"
+echo "  • boxofports command available to all users"
 echo "  • Centralized maintenance and updates"
 echo "  • Consistent version across the system"
 echo "  • User data remains private per user"
 echo ""
 echo "🚀 Usage for Users:"
-echo "  bop --version              # Check installation"
-echo "  bop --help                 # Show all commands"
-echo "  bop config add-profile     # Create personal gateway profile"
+echo "  boxofports --version              # Check installation"
+echo "  boxofports --help                 # Show all commands"
+echo "  boxofports config add-profile     # Create personal gateway profile"
 echo ""
 echo "📁 Important Locations:"
 echo "  System install:    $INSTALL_DIR"
 echo "  Global command:    $BIN_PATH"
-echo "  User configs:      ~/.config/bop/ (per user)"
-echo "  User data:         ~/.bop/ (per user)"
+echo "  User configs:      ~/.config/boxofports/ (per user)"
+echo "  User data:         ~/.boxofports/ (per user)"
 echo ""
 echo "🔧 Administrator Notes:"
 echo "  • Update: Re-run this script from new source"

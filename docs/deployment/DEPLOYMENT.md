@@ -81,7 +81,7 @@ source venv/bin/activate
 pip install -e .
 
 # Verify installation
-bop --help
+boxofports --help
 ```
 ### Option 2: System-wide Installation
 ```bash
@@ -89,7 +89,7 @@ bop --help
 sudo pip3 install -e .
 
 # Verify
-bop --help
+boxofports --help
 ```
 
 ### macOS Configuration
@@ -97,15 +97,15 @@ bop --help
 #### Create Gateway Profiles (Recommended)
 ```bash
 # Create profiles for your gateways
-bop config add-profile gateway1 --host 192.168.1.100 --user admin --password secure_pass
-bop config add-profile gateway2 --host 192.168.1.101 --user admin --password secure_pass
+boxofports config add-profile gateway1 --host 192.168.1.100 --user admin --password secure_pass
+boxofports config add-profile gateway2 --host 192.168.1.101 --user admin --password secure_pass
 
 # List profiles
-bop config list
+boxofports config list
 
 # Switch between profiles
-bop config switch gateway1
-bop test-connection
+boxofports config switch gateway1
+boxofports test-connection
 ```
 
 #### Alternative: Environment Variables (Fallback)
@@ -143,7 +143,7 @@ $PSVersionTable.PSVersion
    - ✅ Install pip
    - ✅ Install for all users (if admin)
 
-#### Step 2: Install bop (from a PowerShell terminal)
+#### Step 2: Install boxofports (from a PowerShell terminal)
 ```powershell
 # Create working directory
 New-Item -ItemType Directory -Path "$env:USERPROFILE\bop" -Force
@@ -215,7 +215,7 @@ cd BoxOfPorts
 docker build -t bop .
 
 # Test it works
-docker run --rm bop --help
+docker run --rm boxofports --help
 ```
 
 ### Docker Commands
@@ -248,10 +248,10 @@ docker run --rm -v bop_data:/app/data bop \\
   --host 192.168.1.101 --user admin --password pass2
 
 # List profiles
-docker run --rm -v bop_data:/app/data bop config list
+docker run --rm -v bop_data:/app/data boxofports config list
 
 # Use profiles (no need to specify connection details)
-docker run --rm -v bop_data:/app/data bop test-connection
+docker run --rm -v bop_data:/app/data boxofports test-connection
 ```
 
 ### Docker Compose (Production)
@@ -263,10 +263,10 @@ The included `docker-compose.yml` provides a full production setup:
 docker-compose up -d
 
 # Run commands using the service
-docker-compose exec bop config add-profile prod \\
+docker-compose exec boxofports config add-profile prod \\
   --host 192.168.1.100 --user admin --password secure_pass
 
-docker-compose exec bop test-connection
+docker-compose exec boxofports test-connection
 
 # View logs
 docker-compose logs -f bop
@@ -299,10 +299,10 @@ docker-compose up -d
 source ~/bop/bop/venv/bin/activate
 
 # Test connection
-bop --host 192.168.1.100 --user admin --password secret test-connection
+boxofports --host 192.168.1.100 --user admin --password secret test-connection
 
 # Send SMS
-bop --host 192.168.1.100 --user admin --password secret \
+boxofports --host 192.168.1.100 --user admin --password secret \
   sms send --to "+1234567890" --text "Hello from macOS!" --ports "1A"
 ```
 
@@ -364,10 +364,10 @@ export BOXOFPORTS_RETRIES=3
 ### Logging Configuration
 ```bash
 # Enable debug logging
-bop --verbose --host 192.168.1.100 test-connection
+boxofports --verbose --host 192.168.1.100 test-connection
 
 # Log to file
-bop --host 192.168.1.100 test-connection 2>&1 | tee bop.log
+boxofports --host 192.168.1.100 test-connection 2>&1 | tee bop.log
 ```
 
 ## 🛠️ Troubleshooting
@@ -412,7 +412,7 @@ export BOXOFPORTS_TIMEOUT=60
 export BOXOFPORTS_RETRIES=5
 
 # Use specific intervals
-bop sms spray --intvl-ms 100 --ports "1A-10D" --to "+1234567890" --text "Bulk message"
+boxofports sms spray --intvl-ms 100 --ports "1A-10D" --to "+1234567890" --text "Bulk message"
 ```
 
 #### For Multiple Gateways
@@ -427,7 +427,7 @@ bop sms spray --intvl-ms 100 --ports "1A-10D" --to "+1234567890" --text "Bulk me
 ```bash
 # Use environment variables instead of command line
 export EJOIN_PASSWORD=secure_password
-bop --host 192.168.1.100 --user admin test-connection
+boxofports --host 192.168.1.100 --user admin test-connection
 
 # Use configuration files with restricted permissions
 chmod 600 ~/.config/bop/config.ini
@@ -449,7 +449,7 @@ chmod 600 ~/.config/bop/config.ini
 ### Version Updates
 ```bash
 # Check current version
-bop --version
+boxofports --version
 
 # Update to latest version
 git pull origin main

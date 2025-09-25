@@ -11,8 +11,8 @@ mkdir -p "$BOXOFPORTS_DATA_DIR" "$BOXOFPORTS_CONFIG_DIR"
 
 # If no command provided, show help
 if [ $# -eq 0 ]; then
-    exec python -m boxofports.cli --help
+    exec boxofports --help
 fi
 
 # Execute the command
-exec python -m boxofports.cli "$@"
+exec boxofports "$@"

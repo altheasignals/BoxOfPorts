@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# BoxOfPorts Docker Wrapper (bop) completion script
+# BoxOfPorts CLI completion script
 # "Such a long long time to be gone, and a short time to be there"
 
-_bop_completion() {
+_boxofports_completion() {
     local cur prev opts
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -253,9 +253,9 @@ _bop_completion() {
                 "config switch"|"config show"|"config remove")
                     case "${prev}" in
                         switch|show|remove)
-                            # Try to get available profiles from bop config list
-                            if command -v bop >/dev/null 2>&1; then
-                                local profiles=$(bop config list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v '^$' 2>/dev/null || echo "")
+                            # Try to get available profiles from boxofports config list
+                            if command -v boxofports >/dev/null 2>&1; then
+                                local profiles=$(boxofports config list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v '^$' 2>/dev/null || echo "")
                                 if [[ -n "$profiles" ]]; then
                                     COMPREPLY=($(compgen -W "${profiles}" -- ${cur}))
                                 fi
@@ -276,10 +276,10 @@ _bop_completion() {
 }
 
 # Register the completion function
-complete -F _bop_completion bop
+complete -F _boxofports_completion boxofports
 
 # ZSH compatibility
 if [[ -n ${ZSH_VERSION-} ]]; then
     autoload -U +X bashcompinit && bashcompinit
-    complete -F _bop_completion bop
+    complete -F _boxofports_completion boxofports
 fi

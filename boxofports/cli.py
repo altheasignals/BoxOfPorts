@@ -68,7 +68,7 @@ def get_config_or_exit(ctx: typer.Context) -> EjoinConfig:
         console.print(f"[yellow]🎵 Hey now! Gateway configuration needed for this command[/yellow]")
         console.print("")
         console.print("[blue]→ Quick setup with a profile:[/blue]")
-        console.print("   bop config add-profile mygateway \\")
+        console.print("   boxofports config add-profile mygateway \\")
         console.print("     --host 192.168.1.100 --user admin --password yourpass")
         console.print("")
         console.print("[blue]→ Or set environment variables:[/blue]")
@@ -77,9 +77,9 @@ def get_config_or_exit(ctx: typer.Context) -> EjoinConfig:
         console.print("   export EJOIN_PASSWORD=yourpass")
         console.print("")
         console.print("[blue]→ Or use CLI options:[/blue]")
-        console.print("   bop --host 192.168.1.100 --user admin --password yourpass <command>")
+        console.print("   boxofports --host 192.168.1.100 --user admin --password yourpass <command>")
         console.print("")
-        console.print("[dim]Run 'bop config --help' for more configuration options[/dim]")
+        console.print("[dim]Run 'boxofports config --help' for more configuration options[/dim]")
         raise typer.Exit(1)
 
 
@@ -127,7 +127,7 @@ def sms_send(
     ctx: typer.Context,
     to: str = typer.Option(..., "--to", help="Recipient phone number"),
     text: str = typer.Option(..., "--text", help="SMS text (supports templates)"),
-    ports: str = typer.Option(..., "--ports", help="Ports to send from (e.g., '1A,2B' or '4-8')"),
+    ports: str = typer.Option(..., "--ports", "--port", help="Ports to send from (e.g., '1A,2B', '4-8', or 'ports.csv')"),
     repeat: int = typer.Option(1, "--repeat", help="Number of times to repeat"),
     intvl_ms: int = typer.Option(500, "--intvl-ms", help="Interval between SMS in milliseconds"),
     timeout: int = typer.Option(30, "--timeout", help="Timeout in seconds"),
@@ -244,7 +244,7 @@ def sms_spray(
     ctx: typer.Context,
     to: str = typer.Option(..., "--to", help="Recipient phone number"),
     text: str = typer.Option(..., "--text", help="SMS text (supports templates)"),
-    ports: str = typer.Option(..., "--ports", help="Ports to spray from"),
+    ports: str = typer.Option(..., "--ports", "--port", help="Ports to spray from (supports CSV files)"),
     intvl_ms: int = typer.Option(250, "--intvl-ms", help="Interval between SMS"),
 ):
     """Spray the same number via multiple ports quickly."""
@@ -282,7 +282,7 @@ def status_subscribe(
         console.print(f"📱 Includes: All SIM card statuses, signal levels, carrier info")
         console.print("")
         console.print(f"[dim]The device will now send comprehensive status reports to your callback URL[/dim]")
-        console.print(f"[dim]To stop notifications: bop status subscribe --callback '' --period 0[/dim]")
+        console.print(f"[dim]To stop notifications: boxofports status subscribe --callback '' --period 0[/dim]")
         
     except EjoinHTTPError as e:
         console.print(f"[red]The music stoped — {e}[/red]")
@@ -292,7 +292,7 @@ def status_subscribe(
 @ops_app.command("lock")
 def ops_lock(
     ctx: typer.Context,
-    ports: str = typer.Option(..., "--ports", help="Ports to lock"),
+    ports: str = typer.Option(..., "--ports", "--port", help="Ports to lock (supports CSV files)"),
 ):
     """Lock specified ports."""
     config = get_config_or_exit(ctx)
@@ -318,7 +318,7 @@ def ops_lock(
 @ops_app.command("unlock")
 def ops_unlock(
     ctx: typer.Context,
-    ports: str = typer.Option(..., "--ports", help="Ports to unlock"),
+    ports: str = typer.Option(..., "--ports", "--port", help="Ports to unlock (supports CSV files)"),
 ):
     """Unlock specified ports."""
     config = get_config_or_exit(ctx)
@@ -341,6 +341,285 @@ def ops_unlock(
         raise typer.Exit(1)
 
 
+@ops_app.command("set-imei")
+def ops_set_imei(
+    ctx: typer.Context,
+    ports: str = typer.Option(..., "--ports", "--port", help="Ports to set IMEI for (e.g., '1A,2B', '1-4', '*', or 'ports.csv')"),
+    imeis: str = typer.Option(..., "--imeis", help="IMEI values (comma-separated list or CSV file with 'imei' column)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
+    wait_timeout: int = typer.Option(90, "--wait-timeout", help="Reboot wait timeout in seconds"),
+):
+    """Set IMEI values — alter the cosmic cellular frequencies.
+    
+    This command handles the complete IMEI change workflow:
+    1. Set IMEI values for specified ports
+    2. Save configuration  
+    3. Reboot device
+    4. Wait for reboot completion
+    5. Unlock affected SIM slots
+    
+    Both --ports and --imeis support CSV files with appropriate columns.
+    """
+    config = get_config_or_exit(ctx)
+    
+    try:
+        from boxofports.api_models import IMEIPortChange
+        from boxofports.csv_port_parser import (
+            expand_csv_imeis_if_needed, extract_port_and_slot, CSVPortParseError
+        )
+        
+        # Parse ports using the standard port parsing system
+        try:
+            port_list = parse_port_spec(ports)
+        except Exception as e:
+            console.print(f"[red]Invalid port specification: {e}[/red]")
+            raise typer.Exit(1)
+        
+        # Parse IMEIs - can be CSV file or comma-separated list
+        try:
+            imei_list = expand_csv_imeis_if_needed(imeis)
+            if imei_list is None:
+                # Parse as comma-separated list
+                imei_list = [imei.strip() for imei in imeis.split(',') if imei.strip()]
+        except CSVPortParseError as e:
+            console.print(f"[red]IMEI parsing failed: {e}[/red]")
+            raise typer.Exit(1)
+        
+        if not imei_list:
+            console.print("[red]No valid IMEIs found[/red]")
+            raise typer.Exit(1)
+        
+        # Validate we have the right number of ports and IMEIs
+        if len(port_list) != len(imei_list):
+            console.print(f"[red]Port and IMEI count mismatch:[/red]")
+            console.print(f"  Ports: {len(port_list)}")
+            console.print(f"  IMEIs: {len(imei_list)}")
+            console.print("[yellow]Please provide exactly one IMEI for each port.[/yellow]")
+            raise typer.Exit(1)
+        
+        # Extract port numbers and slots, create IMEI changes
+        changes = []
+        default_slot_used = False
+        
+        for port_str, imei_value in zip(port_list, imei_list):
+            try:
+                port_num, slot_num = extract_port_and_slot(port_str)
+                
+                # Track if we're using default slot 1
+                if slot_num == 1 and not ('.' in port_str or port_str.upper().endswith(('A', 'B', 'C', 'D'))):
+                    default_slot_used = True
+                
+                change = IMEIPortChange(port=port_num, slot=slot_num, imei=imei_value)
+                changes.append(change)
+                
+            except ValueError as e:
+                console.print(f"[red]Invalid port format '{port_str}': {e}[/red]")
+                raise typer.Exit(1)
+            except Exception as e:
+                console.print(f"[red]Invalid IMEI change for port '{port_str}': {e}[/red]")
+                raise typer.Exit(1)
+        
+        # Warn about default slot usage and ask for confirmation if not forced
+        if default_slot_used and not force:
+            console.print("[yellow]⚠️  Some ports don't specify a slot - defaulting to slot 1[/yellow]")
+            console.print("[dim]Ports can specify slots as: 1A, 1B, 1C, 1D or 1.01, 1.02, 1.03, 1.04[/dim]")
+            
+            if not typer.confirm("\nProceed with slot 1 as default?"):
+                console.print("[dim]Operation cancelled[/dim]")
+                return
+        
+        # Display summary
+        console.print(f"\n[blue]📱 IMEI Change Summary[/blue]")
+        console.print(f"Ports to modify: {len(changes)}")
+        
+        table = Table(title="IMEI Changes")
+        table.add_column("Port", style="cyan")
+        table.add_column("Slot", style="dim")
+        table.add_column("New IMEI", style="green")
+        
+        for change in changes:
+            table.add_row(
+                f"{change.port}.{change.slot:02d}",
+                str(change.slot),
+                change.imei
+            )
+        
+        console.print(table)
+        
+        if dry_run:
+            console.print("\n[yellow]🔍 Dry run completed - no changes made[/yellow]")
+            return
+        
+        # Confirmation
+        if not force:
+            console.print("\n[bold red]⚠ WARNING: This will reboot the device![/bold red]")
+            console.print("[yellow]All connections will be temporarily interrupted (~90 seconds)[/yellow]")
+            
+            if not typer.confirm("\nProceed with IMEI changes?"):
+                console.print("[dim]Operation cancelled[/dim]")
+                return
+        
+        # Execute IMEI workflow
+        client = create_sync_client(config)
+        
+        console.print("\n[blue]🎵 Starting the IMEI transformation dance...[/blue]")
+        
+        # Step 1: Set IMEI values
+        console.print("[blue]Step 1/5: Setting IMEI values...[/blue]")
+        changes_data = [change.dict() for change in changes]
+        response = client.set_imei_batch(changes_data)
+        console.print("[green]✓ IMEI values configured[/green]")
+        
+        # Step 2: Save configuration
+        console.print("[blue]Step 2/5: Saving configuration...[/blue]")
+        response = client.save_config()
+        console.print("[green]✓ Configuration saved[/green]")
+        
+        # Step 3: Reboot device
+        console.print("[blue]Step 3/5: Rebooting device...[/blue]")
+        response = client.reboot_device()
+        console.print("[green]✓ Reboot initiated[/green]")
+        
+        # Step 4: Wait for reboot
+        console.print(f"[blue]Step 4/5: Waiting for reboot (up to {wait_timeout}s)...[/blue]")
+        
+        import time
+        with console.status("[yellow]Device rebooting..."):
+            if client.wait_for_reboot(timeout=wait_timeout):
+                console.print("[green]✓ Device is back online[/green]")
+            else:
+                console.print("[yellow]⚠ Timeout waiting for device - continuing with unlock[/yellow]")
+        
+        # Give a bit more time for services to stabilize
+        console.print("[dim]Waiting for services to stabilize...[/dim]")
+        time.sleep(5)
+        
+        # Step 5: Unlock SIM slots
+        console.print("[blue]Step 5/5: Unlocking SIM slots...[/blue]")
+        slots_data = [{"port": change.port, "slot": change.slot} for change in changes]
+        response = client.unlock_sims(slots_data)
+        console.print("[green]✓ SIM slots unlocked[/green]")
+        
+        console.print("\n[green]🎉 IMEI transformation completed successfully![/green]")
+        console.print("[dim]New IMEI values should be active. Check with: boxofports ops get-imei --ports <ports>[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]IMEI workflow failed — the cosmic frequencies got tangled: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@ops_app.command("get-imei")
+def ops_get_imei(
+    ctx: typer.Context,
+    ports: str = typer.Option(..., "--ports", "--port", help="Ports to get IMEI for (e.g., '3A', '1A,2B,3A', or 'ports.csv')"),
+):
+    """Get IMEI values for specified ports — check the cellular signatures."""
+    config = get_config_or_exit(ctx)
+    
+    try:
+        client = create_sync_client(config)
+        
+        console.print(f"[blue]Getting IMEI values for ports: {ports}[/blue]")
+        
+        response = client.get_port_imei(ports)
+        
+        if response.get("code") == 0:
+            console.print("[green]✓ IMEI values retrieved[/green]")
+            
+            # Display the results in a table
+            table = Table(title="Port IMEI Values")
+            table.add_column("Port", style="cyan")
+            table.add_column("IMEI", style="green")
+            
+            # Parse the response to extract IMEI values
+            port_imeis = response.get("ports", {})
+            
+            if port_imeis:
+                for port, imei in port_imeis.items():
+                    table.add_row(port, imei or "Not available")
+            else:
+                # If no ports returned, show an empty result
+                from boxofports.ports import parse_port_spec
+                requested_ports = parse_port_spec(ports)
+                for port in requested_ports:
+                    table.add_row(port, "Not found")
+            
+            console.print(table)
+        else:
+            console.print(f"[red]✗ Failed to get IMEI values: {response.get('reason', 'Unknown error')}[/red]")
+            raise typer.Exit(1)
+    
+    except Exception as e:
+        console.print(f"[red]IMEI query failed — the frequencies are unclear: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@ops_app.command("imei-template")
+def ops_imei_template(
+    ctx: typer.Context,
+    output: str = typer.Option("imei_template.csv", "--output", "-o", help="Output file path"),
+    ports: str = typer.Option(None, "--ports", "--port", help="Ports to include in template (e.g., '1A,2B,3A' or CSV file)"),
+    format: str = typer.Option("csv", "--format", help="Template format: csv or json"),
+):
+    """Generate IMEI change template file — prepare the cosmic playlist."""
+    
+    try:
+        from boxofports.imei_import import export_imei_template_csv
+        from boxofports.ports import parse_port_spec
+        import json
+        
+        # Parse ports if specified
+        port_list = None
+        if ports:
+            port_list = parse_port_spec(ports)
+        
+        if format.lower() == "csv":
+            if not output.lower().endswith('.csv'):
+                output += '.csv'
+            export_imei_template_csv(output, port_list)
+            console.print(f"[green]✓ CSV template created: {output}[/green]")
+            
+        elif format.lower() == "json":
+            if not output.lower().endswith('.json'):
+                output += '.json'
+            
+            # Create JSON template
+            template_data = []
+            
+            if port_list:
+                from boxofports.imei_import import _parse_port_to_number
+                for port in port_list:
+                    port_num = _parse_port_to_number(port)
+                    template_data.append({
+                        "port": port_num,
+                        "slot": 1,
+                        "imei": "123456789012345"
+                    })
+            else:
+                # Default template
+                for i in range(1, 4):
+                    template_data.append({
+                        "port": i,
+                        "slot": 1,
+                        "imei": "123456789012345"
+                    })
+            
+            with open(output, 'w', encoding='utf-8') as f:
+                json.dump(template_data, f, indent=2)
+            
+            console.print(f"[green]✓ JSON template created: {output}[/green]")
+        else:
+            console.print("[red]Invalid format. Use 'csv' or 'json'[/red]")
+            raise typer.Exit(1)
+        
+        console.print("[dim]Edit the file with your actual IMEI values, then use: boxofports ops set-imei --file <filename>[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]Template creation failed: {e}[/red]")
+        raise typer.Exit(1)
+
+
 @app.command("completion")
 def completion(
     shell: str = typer.Option("bash", "--shell", help="Shell type (bash, zsh)"),
@@ -351,10 +630,10 @@ def completion(
     from pathlib import Path
     
     completion_script = '''#!/usr/bin/env bash
-# BoxOfPorts (bop) CLI completion script
+# BoxOfPorts CLI completion script
 # "Such a long long time to be gone, and a short time to be there"
 
-_bop_completion() {
+_boxofports_completion() {
     local cur prev
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -370,7 +649,7 @@ _bop_completion() {
         2)
             case "${prev}" in
                 sms) COMPREPLY=($(compgen -W "send spray" -- ${cur})) ;;
-                ops) COMPREPLY=($(compgen -W "lock unlock" -- ${cur})) ;;
+                ops) COMPREPLY=($(compgen -W "lock unlock set-imei get-imei imei-template" -- ${cur})) ;;
                 status) COMPREPLY=($(compgen -W "subscribe" -- ${cur})) ;;
                 inbox) COMPREPLY=($(compgen -W "list search stop summary show" -- ${cur})) ;;
                 config) COMPREPLY=($(compgen -W "add-profile list switch show remove current" -- ${cur})) ;;
@@ -382,18 +661,19 @@ _bop_completion() {
             case "${prev}" in
                 --shell) COMPREPLY=($(compgen -W "bash zsh" -- ${cur})) ;;
                 --type) COMPREPLY=($(compgen -W "regular stop system delivery_report" -- ${cur})) ;;
-                --ports) COMPREPLY=($(compgen -W "1A 1B 1C 1D 2A 2B 1A-1D 1.01 2.02" -- ${cur})) ;;
+                --ports|--port) COMPREPLY=($(compgen -W "1A 1B 1C 1D 2A 2B 1A-1D 1.01 2.02 ports.csv all *" -- ${cur})) ;;
+                --imeis) COMPREPLY=($(compgen -W "imeis.csv" -- ${cur})) ;;
             esac
             ;;
     esac
 }
 
-complete -F _bop_completion bop
+complete -F _boxofports_completion boxofports
 
 # ZSH compatibility
 if [[ -n ${ZSH_VERSION-} ]]; then
     autoload -U +X bashcompinit && bashcompinit
-    complete -F _bop_completion bop
+    complete -F _boxofports_completion boxofports
 fi'''
     
     if install:
@@ -410,7 +690,7 @@ fi'''
             ]:
                 try:
                     comp_dir.mkdir(parents=True, exist_ok=True)
-                    comp_file = comp_dir / "_bop"
+                    comp_file = comp_dir / "_boxofports"
                     comp_file.write_text(completion_script)
                     console.print(f"[green]✓ Zsh completion installed to {comp_file}[/green]")
                     console.print("[dim]Restart your shell or open a new terminal to activate completion[/dim]")
@@ -428,7 +708,7 @@ fi'''
             ]:
                 try:
                     comp_dir.mkdir(parents=True, exist_ok=True)
-                    comp_file = comp_dir / "bop"
+                    comp_file = comp_dir / "boxofports"
                     comp_file.write_text(completion_script)
                     console.print(f"[green]✓ Bash completion installed to {comp_file}[/green]")
                     console.print("[dim]Restart your shell or open a new terminal to activate completion[/dim]")
@@ -438,7 +718,7 @@ fi'''
                     continue
         
         # Fallback: save to home directory
-        fallback_file = home / ".bop-completion.bash"
+        fallback_file = home / ".boxofports-completion.bash"
         fallback_file.write_text(completion_script)
         console.print(f"[yellow]✓ Completion saved to {fallback_file}[/yellow]")
         console.print(f"[dim]Add this line to your shell config (~/.bashrc or ~/.zshrc):[/dim]")
@@ -524,7 +804,7 @@ def config_list_profiles():
     
     if not profiles:
         console.print("[yellow]No profiles configured yet[/yellow]")
-        console.print("Use 'bop config add-profile' to create one")
+        console.print("Use 'boxofports config add-profile' to create one")
         return
     
     table = Table(title="Server Profiles")
@@ -562,7 +842,7 @@ def config_switch_profile(
             console.print(f"  User: {profile_config.username}")
     else:
         console.print(f"[red]Error: Profile '{name}' not found[/red]")
-        console.print("Use 'bop config list' to see available profiles")
+        console.print("Use 'boxofports config list' to see available profiles")
         raise typer.Exit(1)
 
 
@@ -575,7 +855,7 @@ def config_show_profile(
         name = config_manager.get_current_profile()
         if name is None:
             console.print("[yellow]No current profile set[/yellow]")
-            console.print("Specify a profile name or use 'bop config switch <name>'")
+            console.print("Specify a profile name or use 'boxofports config switch <name>'")
             return
     
     profile_config = config_manager.get_profile_config(name)
@@ -619,7 +899,7 @@ def config_remove_profile(
         elif not current and profiles:
             console.print(f"[yellow]Consider switching to another profile:[/yellow]")
             for profile in profiles[:3]:
-                console.print(f"  bop config switch {profile}")
+                console.print(f"  boxofports config switch {profile}")
     else:
         console.print(f"[red]Error: Profile '{name}' not found[/red]")
         raise typer.Exit(1)
@@ -641,9 +921,9 @@ def config_current_profile():
         if profiles:
             console.print("Available profiles:")
             for profile in profiles:
-                console.print(f"  bop config switch {profile}")
+                console.print(f"  boxofports config switch {profile}")
         else:
-            console.print("No profiles configured. Use 'bop config add-profile' to create one.")
+            console.print("No profiles configured. Use 'boxofports config add-profile' to create one.")
 
 
 # ==============================================================================
@@ -656,7 +936,7 @@ def inbox_list(
     start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID"),
     count: int = typer.Option(50, "--count", help="Number of messages to show (0=all)"),
     message_type: Optional[str] = typer.Option(None, "--type", help="Filter by message type (regular, stop, system, delivery_report)"),
-    port: Optional[str] = typer.Option(None, "--port", help="Filter by port (e.g., 1A, 2B)"),
+    ports: Optional[str] = typer.Option(None, "--ports", "--port", help="Filter by port(s) (e.g., '1A', '1A,2B', or 'ports.csv')"),
     sender: Optional[str] = typer.Option(None, "--sender", help="Filter by sender number"),
     contains: Optional[str] = typer.Option(None, "--contains", help="Filter by text content"),
     no_delivery_reports: bool = typer.Option(False, "--no-delivery-reports", help="Exclude delivery reports"),
@@ -687,8 +967,27 @@ def inbox_list(
                 console.print(f"Valid types: {', '.join([t.value for t in MessageType])}")
                 raise typer.Exit(1)
         
-        if port:
-            filter_criteria.port = port
+        if ports:
+            # Handle CSV files and comma-separated port filtering
+            try:
+                from boxofports.csv_port_parser import expand_csv_ports_if_needed, CSVPortParseError
+                csv_ports = expand_csv_ports_if_needed(ports)
+                if csv_ports is not None:
+                    # CSV file - create a list of ports for filtering
+                    filter_criteria.ports = csv_ports
+                else:
+                    # Parse as comma-separated or single port specification
+                    port_list = parse_port_spec(ports)
+                    if len(port_list) == 1:
+                        filter_criteria.port = port_list[0]
+                    else:
+                        filter_criteria.ports = port_list
+            except CSVPortParseError as e:
+                console.print(f"[red]Port CSV parsing failed: {e}[/red]")
+                raise typer.Exit(1)
+            except Exception as e:
+                console.print(f"[red]Port parsing failed: {e}[/red]")
+                raise typer.Exit(1)
         if sender:
             filter_criteria.sender = sender
         if contains:

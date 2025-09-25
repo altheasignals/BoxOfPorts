@@ -2,7 +2,7 @@
 
 __version__ = "1.0.0"
 __title__ = "BoxOfPorts"
-__command__ = "bop"
+__command__ = "boxofports"
 __description__ = "SMS Gateway Management CLI for EJOIN Multi-WAN Router Operators"
 __author__ = "Althea Signals Network LLC"
 __author_email__ = "support@altheasignals.net"
@@ -15,7 +15,7 @@ __api_version__ = "2.2"
 __python_requires__ = ">=3.11"
 
 # Design inspiration
-__inspiration__ = "Like rain in a box, but for ports"
+__inspiration__ = "And it's just a box of ports. I don't know who put it there"
 
 def get_version_info() -> dict:
     """Get comprehensive version information."""

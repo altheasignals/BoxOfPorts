@@ -79,13 +79,13 @@ cd boxofports
 ./install.sh
 
 # Create gateway profile (one-time setup)
-bop config add-profile production --host 192.168.1.100 --user admin
+boxofports config add-profile production --host 192.168.1.100 --user admin
 
 # Switch and start managing
-bop config switch production
-bop test-connection
-bop sms send --to "+1234567890" --text "Hello from {{port}}" --ports "1A-2D"
-bop inbox stop  # Monitor compliance
+boxofports config switch production
+boxofports test-connection
+boxofports sms send --to "+1234567890" --text "Hello from {{port}}" --ports "1A-2D"
+boxofports inbox stop  # Monitor compliance
 ```
 
 ---

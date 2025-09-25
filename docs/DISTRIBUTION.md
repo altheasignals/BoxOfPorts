@@ -23,14 +23,14 @@ Publish steps:
 curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/install-bop.sh | bash
 ```
 
-This installs a `bop` wrapper to `~/.local/bin/bop` by default.
+This installs a `bop` wrapper to `~/.local/bin/boxofports` by default.
 
 ### System-wide Installation (Requires elevated privileges)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/altheasignals/boxofports/main/scripts/install-bop.sh | sudo bash -s -- --system
 ```
 
-This installs to `/usr/local/bin/bop` and is available to all users.
+This installs to `/usr/local/bin/boxofports` and is available to all users.
 
 Options:
 - Set IMAGE override at install time:
@@ -52,16 +52,16 @@ Options:
 
 Examples:
 ```bash
-bop --help
-bop gateway list
-bop --update gateway status
-bop --config ~/.boxofports --data $PWD gateway import --file ./gateways.csv
+boxofports --help
+boxofports gateway list
+boxofports --update gateway status
+boxofports --config ~/.boxofports --data $PWD gateway import --file ./gateways.csv
 ```
 
 Advanced:
-- Override image: `bop --image altheasignals/boxofports:1.0.1 -- gateway list`
-- Apple Silicon forcing platform: `BOP_DOCKER_PLATFORM=linux/arm64 bop --help`
-- Pass env vars through: `BOXOFPORTS_LOG_LEVEL=DEBUG bop gateway list`
+- Override image: `boxofports --image altheasignals/boxofports:1.0.1 -- gateway list`
+- Apple Silicon forcing platform: `BOP_DOCKER_PLATFORM=linux/arm64 boxofports --help`
+- Pass env vars through: `BOXOFPORTS_LOG_LEVEL=DEBUG boxofports gateway list`
 
 ## Uninstalling
 

@@ -58,7 +58,7 @@ fi
 echo ""
 
 echo "2. 👤 USER MODE (local installation)"
-echo "   • For regular users who just want to use bop"
+echo "   • For regular users who just want to use boxofports"
 echo "   • No sudo required, installs to ~/.local/bin"
 echo "   • Clean isolated installation"
 echo "   • Recommended for most users"
