@@ -1020,7 +1020,7 @@ def inbox_list(
         # Display table
         table = Table(title=f"SMS Inbox ({len(messages)} messages)")
         table.add_column("ID", style="cyan", width=6)
-        table.add_column("Type", style="blue", width=10)
+        table.add_column("Type", style="blue", width=12)
         table.add_column("Port", style="green", width=6)
         table.add_column("From", style="yellow", width=15)
         table.add_column("Time", style="magenta", width=16)
