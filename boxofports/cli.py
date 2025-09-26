@@ -14,6 +14,14 @@ from .http import create_sync_client, EjoinHTTPError
 from .ports import parse_port_spec, format_ports_for_api
 from .store import initialize_store, get_store
 from .templating import render_sms_template, parse_template_variables
+from .table_export import (
+    handle_table_export, 
+    sms_tasks_to_export_data,
+    sms_results_to_export_data,
+    imei_data_to_export_data,
+    profiles_to_export_data,
+    messages_to_export_data
+)
 from .__version__ import get_full_version_info
 
 app = typer.Typer(help="BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators")
@@ -133,6 +141,8 @@ def sms_send(
     timeout: int = typer.Option(30, "--timeout", help="Timeout in seconds"),
     vars: List[str] = typer.Option([], "--var", help="Template variables (key=value)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be sent without sending"),
+    csv: Optional[str] = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
+    json_export: Optional[str] = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
     """Send test SMS with template support and per-port routing."""
     config = get_config_or_exit(ctx)
@@ -201,7 +211,28 @@ def sms_send(
         if len(tasks) > 10:
             table.add_row("...", "...", "...", f"... and {len(tasks) - 10} more", "...")
         
-        console.print(table)
+        # Export task preview table if requested
+        console_only_mode = False
+        if csv is not None or json_export is not None:
+            current_profile = config_manager.get_current_profile()
+            task_data = sms_tasks_to_export_data(tasks)
+            console_only_mode = handle_table_export(
+                data=task_data,
+                profile_name=current_profile,
+                command_name="sms-send-tasks",
+                csv_filename=csv if csv != "" else None,
+                json_filename=json_export if json_export != "" else None,
+                export_csv=(csv is not None),
+                export_json=(json_export is not None)
+            )
+        
+        # Only show table if not in console-only export mode
+        if not console_only_mode:
+            console.print(table)
+        
+        # Return early if in console-only export mode (acts like dry-run for pipeline integration)
+        if console_only_mode:
+            return
         
         if not dry_run:
             # Actually send the SMS
@@ -228,7 +259,24 @@ def sms_send(
                     # Update local storage
                     store.update_task_status(tid, status_text)
                 
-                console.print(result_table)
+                # Export results table if requested
+                results_console_only = False
+                if csv is not None or json_export is not None:
+                    current_profile = config_manager.get_current_profile()
+                    results_data = sms_results_to_export_data(response.get('status', []))
+                    results_console_only = handle_table_export(
+                        data=results_data,
+                        profile_name=current_profile,
+                        command_name="sms-send-results",
+                        csv_filename=csv if csv != "" else None,
+                        json_filename=json_export if json_export != "" else None,
+                        export_csv=(csv is not None),
+                        export_json=(json_export is not None)
+                    )
+                
+                # Only show results table if not in console-only export mode
+                if not results_console_only:
+                    console.print(result_table)
                 
             except EjoinHTTPError as e:
                 console.print(f"[red]Message undeliverable — {e}[/red]")
@@ -246,10 +294,12 @@ def sms_spray(
     text: str = typer.Option(..., "--text", help="SMS text (supports templates)"),
     ports: str = typer.Option(..., "--ports", "--port", help="Ports to spray from (supports CSV files)"),
     intvl_ms: int = typer.Option(250, "--intvl-ms", help="Interval between SMS"),
+    csv: Optional[str] = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
+    json_export: Optional[str] = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
     """Spray the same number via multiple ports quickly."""
     # This is essentially the same as send but with different defaults
-    ctx.invoke(sms_send, ctx, to=to, text=text, ports=ports, repeat=1, intvl_ms=intvl_ms, timeout=30, vars=[], dry_run=False)
+    ctx.invoke(sms_send, to=to, text=text, ports=ports, repeat=1, intvl_ms=intvl_ms, timeout=30, vars=[], dry_run=False, csv=csv, json_export=json_export)
 
 
 @status_app.command("subscribe")  
@@ -513,6 +563,8 @@ def ops_set_imei(
 def ops_get_imei(
     ctx: typer.Context,
     ports: str = typer.Option(..., "--ports", "--port", help="Ports to get IMEI for (e.g., '3A', '1A,2B,3A', or 'ports.csv')"),
+    csv: Optional[str] = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
+    json_export: Optional[str] = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
     """Get IMEI values for specified ports — check the cellular signatures."""
     config = get_config_or_exit(ctx)
@@ -525,7 +577,14 @@ def ops_get_imei(
         response = client.get_port_imei(ports)
         
         if response.get("code") == 0:
-            console.print("[green]✓ IMEI values retrieved[/green]")
+            # Check for console-only mode first to determine if we should show messages
+            show_messages = True
+            if csv is not None or json_export is not None:
+                if csv == "" or json_export == "":
+                    show_messages = False
+            
+            if show_messages:
+                console.print("[green]✓ IMEI values retrieved[/green]")
             
             # Display the results in a table
             table = Table(title="Port IMEI Values")
@@ -545,7 +604,35 @@ def ops_get_imei(
                 for port in requested_ports:
                     table.add_row(port, "Not found")
             
-            console.print(table)
+            # Export IMEI table if requested
+            imei_console_only = False
+            if csv is not None or json_export is not None:
+                current_profile = config_manager.get_current_profile()
+                # Prepare data for export - use both found and requested ports
+                all_port_imeis = {}
+                if port_imeis:
+                    all_port_imeis.update(port_imeis)
+                else:
+                    # If no ports returned, include requested ports with "Not found"
+                    from boxofports.ports import parse_port_spec
+                    requested_ports = parse_port_spec(ports)
+                    for port in requested_ports:
+                        all_port_imeis[port] = "Not found"
+                
+                imei_export_data = imei_data_to_export_data(all_port_imeis)
+                imei_console_only = handle_table_export(
+                    data=imei_export_data,
+                    profile_name=current_profile,
+                    command_name="ops-get-imei",
+                    csv_filename=csv if csv != "" else None,
+                    json_filename=json_export if json_export != "" else None,
+                    export_csv=(csv is not None),
+                    export_json=(json_export is not None)
+                )
+            
+            # Only show table and messages if not in console-only export mode
+            if not imei_console_only:
+                console.print(table)
         else:
             console.print(f"[red]✗ Failed to get IMEI values: {response.get('reason', 'Unknown error')}[/red]")
             raise typer.Exit(1)
@@ -797,7 +884,10 @@ def config_add_profile(
 
 
 @config_app.command("list")
-def config_list_profiles():
+def config_list_profiles(
+    csv: Optional[str] = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
+    json_export: Optional[str] = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
+):
     """List all configured profiles."""
     profiles = config_manager.list_profiles()
     current = config_manager.get_current_profile()
@@ -824,7 +914,38 @@ def config_list_profiles():
                 status
             )
     
-    console.print(table)
+    # Export profiles table if requested
+    config_console_only = False
+    if csv is not None or json_export is not None:
+        current_profile = config_manager.get_current_profile()
+        
+        # Prepare data for export
+        profiles_data = []
+        for profile_name in profiles:
+            profile_config = config_manager.get_profile_config(profile_name)
+            if profile_config:
+                status = "→ CURRENT" if profile_name == current else ""
+                profiles_data.append({
+                    "name": profile_name,
+                    "host_port": f"{profile_config.host}:{profile_config.port}",
+                    "username": profile_config.username,
+                    "status": status
+                })
+        
+        profiles_export_data = profiles_to_export_data(profiles_data)
+        config_console_only = handle_table_export(
+            data=profiles_export_data,
+            profile_name=current_profile,
+            command_name="config-list",
+            csv_filename=csv if csv != "" else None,
+            json_filename=json_export if json_export != "" else None,
+            export_csv=(csv is not None),
+            export_json=(json_export is not None)
+        )
+    
+    # Only show table if not in console-only export mode
+    if not config_console_only:
+        console.print(table)
 
 
 @config_app.command("switch")
@@ -943,6 +1064,8 @@ def inbox_list(
     delivery_reports_only: bool = typer.Option(False, "--delivery-reports-only", help="Show only delivery reports"),
     status: Optional[int] = typer.Option(None, "--status", help="Filter delivery reports by status code (0, 128, 132, 134, etc.)"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+    csv: Optional[str] = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
+    json_export: Optional[str] = typer.Option(None, "--json-export", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
     """List received SMS messages from the inbox."""
     from .inbox import SMSInboxService
@@ -1104,16 +1227,39 @@ def inbox_list(
                     content
                 )
         
-        console.print(table)
-        
-        # Show summary
-        if len(messages) > 0:
-            types_count = {}
-            for msg in messages:
-                types_count[msg.message_type.value] = types_count.get(msg.message_type.value, 0) + 1
+        # Export inbox messages table if requested
+        inbox_console_only = False
+        if csv is not None or json_export is not None:
+            current_profile = config_manager.get_current_profile()
             
-            summary_parts = [f"{count} {type_name}" for type_name, count in types_count.items()]
-            console.print(f"\n[dim]Summary: {', '.join(summary_parts)}[/dim]")
+            # Determine message type for export formatting
+            export_message_type = "standard"
+            if has_delivery_reports and all(msg.is_delivery_report for msg in messages):
+                export_message_type = "delivery_reports"
+            
+            messages_export_data = messages_to_export_data(messages, export_message_type)
+            inbox_console_only = handle_table_export(
+                data=messages_export_data,
+                profile_name=current_profile,
+                command_name="inbox-list",
+                csv_filename=csv if csv != "" else None,
+                json_filename=json_export if json_export != "" else None,
+                export_csv=(csv is not None),
+                export_json=(json_export is not None)
+            )
+        
+        # Only show table and summary if not in console-only export mode
+        if not inbox_console_only:
+            console.print(table)
+            
+            # Show summary
+            if len(messages) > 0:
+                types_count = {}
+                for msg in messages:
+                    types_count[msg.message_type.value] = types_count.get(msg.message_type.value, 0) + 1
+                
+                summary_parts = [f"{count} {type_name}" for type_name, count in types_count.items()]
+                console.print(f"\n[dim]Summary: {', '.join(summary_parts)}[/dim]")
     
     except Exception as e:
         console.print(f"[red]Error retrieving inbox: {e}[/red]")
@@ -1127,6 +1273,8 @@ def inbox_search(
     start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID"),
     count: int = typer.Option(0, "--count", help="Max messages to search (0=all)"),
     show_details: bool = typer.Option(False, "--details", help="Show full message details"),
+    csv: Optional[str] = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
+    json_export: Optional[str] = typer.Option(None, "--json-export", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
     """Search for messages containing specific text."""
     from .inbox import SMSInboxService
@@ -1141,7 +1289,14 @@ def inbox_search(
             console.print(f"[yellow]No messages found containing '{text}'[/yellow]")
             return
         
-        console.print(f"[blue]Found {len(messages)} messages containing '{text}'[/blue]")
+        # Check for console-only export mode
+        search_console_only = False
+        if (csv is not None or json_export is not None) and not show_details:
+            if csv == "" or json_export == "":
+                search_console_only = True
+        
+        if not search_console_only:
+            console.print(f"[blue]Found {len(messages)} messages containing '{text}'[/blue]")
         
         if show_details:
             # Show detailed view
@@ -1174,10 +1329,26 @@ def inbox_search(
                     content
                 )
             
-            console.print(table)
+            # Export search results table if requested (only when showing table, not details)
+            if (csv is not None or json_export is not None) and not show_details:
+                current_profile = config_manager.get_current_profile()
+                messages_export_data = messages_to_export_data(messages, "search")
+                search_console_only = handle_table_export(
+                    data=messages_export_data,
+                    profile_name=current_profile,
+                    command_name="inbox-search",
+                    csv_filename=csv if csv != "" else None,
+                    json_filename=json_export if json_export != "" else None,
+                    export_csv=(csv is not None),
+                    export_json=(json_export is not None)
+                )
             
-            if len(messages) > 20:
-                console.print(f"[dim]... and {len(messages) - 20} more messages[/dim]")
+            # Only show table and message count if not in console-only export mode
+            if not search_console_only:
+                console.print(table)
+                
+                if len(messages) > 20:
+                    console.print(f"[dim]... and {len(messages) - 20} more messages[/dim]")
     
     except Exception as e:
         console.print(f"[red]Error searching inbox: {e}[/red]")
@@ -1189,6 +1360,8 @@ def inbox_stop(
     ctx: typer.Context,
     start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+    csv: Optional[str] = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
+    json_export: Optional[str] = typer.Option(None, "--json-export", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
     """Show all STOP/unsubscribe messages."""
     from .inbox import SMSInboxService
@@ -1204,7 +1377,14 @@ def inbox_stop(
             console.print("[green]No STOP messages found[/green]")
             return
         
-        console.print(f"[red]Found {len(messages)} STOP messages[/red]")
+        # Check for console-only export mode
+        stop_console_only = False
+        if csv is not None or json_export is not None:
+            if csv == "" or json_export == "":
+                stop_console_only = True
+        
+        if not stop_console_only:
+            console.print(f"[red]Found {len(messages)} STOP messages[/red]")
         
         if json_output:
             json_data = [{
@@ -1233,8 +1413,24 @@ def inbox_stop(
                 msg.content
             )
         
-        console.print(table)
-        console.print(f"\n[bold red]⚠️  {len(messages)} users have requested to stop receiving messages[/bold red]")
+        # Export STOP messages table if requested
+        if csv is not None or json_export is not None:
+            current_profile = config_manager.get_current_profile()
+            messages_export_data = messages_to_export_data(messages, "stop")
+            stop_console_only = handle_table_export(
+                data=messages_export_data,
+                profile_name=current_profile,
+                command_name="inbox-stop",
+                csv_filename=csv if csv != "" else None,
+                json_filename=json_export if json_export != "" else None,
+                export_csv=(csv is not None),
+                export_json=(json_export is not None)
+            )
+        
+        # Only show table and warning message if not in console-only export mode
+        if not stop_console_only:
+            console.print(table)
+            console.print(f"\n[bold red]⚠️  {len(messages)} users have requested to stop receiving messages[/bold red]")
     
     except Exception as e:
         console.print(f"[red]Error retrieving STOP messages: {e}[/red]")

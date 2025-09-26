@@ -53,6 +53,7 @@ BoxOfPorts provides both a local CLI (`boxofports`) and a Docker wrapper (`bop`)
 - 🔌 **Smart Port Handling** - Support for ranges, lists, and mixed specifications
 - 💾 **SQLite Storage** - Local task tracking and status history
 - 🎯 **Rich CLI Output** - Beautiful tables, progress indicators, and error handling
+- 📊 **Data Export** - CSV/JSON export for all table commands with pipeline integration
 
 ## 🚀 Quick Start
 
@@ -340,6 +341,91 @@ BoxOfPorts supports flexible port specification formats:
 ### Mixed Specifications
 
 - `1A,3B-3D,5.01` - Combination of formats
+
+## 📊 Data Export & Pipeline Integration
+
+BoxOfPorts supports CSV and JSON export for all table-producing commands, enabling powerful pipeline integration and data analysis workflows.
+
+### Export Options
+
+Every command that displays a table includes these options:
+
+- `--csv` - Export data as CSV
+- `--json` - Export data as JSON
+
+### Console vs File Output
+
+**Console Output (Pipeline Integration)**:
+```bash
+# Output CSV directly to stdout (no other output)
+boxofports inbox list --csv
+
+# Output JSON directly to stdout (no other output)  
+boxofports config list --json
+
+# Perfect for pipelines
+boxofports inbox list --csv | grep "STOP" | wc -l
+```
+
+**File Output**:
+```bash
+# Save to specific file + show normal output
+boxofports inbox list --csv messages.csv
+boxofports config list --json profiles.json
+
+# Auto-generated filenames
+boxofports inbox stop --csv   # Creates: profile-inbox-stop-20250926_093010.csv
+```
+
+### Pipeline Examples
+
+**Ripple Through Your Data** - Like ripples in still water:
+
+```bash
+# Get IMEI values and find specific ones
+boxofports ops get-imei --ports "1A-1D" --csv | grep "123456"
+
+# Export messages and analyze with jq
+boxofports inbox list --count 100 --json | jq '.[] | select(.type == "stop")'
+
+# Count messages by port
+boxofports inbox list --csv | tail -n +2 | cut -d, -f3 | sort | uniq -c
+
+# Convert profiles to different formats
+boxofports config list --csv | csvtojson > profiles.json
+
+# Find high-volume senders
+boxofports inbox list --json | jq -r '.[].sender' | sort | uniq -c | sort -nr
+```
+
+**Data Analysis Workflows**:
+
+```bash
+# Export all data for analysis
+boxofports inbox list --count 0 --csv > all_messages.csv
+boxofports inbox stop --csv > stop_messages.csv  
+boxofports config list --csv > profiles.csv
+
+# Generate compliance reports
+boxofports inbox stop --json | jq '{total: length, messages: [.[].content]}' > compliance_report.json
+```
+
+### Supported Commands
+
+**SMS Operations**:
+- `sms send --csv/--json` - Export task previews and results
+- `sms spray --csv/--json` - Export spray operation data
+
+**Device Operations**:
+- `ops get-imei --csv/--json` - Export IMEI values
+
+**Configuration**:
+- `config list --csv/--json` - Export profile configurations
+
+**Inbox Management**:
+- `inbox list --csv/--json` - Export messages with filtering
+- `inbox search --csv/--json` - Export search results
+- `inbox stop --csv/--json` - Export STOP messages for compliance
 
 ## 📊 Examples
 
