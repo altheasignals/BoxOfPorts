@@ -3,6 +3,7 @@
 ## 🚀 Quick Install
 
 ### User Installation (Recommended)
+
 **No sudo required** - Installs to your user directory:
 
 ```bash
@@ -11,6 +12,7 @@ boxofports --help
 ```
 
 ### System-wide Installation
+
 **Requires elevated privileges** - Available to all users:
 
 ```bash
@@ -65,6 +67,7 @@ BoxOfPorts provides both a local CLI (`boxofports`) and a Docker wrapper (`bop`)
 BoxOfPorts supports multiple installation approaches:
 
 #### Option 1: 🌐 Cloud Installation (Recommended)
+
 **Uses Docker - No Python setup required**
 
 ```bash
@@ -76,6 +79,7 @@ curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scrip
 ```
 
 **Benefits:**
+
 - No Python or dependencies to manage
 - Always uses latest stable version
 - Clean isolation via Docker
@@ -83,6 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scrip
 - Works on any system with Docker
 
 #### Option 2: 👤 Local Python Installation
+
 **For users who prefer local Python setup**
 
 ```bash
@@ -95,12 +100,14 @@ cd BoxOfPorts
 ```
 
 **Benefits:**
+
 - Direct Python installation
 - Full control over dependencies
 - No Docker required
 - Installs to ~/.local/bin
 
 #### Option 3: 🛠️ Development Mode
+
 **For developers and contributors**
 
 ```bash
@@ -113,12 +120,14 @@ cd BoxOfPorts
 ```
 
 **Benefits:**
+
 - Code changes take effect immediately
 - Perfect for development and testing
 - Uses pyenv for Python version management
 - Editable installation
 
 #### Option 4: Using Docker
+
 ```bash
 # Build the container
 docker build -t altheasignals/boxofports .
@@ -141,6 +150,7 @@ docker run --rm altheasignals/boxofports boxofports --host 192.168.1.100 --user 
 ### Basic Usage
 
 #### Local CLI Usage (Direct Installation)
+
 ```bash
 # Test connection to your gateway
 boxofports --host 192.168.1.100 --user admin --password your_password test-connection
@@ -154,6 +164,7 @@ boxofports --host 192.168.1.100 --user admin --password your_password \
 ```
 
 #### Docker Wrapper Usage (Container-based)
+
 ```bash
 # Test connection to your gateway
 boxofports --host 192.168.1.100 --user admin --password your_password test-connection
@@ -169,6 +180,7 @@ boxofports --host 192.168.1.100 --user admin --password your_password \
 #### Profile-Based Usage (Recommended)
 
 **Local CLI (boxofports):**
+
 ```bash
 # Create profiles for your servers (one-time setup)
 boxofports config add-profile remote --host 203.0.113.100:60140 --user root --password your_password
@@ -188,6 +200,7 @@ boxofports test-connection  # Now connects to local server
 ```
 
 **Docker Wrapper (bop):**
+
 ```bash
 # Create profiles for your servers (one-time setup)
 boxofports config add-profile remote --host 203.0.113.100:60140 --user root --password your_password
@@ -209,11 +222,13 @@ boxofports test-connection  # Now connects to local server
 ## 📖 Documentation
 
 ### Command Structure
+
 ```
 boxofports [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 ```
 
 ### Global Options
+
 - `--host` - Gateway IP address (can include port like `192.168.1.100:8080`)
 - `--port` - Gateway port (default: 80, ignored if port is in --host)
 - `--user` - Username for authentication
@@ -225,6 +240,7 @@ boxofports [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 > **Note**: Commands work identically with both `boxofports` (local CLI) and `bop` (Docker wrapper). Examples below show local CLI format.
 
 #### Profile Management
+
 ```bash
 boxofports config add-profile <name>  # Add server profile
 boxofports config list                # List all profiles
@@ -235,12 +251,14 @@ boxofports config remove <name>       # Remove profile
 ```
 
 #### SMS Operations
+
 ```bash
 boxofports sms send     # Send SMS with templating support
 boxofports sms spray    # Spray SMS across multiple ports quickly
 ```
 
 #### Inbox Management
+
 ```bash
 boxofports inbox list     # List received messages with filtering
 boxofports inbox search   # Search messages by content
@@ -250,17 +268,20 @@ boxofports inbox show     # Show detailed message information
 ```
 
 #### Device Operations  
+
 ```bash
 boxofports ops lock     # Lock specified ports
 boxofports ops unlock   # Unlock specified ports
 ```
 
 #### Status Monitoring
+
 ```bash
 boxofports status subscribe  # Subscribe to status notifications
 ```
 
 #### Utility
+
 ```bash
 boxofports test-connection  # Test gateway connectivity
 ```
@@ -270,11 +291,13 @@ boxofports test-connection  # Test gateway connectivity
 BoxOfPorts includes a powerful Jinja2-based template system for dynamic SMS content:
 
 ### Built-in Variables
+
 - `{{port}}` - Current port identifier
 - `{{ts}}` - UTC timestamp
 - `{{idx}}` - Message index
 
 ### Example Templates
+
 ```bash
 # Basic templating
 boxofports sms send --text "Alert from port {{port}} at {{ts}}" --ports "1A"
@@ -290,6 +313,7 @@ boxofports sms send --text "Alert from {{port}}" --ports "1A,2B" --dry-run
 ```
 
 ### Available Filters
+
 - `upper` - Convert to uppercase
 - `lower` - Convert to lowercase  
 - `truncate(n)` - Truncate to n characters
@@ -300,22 +324,27 @@ boxofports sms send --text "Alert from {{port}}" --ports "1A,2B" --dry-run
 BoxOfPorts supports flexible port specification formats:
 
 ### Single Ports
+
 - `1A` - Slot 1, Port A
 - `2.02` - Slot 2, Port 02 (decimal format)
 
 ### Port Lists
+
 - `1A,2B,3C` - Multiple specific ports
 
 ### Port Ranges
+
 - `1A-1D` - Slot 1, Ports A through D
 - `1-3` - Slots 1-3, all Port A
 
 ### Mixed Specifications
+
 - `1A,3B-3D,5.01` - Combination of formats
 
 ## 📊 Examples
 
 ### Let It Ripple - Bulk SMS Campaign
+
 ```bash
 boxofports sms send --to "+1234567890" \
   --text "Campaign #{{idx}} from {{port}}" \
@@ -323,6 +352,7 @@ boxofports sms send --to "+1234567890" \
 ```
 
 ### Emergency Alert System
+
 ```bash
 # Lock all ports
 boxofports ops lock --ports "1A-10D"
@@ -333,6 +363,7 @@ boxofports sms send --to "+1234567890" \
 ```
 
 ### Eyes of the Inbox
+
 ```bash
 # Monitor STOP messages (compliance)
 boxofports inbox stop
@@ -351,6 +382,7 @@ boxofports inbox stop --json > stop_messages.json
 ```
 
 ### Multi-Gateway Management
+
 ```bash
 # Gateway 1
 boxofports --host 192.168.1.100 sms send --to "+1234567890" --text "From GW1" --ports "1A"
@@ -362,6 +394,7 @@ boxofports --host 192.168.1.101 sms send --to "+1234567890" --text "From GW2" --
 ## 🐳 Docker Usage
 
 ### Build and Run
+
 ```bash
 # Build the image
 docker build -t bop .
@@ -375,6 +408,7 @@ docker run --rm -it boxofports bash
 ```
 
 ### Docker Compose
+
 ```yaml
 version: '3.8'
 services:
@@ -392,6 +426,7 @@ services:
 ## 🛠️ Development
 
 ### Setting up Development Environment
+
 ```bash
 # Clone repository
 git clone https://github.com/altheasignals/BoxOfPorts.git
@@ -411,6 +446,7 @@ mypy boxofports/
 ```
 
 ### Running Tests
+
 ```bash
 # Run all tests
 pytest
@@ -425,11 +461,13 @@ pytest --cov=boxofports
 ## 📋 Requirements
 
 ### System Requirements
+
 - Python 3.11+
 - 50MB disk space
 - Network connectivity to EJOIN devices
 
 ### Python Dependencies
+
 - typer >= 0.9.0
 - httpx >= 0.25.0
 - pydantic >= 2.0.0
@@ -442,6 +480,7 @@ pytest --cov=boxofports
 ### Common Issues
 
 #### Connection Timeouts
+
 ```bash
 # Increase timeout (local CLI)
 boxofports --host 192.168.1.100 --timeout 60 test-connection
@@ -451,6 +490,7 @@ boxofports --host 192.168.1.100 --timeout 60 test-connection
 ```
 
 #### Authentication Errors
+
 ```bash
 # Verify credentials (local CLI)
 boxofports --host 192.168.1.100 --user admin --password correct_password test-connection
@@ -460,6 +500,7 @@ boxofports --host 192.168.1.100 --user admin --password correct_password test-co
 ```
 
 #### Port Specification Errors
+
 ```bash
 # Use dry-run to verify port parsing (local CLI)
 boxofports sms send --ports "1A-1D" --text "test" --to "+1234567890" --dry-run
@@ -472,7 +513,7 @@ boxofports sms send --ports "1A-1D" --text "test" --to "+1234567890" --dry-run
 
 For technical support, feature requests, or licensing inquiries:
 
-- **Email**: support@altheasignals.net
+- **Email**: <support@altheasignals.net>
 - **Website**: [https://altheasignals.net](https://altheasignals.net)
 - **Documentation**: [Full documentation available online]
 
@@ -481,14 +522,17 @@ For technical support, feature requests, or licensing inquiries:
 This README provides a quick start guide. For comprehensive documentation, see the [docs/](docs/) directory:
 
 ### 📖 User Guides
+
 - **[Usage Guide](docs/usage/USAGE_GUIDE.md)** - Complete usage examples and tutorials
 - **[Inbox Documentation](docs/usage/INBOX_DOCUMENTATION.md)** - SMS inbox management guide
 
 ### 🚀 Deployment Guides
+
 - **[Deployment Guide](docs/deployment/DEPLOYMENT.md)** - Comprehensive deployment guide for all platforms
 - **[Distribution Summary](docs/deployment/DISTRIBUTION_SUMMARY.md)** - Distribution package overview
 
 ### 🛠️ Developer Resources
+
 - **[Test Summary](docs/development/TEST_SUMMARY.md)** - Testing implementation and results
 - **[Development Documentation](docs/development/)** - Architecture and implementation details
 
@@ -496,15 +540,15 @@ This README provides a quick start guide. For comprehensive documentation, see t
 
 ## 📄 License
 
-This software is proprietary and owned by Althea Signals Network LLC. 
+This software is proprietary and owned by Althea Signals Network LLC.
 See [LICENSE](LICENSE) file for full terms and conditions.
 
 ## 🙏 About Althea Signals Network LLC
 
-Althea Signals Network LLC is a pioneer in decentralized telecommunications infrastructure, 
+Althea Signals Network LLC is a pioneer in decentralized telecommunications infrastructure,
 providing innovative solutions for network operators, service providers, and enterprise customers.
 
-Our mission is to democratize access to telecommunications infrastructure through 
+Our mission is to democratize access to telecommunications infrastructure through
 cutting-edge technology and open protocols.
 
 **Learn more**: [https://altheasignals.net](https://altheasignals.net)

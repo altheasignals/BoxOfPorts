@@ -121,6 +121,13 @@ class SMSInboxService:
         elif filter_criteria.exclude_delivery_reports:
             filtered = [msg for msg in filtered if not msg.is_delivery_report]
         
+        # Filter by delivery status code
+        if filter_criteria.delivery_status_code is not None:
+            filtered = [
+                msg for msg in filtered 
+                if msg.is_delivery_report and msg.delivery_status_code == filter_criteria.delivery_status_code
+            ]
+        
         return filtered
     
     def get_stop_messages(self, start_id: int = 1) -> List[SMSMessage]:

@@ -941,6 +941,7 @@ def inbox_list(
     contains: Optional[str] = typer.Option(None, "--contains", help="Filter by text content"),
     no_delivery_reports: bool = typer.Option(False, "--no-delivery-reports", help="Exclude delivery reports"),
     delivery_reports_only: bool = typer.Option(False, "--delivery-reports-only", help="Show only delivery reports"),
+    status: Optional[int] = typer.Option(None, "--status", help="Filter delivery reports by status code (0, 128, 132, 134, etc.)"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
     """List received SMS messages from the inbox."""
@@ -956,7 +957,8 @@ def inbox_list(
         # Build filter criteria
         filter_criteria = SMSInboxFilter(
             exclude_delivery_reports=no_delivery_reports,
-            delivery_reports_only=delivery_reports_only
+            delivery_reports_only=delivery_reports_only,
+            delivery_status_code=status
         )
         
         if message_type:
@@ -1008,7 +1010,9 @@ def inbox_list(
                 "recipient": msg.recipient,
                 "content": msg.content,
                 "is_delivery_report": msg.is_delivery_report,
-                "keywords": msg.contains_keywords
+                "keywords": msg.contains_keywords,
+                "delivery_status_code": msg.delivery_status_code,
+                "delivery_phone_number": msg.delivery_phone_number
             } for msg in messages]
             console.print(json.dumps(json_data, indent=2))
             return
@@ -1017,14 +1021,26 @@ def inbox_list(
             console.print("[yellow]No messages found matching the criteria[/yellow]")
             return
         
-        # Display table
+        # Check if we have any delivery reports to determine table layout
+        has_delivery_reports = any(msg.is_delivery_report for msg in messages)
+        
+        # Display table with appropriate columns for delivery reports
         table = Table(title=f"SMS Inbox ({len(messages)} messages)")
         table.add_column("ID", style="cyan", width=6)
         table.add_column("Type", style="blue", width=12)
         table.add_column("Port", style="green", width=6)
-        table.add_column("From", style="yellow", width=15)
-        table.add_column("Time", style="magenta", width=16)
-        table.add_column("Content", style="white")
+        
+        if has_delivery_reports and all(msg.is_delivery_report for msg in messages):
+            # All delivery reports - show From (SMSC), To (original recipient), Status
+            table.add_column("From", style="yellow", width=15)
+            table.add_column("To", style="cyan", width=15)
+            table.add_column("Time", style="magenta", width=16)
+            table.add_column("Status", style="white", width=8)
+        else:
+            # Mixed or regular messages - use standard layout
+            table.add_column("From", style="yellow", width=15)
+            table.add_column("Time", style="magenta", width=16)
+            table.add_column("Content", style="white")
         
         for msg in messages:
             # Format message type with emoji
@@ -1036,20 +1052,57 @@ def inbox_list(
                 MessageType.KEYWORD: "🔍 Keyword"
             }.get(msg.message_type, msg.message_type.value)
             
-            # Truncate long content
-            content = msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
+            # Format content based on message type
+            if msg.is_delivery_report and msg.delivery_status_code is not None:
+                # Show status code and phone number for delivery reports
+                content = f"Status: {msg.delivery_status_code} → {msg.delivery_phone_number or 'N/A'}"
+            else:
+                # Truncate long content for regular messages
+                content = msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
             
             # Format timestamp
             time_str = msg.timestamp.strftime("%m-%d %H:%M")
             
-            table.add_row(
-                str(msg.id),
-                type_display,
-                msg.port,
-                msg.sender[-12:] if len(msg.sender) > 12 else msg.sender,  # Show last 12 chars
-                time_str,
-                content
-            )
+            # Generate table row based on table layout
+            if has_delivery_reports and all(m.is_delivery_report for m in messages):
+                # Delivery report layout: ID, Type, Port, From, To, Time, Status
+                if msg.is_delivery_report:
+                    from_display = msg.sender  # SMSC/carrier sending the delivery report
+                    to_display = msg.delivery_phone_number or msg.recipient or "N/A"  # Original SMS recipient
+                    status_display = str(msg.delivery_status_code) if msg.delivery_status_code is not None else "N/A"
+                    
+                    table.add_row(
+                        str(msg.id),
+                        type_display,
+                        msg.port,
+                        from_display[-12:] if len(from_display) > 12 else from_display,
+                        to_display[-12:] if len(to_display) > 12 else to_display,
+                        time_str,
+                        status_display
+                    )
+                else:
+                    # Fallback for non-delivery report in delivery-only view
+                    table.add_row(
+                        str(msg.id),
+                        type_display,
+                        msg.port,
+                        "N/A",
+                        "N/A", 
+                        time_str,
+                        "N/A"
+                    )
+            else:
+                # Standard layout: ID, Type, Port, From, Time, Content
+                from_display = msg.sender[-12:] if len(msg.sender) > 12 else msg.sender
+                
+                table.add_row(
+                    str(msg.id),
+                    type_display,
+                    msg.port,
+                    from_display,
+                    time_str,
+                    content
+                )
         
         console.print(table)
         

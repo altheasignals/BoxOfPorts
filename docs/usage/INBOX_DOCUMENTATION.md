@@ -56,6 +56,11 @@ boxofports inbox list --no-delivery-reports
 # Show only delivery reports
 boxofports inbox list --delivery-reports-only
 
+# Filter delivery reports by status code (show raw numeric status)
+boxofports inbox list --delivery-reports-only --status 0
+boxofports inbox list --delivery-reports-only --status 128
+boxofports inbox list --delivery-reports-only --status 132
+
 # Output as JSON
 boxofports inbox list --json
 ```
@@ -69,6 +74,7 @@ boxofports inbox list --json
 - `--contains TEXT`: Filter by text content
 - `--no-delivery-reports`: Exclude delivery reports
 - `--delivery-reports-only`: Show only delivery reports
+- `--status INTEGER`: Filter delivery reports by status code (0, 128, 132, 134, etc.)
 - `--json`: Output as JSON
 
 ### `inbox search` - Search Messages
@@ -153,7 +159,10 @@ boxofports inbox show 456 --start-id 400
 
 3. **Delivery Reports**: 
    - Have delivery_flag = 1 in API data
-   - Usually contain status codes like "DELIVRD"
+   - Display numeric status codes (0, 128, 132, 134, etc.)
+   - Status codes are shown as raw numbers without interpretation
+   - Format: "Status: <code> → <phone_number>"
+   - **Note**: Refer to official EJOIN documentation for status code meanings
 
 4. **Regular Messages**: 
    - All other messages from regular users
@@ -216,6 +225,24 @@ boxofports inbox search "balance"
 
 # Check messages from specific short code
 boxofports inbox list --sender "12345"
+```
+
+### Delivery Report Filtering
+
+```bash
+# Show all delivery reports
+boxofports inbox list --delivery-reports-only
+
+# Show only successful deliveries (status 0)
+boxofports inbox list --delivery-reports-only --status 0
+
+# Show specific status codes
+boxofports inbox list --delivery-reports-only --status 128
+boxofports inbox list --delivery-reports-only --status 132
+boxofports inbox list --delivery-reports-only --status 134
+
+# Export delivery reports with status codes for analysis
+boxofports inbox list --delivery-reports-only --json > delivery_reports.json
 ```
 
 ### Monitoring Scenarios

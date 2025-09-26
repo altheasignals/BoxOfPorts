@@ -334,6 +334,9 @@ class SMSMessage(BaseModel):
     content: str = Field(..., description="Decoded message content")
     raw_content: str = Field(..., description="Raw base64 content")
     contains_keywords: List[str] = Field(default_factory=list, description="Detected keywords")
+    # Delivery report specific fields
+    delivery_status_code: Optional[int] = Field(None, description="Numeric delivery status code (0, 128, 132, 134, etc.)")
+    delivery_phone_number: Optional[str] = Field(None, description="Phone number from delivery report")
     
     class Config:
         json_encoders = {
@@ -362,11 +365,25 @@ class SMSMessage(BaseModel):
         recipient = str(sms_array[4]) if sms_array[4] else None
         raw_content = str(sms_array[5])
         
+        # Initialize delivery report fields
+        delivery_status_code = None
+        delivery_phone_number = None
+        
         # Decode content
         if delivery_flag == 1:
-            # Delivery report format: "code scts"
+            # Delivery report format: "<status_code> <phone_number>"
             content = raw_content
             message_type = MessageType.DELIVERY_REPORT
+            
+            # Parse delivery report status code and phone number
+            parts = content.split(' ', 1)
+            if len(parts) >= 2:
+                try:
+                    delivery_status_code = int(parts[0])
+                    delivery_phone_number = parts[1].strip()
+                except ValueError:
+                    # If parsing fails, keep the raw content
+                    pass
         else:
             # Regular SMS: BASE64 encoded UTF-8
             try:
@@ -388,7 +405,9 @@ class SMSMessage(BaseModel):
             recipient=recipient,
             content=content,
             raw_content=raw_content,
-            contains_keywords=keywords
+            contains_keywords=keywords,
+            delivery_status_code=delivery_status_code,
+            delivery_phone_number=delivery_phone_number
         )
     
     @staticmethod
@@ -454,6 +473,7 @@ class SMSInboxFilter(BaseModel):
     keywords: Optional[List[str]] = Field(None, description="Filter by keywords")
     delivery_reports_only: bool = Field(False, description="Show only delivery reports")
     exclude_delivery_reports: bool = Field(False, description="Exclude delivery reports")
+    delivery_status_code: Optional[int] = Field(None, description="Filter by delivery report status code (0, 128, 132, 134, etc.)")
 
 # Status Code Mappings
 STATUS_CODE_DESCRIPTIONS = {
