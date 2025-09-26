@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "boxofports"
-version = "1.0.3"
+version = "1.1.0"
 description = "BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
 authors = [
     {name = "Althea Signals Network LLC", email = "support@altheasignals.net"},

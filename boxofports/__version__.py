@@ -1,6 +1,6 @@
 """Version information for BoxOfPorts."""
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __title__ = "BoxOfPorts"
 __command__ = "boxofports"
 __description__ = "SMS Gateway Management CLI for EJOIN Multi-WAN Router Operators"
@@ -10,7 +10,7 @@ __url__ = "https://altheasignals.net"
 __license__ = "Proprietary"
 
 # Build information
-__build_date__ = "2025-01-20"
+__build_date__ = "2025-01-26"
 __api_version__ = "2.2"
 __python_requires__ = ">=3.11"
 

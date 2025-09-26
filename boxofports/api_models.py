@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field, validator
 
@@ -55,7 +55,7 @@ class BaseResponse(BaseModel):
 class SMSTask(BaseModel):
     """SMS task configuration."""
     tid: int = Field(..., description="Task ID")
-    from_: Optional[str] = Field(None, alias="from", description="Sender port(s)")
+    from_: str | None = Field(None, alias="from", description="Sender port(s)")
     to: str = Field(..., description="Recipient number(s)")
     sms: str = Field(..., description="SMS content")
     chs: str = Field("utf8", description="Character encoding set")
@@ -75,12 +75,12 @@ class SMSSendRequest(BaseModel):
     """SMS send request."""
     type: str = Field("send-sms", description="Message type")
     task_num: int = Field(..., description="Number of tasks")
-    tasks: List[SMSTask] = Field(..., description="List of SMS tasks")
+    tasks: list[SMSTask] = Field(..., description="List of SMS tasks")
     # Global settings
-    sr_url: Optional[str] = Field(None, description="Status report URL")
+    sr_url: str | None = Field(None, description="Status report URL")
     sr_cnt: int = Field(100, description="Max SMS results in cache")
     sr_prd: int = Field(30, description="Max time SMS results in cache")
-    sms_url: Optional[str] = Field(None, description="SMS forward URL")
+    sms_url: str | None = Field(None, description="SMS forward URL")
     sms_cnt: int = Field(1, description="Max SMS in cache")
     sms_prd: int = Field(30, description="Max time SMS in cache")
 
@@ -94,7 +94,7 @@ class SMSTaskStatus(BaseModel):
 class SMSSendResponse(BaseResponse):
     """SMS send response."""
     type: str = Field("task-status", description="Response type")
-    status: List[SMSTaskStatus] = Field(..., description="Task status list")
+    status: list[SMSTaskStatus] = Field(..., description="Task status list")
 
 
 class SMSTaskReport(BaseModel):
@@ -104,20 +104,20 @@ class SMSTaskReport(BaseModel):
     sent: int = Field(0, description="Number of SMS successfully sent")
     failed: int = Field(0, description="Number of SMS failed")
     unsent: int = Field(0, description="Number of unsent SMS")
-    sdr: List[List[Union[int, str]]] = Field(default_factory=list, description="Success delivery reports")
-    fdr: List[List[Union[int, str]]] = Field(default_factory=list, description="Failed delivery reports")
+    sdr: list[list[int | str]] = Field(default_factory=list, description="Success delivery reports")
+    fdr: list[list[int | str]] = Field(default_factory=list, description="Failed delivery reports")
 
 
 class SMSStatusReport(BaseModel):
     """SMS status report from device."""
     type: str = Field("status-report", description="Message type")
     rpt_num: int = Field(..., description="Number of reports")
-    rpts: List[SMSTaskReport] = Field(..., description="Task reports")
+    rpts: list[SMSTaskReport] = Field(..., description="Task reports")
 
 
 class SMSControlRequest(BaseModel):
     """Request to pause/resume/delete SMS tasks."""
-    tids: List[int] = Field(..., description="Task IDs to control")
+    tids: list[int] = Field(..., description="Task IDs to control")
 
 
 class SMSQueryRequest(BaseModel):
@@ -132,7 +132,7 @@ class SMSQueryResponse(BaseResponse):
     """SMS query response."""
     total_num: int = Field(..., description="Total number of tasks")
     task_num: int = Field(..., description="Number of tasks returned")
-    tasks: List[SMSTask] = Field(..., description="Task list")
+    tasks: list[SMSTask] = Field(..., description="Task list")
 
 
 # Device Operation Models
@@ -140,12 +140,12 @@ class DeviceOperation(BaseModel):
     """Device operation request."""
     type: str = Field("command", description="Message type")
     op: str = Field(..., description="Operation type")
-    ports: Optional[str] = Field(None, description="Target ports")
-    ops: Optional[List[Dict[str, Any]]] = Field(None, description="Multiple operations")
+    ports: str | None = Field(None, description="Target ports")
+    ops: list[dict[str, Any]] | None = Field(None, description="Multiple operations")
     # Parameters for specific operations
-    mode: Optional[int] = Field(None, description="Redial mode: 0=flight, 1=fast")
-    delay: Optional[int] = Field(None, description="Delay in seconds")
-    par_name: Optional[Dict[str, str]] = Field(None, description="Parameter name/value pairs")
+    mode: int | None = Field(None, description="Redial mode: 0=flight, 1=fast")
+    delay: int | None = Field(None, description="Delay in seconds")
+    par_name: dict[str, str] | None = Field(None, description="Parameter name/value pairs")
 
 
 # Status Models
@@ -153,12 +153,12 @@ class PortStatus(BaseModel):
     """Individual port status."""
     port: str = Field(..., description="Port identifier")
     st: str = Field(..., description="Status code and details")
-    bal: Optional[str] = Field(None, description="SIM card balance")
-    opr: Optional[str] = Field(None, description="Operator name and ID")
-    sn: Optional[str] = Field(None, description="SIM number")
-    imei: Optional[str] = Field(None, description="IMEI")
-    imsi: Optional[str] = Field(None, description="IMSI")
-    iccid: Optional[str] = Field(None, description="ICCID")
+    bal: str | None = Field(None, description="SIM card balance")
+    opr: str | None = Field(None, description="Operator name and ID")
+    sn: str | None = Field(None, description="SIM number")
+    imei: str | None = Field(None, description="IMEI")
+    imsi: str | None = Field(None, description="IMSI")
+    iccid: str | None = Field(None, description="ICCID")
 
 
 class DeviceStatus(BaseModel):
@@ -170,7 +170,7 @@ class DeviceStatus(BaseModel):
     ip: str = Field(..., description="Device IP address")
     max_ports: int = Field(..., description="Maximum ports")
     max_slots: int = Field(4, description="Maximum SIM slots")
-    status: List[PortStatus] = Field(..., description="Port status list")
+    status: list[PortStatus] = Field(..., description="Port status list")
 
 
 class PortStatusMessage(BaseModel):
@@ -179,12 +179,12 @@ class PortStatusMessage(BaseModel):
     port: str = Field(..., description="Port identifier")
     seq: int = Field(..., description="Sequence number")
     status: str = Field(..., description="Status code and details")
-    bal: Optional[str] = Field(None, description="Balance")
-    opr: Optional[str] = Field(None, description="Operator")
-    sn: Optional[str] = Field(None, description="SIM number")
-    imei: Optional[str] = Field(None, description="IMEI")
-    imsi: Optional[str] = Field(None, description="IMSI")
-    iccid: Optional[str] = Field(None, description="ICCID")
+    bal: str | None = Field(None, description="Balance")
+    opr: str | None = Field(None, description="Operator")
+    sn: str | None = Field(None, description="SIM number")
+    imei: str | None = Field(None, description="IMEI")
+    imsi: str | None = Field(None, description="IMSI")
+    iccid: str | None = Field(None, description="ICCID")
 
 
 # Inbox and SMS Receiving Models
@@ -192,7 +192,7 @@ class ReceivedSMS(BaseModel):
     """Received SMS message."""
     type: str = Field("recv-sms", description="Message type")
     sms_num: int = Field(..., description="Number of SMS")
-    sms: List[List[Union[int, str]]] = Field(..., description="SMS array data")
+    sms: list[list[int | str]] = Field(..., description="SMS array data")
 
 
 class SMSQueryInboxRequest(BaseModel):
@@ -207,7 +207,7 @@ class SMSInboxResponse(BaseResponse):
     ssrc: str = Field(..., description="Synchronization source ID")
     sms_num: int = Field(..., description="Number of SMS returned")
     next_sms: int = Field(..., description="Next SMS ID")
-    data: List[List[Union[int, str]]] = Field(..., description="SMS data array")
+    data: list[list[int | str]] = Field(..., description="SMS data array")
 
 
 # Proxy Configuration Models
@@ -215,7 +215,7 @@ class ProxyConfig(BaseModel):
     """Proxy configuration."""
     name: str = Field(..., description="Proxy name")
     port: int = Field(..., description="Proxy port")
-    interfaces: List[int] = Field(..., description="SIM WAN interfaces")
+    interfaces: list[int] = Field(..., description="SIM WAN interfaces")
     active: int = Field(1, description="Active status: 0=disabled, 1=enabled")
 
 
@@ -223,39 +223,39 @@ class ProxyUser(BaseModel):
     """Proxy user configuration."""
     name: str = Field(..., description="Username")
     pwd: str = Field(..., description="Password")
-    interfaces: List[int] = Field(..., description="SIM WAN interfaces")
-    mark: Optional[str] = Field(None, description="User mark/comment")
+    interfaces: list[int] = Field(..., description="SIM WAN interfaces")
+    mark: str | None = Field(None, description="User mark/comment")
 
 
 class ProxyRequest(BaseModel):
     """Proxy configuration request."""
-    proxies: Optional[List[ProxyConfig]] = Field(None, description="Proxy configurations")
-    users: Optional[List[ProxyUser]] = Field(None, description="Proxy users")
-    urls: Optional[List[str]] = Field(None, description="URL whitelist/blacklist")
+    proxies: list[ProxyConfig] | None = Field(None, description="Proxy configurations")
+    users: list[ProxyUser] | None = Field(None, description="Proxy users")
+    urls: list[str] | None = Field(None, description="URL whitelist/blacklist")
 
 
 class ProxyResponse(BaseResponse):
     """Proxy configuration response."""
-    mode: Optional[int] = Field(None, description="Proxy mode")
-    enabled: Optional[int] = Field(None, description="Enable status")
-    size: Optional[int] = Field(None, description="Number of configurations")
-    proxies: Optional[List[ProxyConfig]] = Field(None, description="Proxy configurations")
-    users: Optional[List[ProxyUser]] = Field(None, description="Proxy users")
-    urls: Optional[List[str]] = Field(None, description="URL list")
+    mode: int | None = Field(None, description="Proxy mode")
+    enabled: int | None = Field(None, description="Enable status")
+    size: int | None = Field(None, description="Number of configurations")
+    proxies: list[ProxyConfig] | None = Field(None, description="Proxy configurations")
+    users: list[ProxyUser] | None = Field(None, description="Proxy users")
+    urls: list[str] | None = Field(None, description="URL list")
 
 
 # IP Whitelist/Blacklist Models
 class IPListConfig(BaseModel):
     """IP whitelist/blacklist configuration."""
     enable: int = Field(0, description="Enable status: 0=disabled, 1=enabled")
-    deleted_set: Optional[List[str]] = Field(None, description="IPs to delete")
-    added_set: Optional[List[str]] = Field(None, description="IPs to add")
+    deleted_set: list[str] | None = Field(None, description="IPs to delete")
+    added_set: list[str] | None = Field(None, description="IPs to add")
 
 
 class IPListResponse(BaseResponse):
     """IP list response."""
     enable: int = Field(..., description="Enable status")
-    ipset: List[str] = Field(..., description="IP address list")
+    ipset: list[str] = Field(..., description="IP address list")
 
 
 # IMEI Batch Processing Models
@@ -264,7 +264,7 @@ class IMEIPortChange(BaseModel):
     port: int = Field(..., ge=1, le=64, description="Port number (1-64)")
     slot: int = Field(1, ge=1, le=4, description="Slot number (typically 1)")
     imei: str = Field(..., pattern=r'^\d{15}$', description="15-digit IMEI value")
-    
+
     @validator('imei')
     @classmethod
     def validate_imei(cls, v: str) -> str:
@@ -275,11 +275,11 @@ class IMEIPortChange(BaseModel):
 
 class IMEIBatchRequest(BaseModel):
     """Batch request to set IMEI for multiple ports."""
-    changes: List[IMEIPortChange] = Field(..., min_items=1, description="List of IMEI changes to apply")
-    
+    changes: list[IMEIPortChange] = Field(..., min_items=1, description="List of IMEI changes to apply")
+
     @validator('changes')
     @classmethod
-    def validate_unique_ports(cls, v: List[IMEIPortChange]) -> List[IMEIPortChange]:
+    def validate_unique_ports(cls, v: list[IMEIPortChange]) -> list[IMEIPortChange]:
         ports_seen = set()
         for change in v:
             port_key = (change.port, change.slot)
@@ -297,7 +297,7 @@ class SlotUnlock(BaseModel):
 
 class UnlockSlotsRequest(BaseModel):
     """Request to unlock multiple slots after IMEI changes."""
-    slots: List[SlotUnlock] = Field(..., min_items=1, description="List of slots to unlock")
+    slots: list[SlotUnlock] = Field(..., min_items=1, description="List of slots to unlock")
 
 
 class IMEIBatchResponse(BaseModel):
@@ -310,9 +310,9 @@ class IMEIBatchResponse(BaseModel):
 
 
 # Enhanced SMS Inbox Models
-from datetime import datetime
-from enum import Enum
 import base64
+from enum import Enum
+
 
 class MessageType(str, Enum):
     """SMS message type classification."""
@@ -321,7 +321,7 @@ class MessageType(str, Enum):
     SYSTEM = "system"  # System/operator messages
     STOP = "stop"  # Opt-out messages containing STOP
     KEYWORD = "keyword"  # Messages containing specific keywords
-    
+
 class SMSMessage(BaseModel):
     """Parsed SMS message with enhanced metadata."""
     id: int = Field(..., description="SMS ID")
@@ -330,21 +330,21 @@ class SMSMessage(BaseModel):
     port: str = Field(..., description="Receiving port (e.g., '1A', '2B')")
     timestamp: datetime = Field(..., description="Message received timestamp")
     sender: str = Field(..., description="Sender phone number or SMSC")
-    recipient: Optional[str] = Field(None, description="Recipient (for delivery reports)")
+    recipient: str | None = Field(None, description="Recipient (for delivery reports)")
     content: str = Field(..., description="Decoded message content")
     raw_content: str = Field(..., description="Raw base64 content")
-    contains_keywords: List[str] = Field(default_factory=list, description="Detected keywords")
+    contains_keywords: list[str] = Field(default_factory=list, description="Detected keywords")
     # Delivery report specific fields
-    delivery_status_code: Optional[int] = Field(None, description="Numeric delivery status code (0, 128, 132, 134, etc.)")
-    delivery_phone_number: Optional[str] = Field(None, description="Phone number from delivery report")
-    
+    delivery_status_code: int | None = Field(None, description="Numeric delivery status code (0, 128, 132, 134, etc.)")
+    delivery_phone_number: str | None = Field(None, description="Phone number from delivery report")
+
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        
+
     @classmethod
-    def from_api_data(cls, sms_id: int, sms_array: List[Union[int, str]]) -> "SMSMessage":
+    def from_api_data(cls, sms_id: int, sms_array: list[int | str]) -> "SMSMessage":
         """Create SMSMessage from API array format.
         
         Array format: [delivery_flag, port, timestamp, sender, recipient, content]
@@ -357,24 +357,24 @@ class SMSMessage(BaseModel):
         """
         if len(sms_array) < 6:
             raise ValueError(f"Invalid SMS array format: {sms_array}")
-            
+
         delivery_flag = int(sms_array[0])
         port = str(sms_array[1])
         timestamp = datetime.fromtimestamp(int(sms_array[2]))
         sender = str(sms_array[3])
         recipient = str(sms_array[4]) if sms_array[4] else None
         raw_content = str(sms_array[5])
-        
+
         # Initialize delivery report fields
         delivery_status_code = None
         delivery_phone_number = None
-        
+
         # Decode content
         if delivery_flag == 1:
             # Delivery report format: "<status_code> <phone_number>"
             content = raw_content
             message_type = MessageType.DELIVERY_REPORT
-            
+
             # Parse delivery report status code and phone number
             parts = content.split(' ', 1)
             if len(parts) >= 2:
@@ -391,10 +391,10 @@ class SMSMessage(BaseModel):
             except Exception:
                 content = raw_content  # Fallback to raw if decoding fails
             message_type = cls._classify_message(content)
-        
+
         # Detect keywords
         keywords = cls._extract_keywords(content)
-        
+
         return cls(
             id=sms_id,
             message_type=message_type,
@@ -409,7 +409,7 @@ class SMSMessage(BaseModel):
             delivery_status_code=delivery_status_code,
             delivery_phone_number=delivery_phone_number
         )
-    
+
     @staticmethod
     def _format_port(port: str) -> str:
         """Convert port format from '1.01' to '1A' style."""
@@ -419,16 +419,16 @@ class SMSMessage(BaseModel):
             port_letter = chr(ord('A') + int(port_num) - 1)
             return f"{slot}{port_letter}"
         return port
-    
+
     @staticmethod
     def _classify_message(content: str) -> MessageType:
         """Classify message type based on content."""
         content_lower = content.lower()
-        
+
         # Check for STOP messages
         if any(word in content_lower for word in ['stop', 'unsubscribe', 'opt out', 'opt-out']):
             return MessageType.STOP
-        
+
         # Check for system messages (common patterns)
         system_indicators = [
             'balance', 'credit', 'recharge', 'expired', 'network',
@@ -436,16 +436,16 @@ class SMSMessage(BaseModel):
         ]
         if any(indicator in content_lower for indicator in system_indicators):
             return MessageType.SYSTEM
-            
+
         # Default to regular message
         return MessageType.REGULAR
-    
+
     @staticmethod
-    def _extract_keywords(content: str) -> List[str]:
+    def _extract_keywords(content: str) -> list[str]:
         """Extract important keywords from message content."""
         keywords = []
         content_lower = content.lower()
-        
+
         # Common keywords to detect
         keyword_patterns = {
             'stop': ['stop', 'unsubscribe', 'opt out', 'opt-out'],
@@ -454,26 +454,26 @@ class SMSMessage(BaseModel):
             'urgent': ['urgent', 'emergency', 'important'],
             'promotion': ['offer', 'deal', 'discount', 'promo', 'sale']
         }
-        
+
         for category, patterns in keyword_patterns.items():
             if any(pattern in content_lower for pattern in patterns):
                 keywords.append(category)
-        
+
         return keywords
 
 class SMSInboxFilter(BaseModel):
     """Filter criteria for SMS inbox queries."""
-    message_type: Optional[MessageType] = Field(None, description="Filter by message type")
-    contains_text: Optional[str] = Field(None, description="Filter by text content")
-    sender: Optional[str] = Field(None, description="Filter by sender number")
-    port: Optional[str] = Field(None, description="Filter by receiving port")
-    ports: Optional[List[str]] = Field(None, description="Filter by multiple receiving ports (from CSV)")
-    since: Optional[datetime] = Field(None, description="Messages since this timestamp")
-    until: Optional[datetime] = Field(None, description="Messages until this timestamp")
-    keywords: Optional[List[str]] = Field(None, description="Filter by keywords")
+    message_type: MessageType | None = Field(None, description="Filter by message type")
+    contains_text: str | None = Field(None, description="Filter by text content")
+    sender: str | None = Field(None, description="Filter by sender number")
+    port: str | None = Field(None, description="Filter by receiving port")
+    ports: list[str] | None = Field(None, description="Filter by multiple receiving ports (from CSV)")
+    since: datetime | None = Field(None, description="Messages since this timestamp")
+    until: datetime | None = Field(None, description="Messages until this timestamp")
+    keywords: list[str] | None = Field(None, description="Filter by keywords")
     delivery_reports_only: bool = Field(False, description="Show only delivery reports")
     exclude_delivery_reports: bool = Field(False, description="Exclude delivery reports")
-    delivery_status_code: Optional[int] = Field(None, description="Filter by delivery report status code (0, 128, 132, 134, etc.)")
+    delivery_status_code: int | None = Field(None, description="Filter by delivery report status code (0, 128, 132, 134, etc.)")
 
 # Status Code Mappings
 STATUS_CODE_DESCRIPTIONS = {
@@ -498,13 +498,13 @@ STATUS_CODE_DESCRIPTIONS = {
 
 PORT_STATUS_DESCRIPTIONS = {
     0: "No SIM card",
-    1: "Idle SIM card", 
+    1: "Idle SIM card",
     2: "Registering",
     3: "Registered",
     5: "No balance or alarm",
     6: "Register failed",
     7: "SIM card locked by device",
-    8: "SIM card locked by operator", 
+    8: "SIM card locked by operator",
     9: "Recognize SIM card error",
     11: "Card Detected",
     12: "User locked",

@@ -3,11 +3,11 @@
 import pytest
 
 from boxofports.ports import (
-    parse_port_spec,
-    port_to_decimal,
-    port_to_alpha,
-    format_ports_for_api,
     PortParseError,
+    format_ports_for_api,
+    parse_port_spec,
+    port_to_alpha,
+    port_to_decimal,
 )
 
 
@@ -43,10 +43,10 @@ def test_parse_invalid_port():
     """Test parsing invalid port specifications."""
     with pytest.raises(PortParseError):
         parse_port_spec("")
-    
+
     with pytest.raises(PortParseError):
         parse_port_spec("1X")  # Invalid slot letter
-    
+
     with pytest.raises(PortParseError):
         parse_port_spec("1A-2.01")  # Mixed range types
 
@@ -58,13 +58,13 @@ def test_port_conversions():
     assert port_to_decimal("2B") == "2.02"
     assert port_to_decimal("3C") == "3.03"
     assert port_to_decimal("4D") == "4.04"
-    
+
     # Decimal to alpha
     assert port_to_alpha("1.01") == "1A"
     assert port_to_alpha("2.02") == "2B"
     assert port_to_alpha("3.03") == "3C"
     assert port_to_alpha("4.04") == "4D"
-    
+
     # Already in correct format
     assert port_to_decimal("1.01") == "1.01"
     assert port_to_alpha("1A") == "1A"
@@ -73,10 +73,10 @@ def test_port_conversions():
 def test_format_ports_for_api():
     """Test formatting ports for API consumption."""
     ports = ["1A", "2B", "3.03"]
-    
+
     # Format as alpha
     assert format_ports_for_api(ports, "alpha") == "1A,2B,3C"
-    
+
     # Format as decimal
     assert format_ports_for_api(ports, "decimal") == "1.01,2.02,3.03"
 

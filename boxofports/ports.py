@@ -1,10 +1,9 @@
 """Port parsing utilities for EJOIN Multi-WAN Router."""
 
 import re
-from typing import Iterator, Union
 
+from .csv_port_parser import CSVPortParseError, expand_csv_ports_if_needed
 from .http import EjoinHTTPError
-from .csv_port_parser import expand_csv_ports_if_needed, CSVPortParseError
 
 
 class PortParseError(EjoinHTTPError):
@@ -36,7 +35,7 @@ def parse_port_spec(port_spec: str) -> list[str]:
     """
     if not port_spec or not port_spec.strip():
         raise PortParseError("Empty port specification")
-    
+
     # Check if it's a CSV file first
     try:
         csv_ports = expand_csv_ports_if_needed(port_spec)
@@ -44,22 +43,22 @@ def parse_port_spec(port_spec: str) -> list[str]:
             return csv_ports
     except CSVPortParseError as e:
         raise PortParseError(f"CSV parsing failed: {e}") from e
-    
+
     port_spec = port_spec.strip()
-    
+
     # Handle special cases
     if port_spec.lower() in ("all", "*"):
         # Return all possible ports (this is a placeholder - in real usage
         # we'd need to query the device for available ports)
         return [f"{i}A" for i in range(1, 33)]
-    
+
     ports = []
     parts = [part.strip() for part in port_spec.split(",")]
-    
+
     for part in parts:
         if not part:
             continue
-            
+
         try:
             if "-" in part and not part.startswith("-") and not part.endswith("-"):
                 # Range specification
@@ -69,10 +68,10 @@ def parse_port_spec(port_spec: str) -> list[str]:
                 ports.append(_normalize_port(part))
         except Exception as e:
             raise PortParseError(f"Invalid port specification '{part}': {e}") from e
-    
+
     if not ports:
         raise PortParseError("No valid ports found in specification")
-    
+
     # Remove duplicates while preserving order
     seen = set()
     unique_ports = []
@@ -80,7 +79,7 @@ def parse_port_spec(port_spec: str) -> list[str]:
         if port not in seen:
             seen.add(port)
             unique_ports.append(port)
-    
+
     return unique_ports
 
 
@@ -89,7 +88,7 @@ def _parse_port_range(range_spec: str) -> list[str]:
     start_str, end_str = range_spec.split("-", 1)
     start_str = start_str.strip()
     end_str = end_str.strip()
-    
+
     # Detect format type
     if "." in start_str or "." in end_str:
         return _parse_decimal_range(start_str, end_str)
@@ -101,21 +100,21 @@ def _parse_decimal_range(start_str: str, end_str: str) -> list[str]:
     """Parse decimal format range like '2.01-2.04'."""
     start_match = re.match(r"^(\d+)\.(\d+)$", start_str)
     end_match = re.match(r"^(\d+)\.(\d+)$", end_str)
-    
+
     if not start_match or not end_match:
         raise PortParseError(f"Invalid decimal port range format: {start_str}-{end_str}")
-    
+
     start_port = int(start_match.group(1))
     start_slot = int(start_match.group(2))
     end_port = int(end_match.group(1))
     end_slot = int(end_match.group(2))
-    
+
     if start_port != end_port:
         raise PortParseError("Decimal range must be within the same port number")
-    
+
     if start_slot > end_slot:
         raise PortParseError("Invalid range: start slot must be <= end slot")
-    
+
     return [f"{start_port}.{slot:02d}" for slot in range(start_slot, end_slot + 1)]
 
 
@@ -128,22 +127,22 @@ def _parse_alpha_range(start_str: str, end_str: str) -> list[str]:
         if start_num > end_num:
             raise PortParseError("Invalid range: start must be <= end")
         return [f"{i}A" for i in range(start_num, end_num + 1)]
-    
+
     # Handle alphanumeric format like "1A-4D"
     start_match = re.match(r"^(\d+)([A-D])$", start_str)
     end_match = re.match(r"^(\d+)([A-D])$", end_str)
-    
+
     if not start_match or not end_match:
         raise PortParseError(f"Invalid alpha port range format: {start_str}-{end_str}")
-    
+
     start_port = int(start_match.group(1))
     start_slot = start_match.group(2)
     end_port = int(end_match.group(1))
     end_slot = end_match.group(2)
-    
+
     ports = []
     slot_order = ["A", "B", "C", "D"]
-    
+
     for port_num in range(start_port, end_port + 1):
         if port_num == start_port and port_num == end_port:
             # Same port, range within slots
@@ -165,26 +164,26 @@ def _parse_alpha_range(start_str: str, end_str: str) -> list[str]:
             # Middle ports, include all slots
             for slot in slot_order:
                 ports.append(f"{port_num}{slot}")
-    
+
     return ports
 
 
 def _normalize_port(port_str: str) -> str:
     """Normalize a single port identifier."""
     port_str = port_str.strip().upper()
-    
+
     # Decimal format (e.g., "1.01", "2.02")
     if re.match(r"^\d+\.\d+$", port_str):
         return port_str
-    
+
     # Alpha format (e.g., "1A", "2B")
     if re.match(r"^\d+[A-D]$", port_str):
         return port_str
-    
+
     # Pure numeric - default to slot A
     if port_str.isdigit():
         return f"{port_str}A"
-    
+
     raise PortParseError(f"Unrecognized port format: {port_str}")
 
 
@@ -201,15 +200,15 @@ def port_to_decimal(port: str) -> str:
     """
     if "." in port:
         return port  # Already in decimal format
-    
+
     match = re.match(r"^(\d+)([A-D])$", port.upper())
     if not match:
         raise PortParseError(f"Cannot convert port to decimal format: {port}")
-    
+
     port_num = match.group(1)
     slot_letter = match.group(2)
     slot_num = {"A": "01", "B": "02", "C": "03", "D": "04"}[slot_letter]
-    
+
     return f"{port_num}.{slot_num}"
 
 
@@ -224,20 +223,20 @@ def port_to_alpha(port: str) -> str:
         "4.04" -> "4D"
         "1A" -> "1A" (already alpha)
     """
-    if not "." in port:
+    if "." not in port:
         return port.upper()  # Already in alpha format
-    
+
     match = re.match(r"^(\d+)\.(\d+)$", port)
     if not match:
         raise PortParseError(f"Cannot convert port to alpha format: {port}")
-    
+
     port_num = match.group(1)
     slot_num = match.group(2)
     slot_letter = {"01": "A", "02": "B", "03": "C", "04": "D"}.get(slot_num)
-    
+
     if not slot_letter:
         raise PortParseError(f"Invalid slot number in port: {port}")
-    
+
     return f"{port_num}{slot_letter}"
 
 
@@ -256,7 +255,7 @@ def format_ports_for_api(ports: list[str], format_type: str = "alpha") -> str:
         formatted = [port_to_decimal(port) for port in ports]
     else:
         formatted = [port_to_alpha(port) for port in ports]
-    
+
     return ",".join(formatted)
 
 

@@ -49,7 +49,8 @@ BoxOfPorts provides both a local CLI (`boxofports`) and a Docker wrapper (`bop`)
 - 🔧 **Device Management** - Lock/unlock ports, execute device operations
 - 📊 **Real-time Monitoring** - Status subscriptions with webhook callbacks
 - 🎨 **Template System** - Jinja2-powered templating with custom filters
-- 🌐 **Multi-Gateway Support** - Manage multiple EJOIN devices seamlessly
+- 🌐 **Multi-Gateway Support** - Manage multiple EJOIN devices seamlessly with device aliases
+- 🏷️ **Device Aliases** - Friendly names for gateways that appear in all tables and exports
 - 🔌 **Smart Port Handling** - Support for ranges, lists, and mixed specifications
 - 💾 **SQLite Storage** - Local task tracking and status history
 - 🎯 **Rich CLI Output** - Beautiful tables, progress indicators, and error handling
@@ -187,6 +188,10 @@ boxofports --host 192.168.1.100 --user admin --password your_password \
 boxofports config add-profile remote --host 203.0.113.100:60140 --user root --password your_password
 boxofports config add-profile local --host 192.168.1.100 --user admin --password your_password
 
+# Create multiple profiles for same device (internal/external access) with shared alias
+boxofports config add-profile office-internal --host 10.0.0.5 --user admin --password secret --alias office
+boxofports config add-profile office-external --host 203.0.113.50 --user admin --password secret --alias office
+
 # Switch between profiles
 boxofports config switch remote
 
@@ -198,6 +203,9 @@ boxofports ops lock --ports "1A-1D"
 # Switch to different server instantly
 boxofports config switch local
 boxofports test-connection  # Now connects to local server
+
+# Edit current profile settings
+boxofports config edit-profile --alias "main-gateway" --port 8080
 ```
 
 **Docker Wrapper (bop):**
@@ -207,6 +215,10 @@ boxofports test-connection  # Now connects to local server
 boxofports config add-profile remote --host 203.0.113.100:60140 --user root --password your_password
 boxofports config add-profile local --host 192.168.1.100 --user admin --password your_password
 
+# Create multiple profiles for same device with shared alias
+boxofports config add-profile office-internal --host 10.0.0.5 --user admin --password secret --alias office
+boxofports config add-profile office-external --host 203.0.113.50 --user admin --password secret --alias office
+
 # Switch between profiles
 boxofports config switch remote
 
@@ -218,6 +230,9 @@ boxofports ops lock --ports "1A-1D"
 # Switch to different server instantly
 boxofports config switch local
 boxofports test-connection  # Now connects to local server
+
+# Edit current profile settings
+boxofports config edit-profile --alias "main-gateway" --port 8080
 ```
 
 ## 📖 Documentation
@@ -243,8 +258,9 @@ boxofports [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 #### Profile Management
 
 ```bash
-boxofports config add-profile <name>  # Add server profile
-boxofports config list                # List all profiles
+boxofports config add-profile <name>  # Add server profile (supports --alias option)
+boxofports config edit-profile        # Edit current profile settings
+boxofports config list                # List all profiles (shows Device Alias column)
 boxofports config switch <name>       # Switch to profile
 boxofports config current             # Show current profile
 boxofports config show [name]         # Show profile details
@@ -320,6 +336,39 @@ boxofports sms send --text "Alert from {{port}}" --ports "1A,2B" --dry-run
 - `truncate(n)` - Truncate to n characters
 - `phone('format')` - Format phone numbers
 
+## 🏷️ Device Aliases
+
+Device aliases provide friendly names for your gateways that appear consistently across all tables and exports, making it easy to identify devices in multi-gateway setups.
+
+### Creating Profiles with Aliases
+
+```bash
+# Explicit alias (recommended for shared devices)
+boxofports config add-profile office-internal --host 10.0.0.5 --alias office
+boxofports config add-profile office-external --host 203.0.113.50 --alias office
+
+# Auto-generated alias (defaults to first word of profile name)
+boxofports config add-profile production-gateway --host 192.168.1.100
+# Creates alias: "production"
+```
+
+### Editing Profile Aliases
+
+```bash
+# Change alias for current profile
+boxofports config edit-profile --alias "main-gateway"
+
+# Update multiple settings at once
+boxofports config edit-profile --host 192.168.1.200 --alias "backup"
+```
+
+### Benefits
+
+- **Consistent Identification**: Same device shows same alias across all commands
+- **Export Integration**: Device aliases included in all CSV/JSON exports 
+- **Pipeline Friendly**: Filter and process data by device alias
+- **Multi-Access Support**: Multiple profiles (internal/external) can share same alias
+
 ## 🔌 Port Specifications
 
 BoxOfPorts supports flexible port specification formats:
@@ -382,20 +431,23 @@ boxofports inbox stop --csv   # Creates: profile-inbox-stop-20250926_093010.csv
 **Ripple Through Your Data** - Like ripples in still water:
 
 ```bash
-# Get IMEI values and find specific ones
+# Get IMEI values and find specific ones (includes device alias)
 boxofports ops get-imei --ports "1A-1D" --csv | grep "123456"
 
-# Export messages and analyze with jq
+# Export messages and analyze with jq (includes device alias)
 boxofports inbox list --count 100 --json | jq '.[] | select(.type == "stop")'
 
-# Count messages by port
-boxofports inbox list --csv | tail -n +2 | cut -d, -f3 | sort | uniq -c
+# Count messages by port (device alias helps identify sources)
+boxofports inbox list --csv | tail -n +2 | cut -d, -f4 | sort | uniq -c
 
-# Convert profiles to different formats
+# Convert profiles to different formats (includes device aliases)
 boxofports config list --csv | csvtojson > profiles.json
 
-# Find high-volume senders
-boxofports inbox list --json | jq -r '.[].sender' | sort | uniq -c | sort -nr
+# Find high-volume senders by device
+boxofports inbox list --json | jq -r '[.device_alias, .sender] | @csv' | sort | uniq -c
+
+# Filter exports by device alias for multi-gateway setups
+boxofports config list --csv | grep "office" | cut -d, -f1
 ```
 
 **Data Analysis Workflows**:

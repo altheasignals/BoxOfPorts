@@ -1,10 +1,11 @@
 """Tests for configuration management and host:port parsing."""
 
-import pytest
 import os
 from unittest.mock import patch
 
-from boxofports.config import parse_host_port, EjoinConfig
+import pytest
+
+from boxofports.config import EjoinConfig, parse_host_port
 
 
 def test_parse_host_port_basic():
@@ -13,7 +14,7 @@ def test_parse_host_port_basic():
     host, port = parse_host_port("192.168.1.100")
     assert host == "192.168.1.100"
     assert port == 80
-    
+
     # Test host with default port override
     host, port = parse_host_port("192.168.1.100", default_port=8080)
     assert host == "192.168.1.100"
@@ -26,7 +27,7 @@ def test_parse_host_port_with_port():
     host, port = parse_host_port("203.0.113.100:60140")
     assert host == "203.0.113.100"
     assert port == 60140
-    
+
     # Test with different port
     host, port = parse_host_port("localhost:8080")
     assert host == "localhost"
@@ -39,7 +40,7 @@ def test_parse_host_port_edge_cases():
     host, port = parse_host_port("127.0.0.1:9090")
     assert host == "127.0.0.1"
     assert port == 9090
-    
+
     # Test with hostname
     host, port = parse_host_port("example.com:443")
     assert host == "example.com"
@@ -51,7 +52,7 @@ def test_ejoin_config_base_url():
     # Test normal host and port
     config = EjoinConfig(host="192.168.1.100", port=80)
     assert config.base_url == "http://192.168.1.100:80"
-    
+
     # Test different port
     config = EjoinConfig(host="192.168.1.100", port=8080)
     assert config.base_url == "http://192.168.1.100:8080"
@@ -116,11 +117,11 @@ def test_ejoin_config_missing_host():
 def test_config_manager_basic():
     """Test basic configuration manager functionality."""
     manager = ConfigManager()
-    
+
     # Test adding and retrieving profiles
     config = EjoinConfig(host="test.example.com", port=80)
     manager.add_profile("test", config)
-    
+
     assert "test" in manager.list_profiles()
     retrieved = manager.get_config("test")
     assert retrieved.host == "test.example.com"
@@ -130,11 +131,11 @@ def test_config_manager_basic():
 def test_config_auth_params():
     """Test authentication parameter generation."""
     config = EjoinConfig(
-        host="192.168.1.100", 
-        username="testuser", 
+        host="192.168.1.100",
+        username="testuser",
         password="testpass"
     )
-    
+
     auth = config.auth_params()
     assert auth == {
         "username": "testuser",
@@ -146,7 +147,7 @@ def test_parse_host_port_invalid_port():
     """Test error handling for invalid port numbers."""
     with pytest.raises(ValueError):
         parse_host_port("192.168.1.100:invalid")
-    
+
     with pytest.raises(ValueError):
         parse_host_port("192.168.1.100:99999999")
 
@@ -161,12 +162,12 @@ def test_real_world_examples():
         ("203.0.113.100:60140", "203.0.113.100", 60140),
         ("192.168.1.100", "192.168.1.100", 80),  # No port specified
     ]
-    
+
     for host_spec, expected_host, expected_port in examples:
         if ":" in host_spec:
             host, port = parse_host_port(host_spec)
         else:
             host, port = parse_host_port(host_spec, 80)
-        
+
         assert host == expected_host, f"Failed for {host_spec}"
         assert port == expected_port, f"Failed for {host_spec}"

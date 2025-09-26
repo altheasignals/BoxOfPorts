@@ -24,7 +24,7 @@ _boxofports_completion() {
     local inbox_commands="list search stop summary show"
     
     # Config subcommands
-    local config_commands="add-profile list switch show remove current"
+    local config_commands="add-profile edit-profile list switch show remove current"
     
     # Global options
     local global_options="--host --port --user --password --pass --verbose -v --version --help -h"
@@ -52,7 +52,7 @@ _boxofports_completion() {
     local inbox_show_options="--start-id"
     
     # Config add-profile options
-    local config_add_profile_options="--host --port --user --password"
+    local config_add_profile_options="--host --port --user --password --alias"
     
     # Operations options
     local ops_options="--ports"
@@ -235,12 +235,22 @@ _boxofports_completion() {
                     ;;
                 "config add-profile")
                     case "${prev}" in
-                        --host|--port|--user|--password)
+                        --host|--port|--user|--password|--alias)
                             # No completion for these values
                             ;;
                         add-profile)
                             # First argument after "config add-profile" is the profile name
                             # No specific completion
+                            ;;
+                        *)
+                            COMPREPLY=($(compgen -W "${config_add_profile_options}" -- ${cur}))
+                            ;;
+                    esac
+                    ;;
+                "config edit-profile")
+                    case "${prev}" in
+                        --host|--port|--user|--password|--alias)
+                            # No completion for these values
                             ;;
                         *)
                             COMPREPLY=($(compgen -W "${config_add_profile_options}" -- ${cur}))

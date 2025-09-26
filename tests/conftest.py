@@ -1,10 +1,11 @@
 """Pytest configuration and shared fixtures."""
 
-import pytest
 import asyncio
 import tempfile
-import os
 from pathlib import Path
+
+import pytest
+
 
 # Configure asyncio event loop for async tests
 @pytest.fixture(scope="session")
@@ -40,10 +41,10 @@ password = secret456
 timeout = 30
 max_retries = 3
     """.strip()
-    
+
     config_file = temp_dir / "test_config.ini"
     config_file.write_text(config_content)
-    
+
     return config_file
 
 
@@ -54,7 +55,7 @@ pytest_plugins = []
 def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line(
-        "markers", 
+        "markers",
         "integration: mark test as integration test that requires real gateway connection"
     )
     config.addinivalue_line(
@@ -69,7 +70,7 @@ def pytest_collection_modifyitems(config, items):
     if config.getoption("--integration"):
         # Don't skip integration tests if explicitly requested
         return
-    
+
     skip_integration = pytest.mark.skip(reason="need --integration option to run")
     for item in items:
         if "integration" in item.keywords:

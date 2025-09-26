@@ -3,17 +3,18 @@
 import json
 import sqlite3
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any
 
-from .api_models import SMSTaskReport, SMSTask
+from .api_models import SMSTaskReport
 
 
 class EjoinStore:
     """SQLite-based storage for EJOIN CLI state management."""
-    
+
     def __init__(self, db_path: Path):
         """
         Initialize the storage with the given database file.
@@ -24,7 +25,7 @@ class EjoinStore:
         self.db_path = db_path
         self._local = threading.local()
         self._initialize_db()
-    
+
     def _get_connection(self) -> sqlite3.Connection:
         """Get thread-local database connection."""
         if not hasattr(self._local, 'connection'):
@@ -37,7 +38,7 @@ class EjoinStore:
             # Enable foreign keys
             self._local.connection.execute("PRAGMA foreign_keys = ON")
         return self._local.connection
-    
+
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
         """Context manager for database transactions."""
@@ -49,7 +50,7 @@ class EjoinStore:
         except Exception:
             conn.execute("ROLLBACK")
             raise
-    
+
     def _initialize_db(self) -> None:
         """Initialize database schema."""
         with self._transaction() as conn:
@@ -66,7 +67,7 @@ class EjoinStore:
                     status TEXT DEFAULT 'pending'
                 )
             """)
-            
+
             # Task reports table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS task_reports (
@@ -82,7 +83,7 @@ class EjoinStore:
                     FOREIGN KEY (tid) REFERENCES sms_tasks (tid)
                 )
             """)
-            
+
             # Inbox messages table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS inbox_messages (
@@ -100,7 +101,7 @@ class EjoinStore:
                     UNIQUE(ssrc, sms_id)
                 )
             """)
-            
+
             # Device status table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS device_status (
@@ -112,7 +113,7 @@ class EjoinStore:
                     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
             # Port status table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS port_status (
@@ -131,17 +132,17 @@ class EjoinStore:
                     UNIQUE(device_ip, port)
                 )
             """)
-            
+
             # Create indexes
             conn.execute("CREATE INDEX IF NOT EXISTS idx_sms_tasks_submitted_at ON sms_tasks (submitted_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_reports_tid ON task_reports (tid)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_inbox_ssrc_sms_id ON inbox_messages (ssrc, sms_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_port_status_device_port ON port_status (device_ip, port)")
-    
+
     # SMS Task Management
-    def save_sms_task(self, tid: int, ports: List[str], to_number: str, 
-                      text_hash: str, template_text: str = None, 
-                      template_vars: Dict[str, Any] = None) -> None:
+    def save_sms_task(self, tid: int, ports: list[str], to_number: str,
+                      text_hash: str, template_text: str = None,
+                      template_vars: dict[str, Any] = None) -> None:
         """Save an SMS task to the database."""
         with self._transaction() as conn:
             conn.execute("""
@@ -156,8 +157,8 @@ class EjoinStore:
                 template_text,
                 json.dumps(template_vars) if template_vars else None
             ))
-    
-    def get_sms_task(self, tid: int) -> Optional[Dict[str, Any]]:
+
+    def get_sms_task(self, tid: int) -> dict[str, Any] | None:
         """Get an SMS task by TID."""
         conn = self._get_connection()
         row = conn.execute("SELECT * FROM sms_tasks WHERE tid = ?", (tid,)).fetchone()
@@ -173,8 +174,8 @@ class EjoinStore:
                 'status': row['status']
             }
         return None
-    
-    def get_recent_sms_tasks(self, limit: int = 50) -> List[Dict[str, Any]]:
+
+    def get_recent_sms_tasks(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get recent SMS tasks."""
         conn = self._get_connection()
         rows = conn.execute("""
@@ -182,7 +183,7 @@ class EjoinStore:
             ORDER BY submitted_at DESC 
             LIMIT ?
         """, (limit,)).fetchall()
-        
+
         return [
             {
                 'tid': row['tid'],
@@ -196,14 +197,14 @@ class EjoinStore:
             }
             for row in rows
         ]
-    
+
     def update_task_status(self, tid: int, status: str) -> None:
         """Update task status."""
         with self._transaction() as conn:
             conn.execute("""
                 UPDATE sms_tasks SET status = ? WHERE tid = ?
             """, (status, tid))
-    
+
     # Task Report Management
     def save_task_report(self, report: SMSTaskReport) -> None:
         """Save a task report."""
@@ -221,8 +222,8 @@ class EjoinStore:
                 json.dumps(report.sdr),
                 json.dumps(report.fdr)
             ))
-    
-    def get_task_report(self, tid: int) -> Optional[Dict[str, Any]]:
+
+    def get_task_report(self, tid: int) -> dict[str, Any] | None:
         """Get the latest report for a task."""
         conn = self._get_connection()
         row = conn.execute("""
@@ -231,7 +232,7 @@ class EjoinStore:
             ORDER BY updated_at DESC 
             LIMIT 1
         """, (tid,)).fetchone()
-        
+
         if row:
             return {
                 'tid': row['tid'],
@@ -244,12 +245,12 @@ class EjoinStore:
                 'updated_at': row['updated_at']
             }
         return None
-    
-    def get_task_reports(self, tids: List[int]) -> Dict[int, Dict[str, Any]]:
+
+    def get_task_reports(self, tids: list[int]) -> dict[int, dict[str, Any]]:
         """Get reports for multiple tasks."""
         if not tids:
             return {}
-        
+
         conn = self._get_connection()
         placeholders = ','.join('?' * len(tids))
         rows = conn.execute(f"""
@@ -261,7 +262,7 @@ class EjoinStore:
                 WHERE tr2.tid = task_reports.tid
             )
         """, tids).fetchall()
-        
+
         reports = {}
         for row in rows:
             reports[row['tid']] = {
@@ -274,9 +275,9 @@ class EjoinStore:
                 'fdr_details': json.loads(row['fdr_details']) if row['fdr_details'] else [],
                 'updated_at': row['updated_at']
             }
-        
+
         return reports
-    
+
     # Inbox Management
     def save_inbox_message(self, ssrc: str, sms_id: int, delivery_report: int,
                           port: str, timestamp: int, sender: str, recipient: str,
@@ -288,8 +289,8 @@ class EjoinStore:
                 (ssrc, sms_id, delivery_report, port, timestamp, sender, recipient, content, content_base64)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (ssrc, sms_id, delivery_report, port, timestamp, sender, recipient, content, content_base64))
-    
-    def get_inbox_messages(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+
+    def get_inbox_messages(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         """Get inbox messages."""
         conn = self._get_connection()
         rows = conn.execute("""
@@ -297,7 +298,7 @@ class EjoinStore:
             ORDER BY timestamp DESC 
             LIMIT ? OFFSET ?
         """, (limit, offset)).fetchall()
-        
+
         return [
             {
                 'id': row['id'],
@@ -314,14 +315,14 @@ class EjoinStore:
             }
             for row in rows
         ]
-    
+
     def get_inbox_count(self) -> int:
         """Get total count of inbox messages."""
         conn = self._get_connection()
         return conn.execute("SELECT COUNT(*) FROM inbox_messages").fetchone()[0]
-    
+
     # Device and Port Status Management
-    def save_device_status(self, device_ip: str, device_mac: str, 
+    def save_device_status(self, device_ip: str, device_mac: str,
                           max_ports: int, max_slots: int) -> None:
         """Save device status."""
         with self._transaction() as conn:
@@ -330,10 +331,10 @@ class EjoinStore:
                 (device_ip, device_mac, max_ports, max_slots)
                 VALUES (?, ?, ?, ?)
             """, (device_ip, device_mac, max_ports, max_slots))
-    
+
     def save_port_status(self, device_ip: str, port: str, status_code: int,
                         status_text: str, balance: str = None, operator: str = None,
-                        sim_number: str = None, imei: str = None, 
+                        sim_number: str = None, imei: str = None,
                         imsi: str = None, iccid: str = None) -> None:
         """Save port status."""
         with self._transaction() as conn:
@@ -344,11 +345,11 @@ class EjoinStore:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (device_ip, port, status_code, status_text, balance, operator,
                   sim_number, imei, imsi, iccid))
-    
-    def get_port_status(self, device_ip: str, port: str = None) -> List[Dict[str, Any]]:
+
+    def get_port_status(self, device_ip: str, port: str = None) -> list[dict[str, Any]]:
         """Get port status for device."""
         conn = self._get_connection()
-        
+
         if port:
             rows = conn.execute("""
                 SELECT * FROM port_status 
@@ -361,7 +362,7 @@ class EjoinStore:
                 WHERE device_ip = ?
                 ORDER BY port, updated_at DESC
             """, (device_ip,)).fetchall()
-        
+
         return [
             {
                 'device_ip': row['device_ip'],
@@ -378,78 +379,78 @@ class EjoinStore:
             }
             for row in rows
         ]
-    
+
     # Utility methods
-    def cleanup_old_data(self, days_to_keep: int = 30) -> Dict[str, int]:
+    def cleanup_old_data(self, days_to_keep: int = 30) -> dict[str, int]:
         """Clean up old data from the database."""
         cutoff_date = datetime.now().isoformat()[:-3]  # Remove microseconds
-        
+
         with self._transaction() as conn:
             # Clean up old task reports
-            result = conn.execute("""
+            result = conn.execute(f"""
                 DELETE FROM task_reports 
-                WHERE updated_at < datetime('now', '-{} days')
-            """.format(days_to_keep))
+                WHERE updated_at < datetime('now', '-{days_to_keep} days')
+            """)
             reports_deleted = result.rowcount
-            
+
             # Clean up old inbox messages
-            result = conn.execute("""
+            result = conn.execute(f"""
                 DELETE FROM inbox_messages 
-                WHERE received_at < datetime('now', '-{} days')
-            """.format(days_to_keep))
+                WHERE received_at < datetime('now', '-{days_to_keep} days')
+            """)
             inbox_deleted = result.rowcount
-            
+
             # Clean up old SMS tasks (keep if they have recent reports)
-            result = conn.execute("""
+            result = conn.execute(f"""
                 DELETE FROM sms_tasks 
-                WHERE submitted_at < datetime('now', '-{} days')
+                WHERE submitted_at < datetime('now', '-{days_to_keep} days')
                 AND tid NOT IN (
                     SELECT DISTINCT tid FROM task_reports 
-                    WHERE updated_at >= datetime('now', '-{} days')
+                    WHERE updated_at >= datetime('now', '-{days_to_keep} days')
                 )
-            """.format(days_to_keep, days_to_keep))
+            """)
             tasks_deleted = result.rowcount
-        
+
         return {
             'tasks_deleted': tasks_deleted,
             'reports_deleted': reports_deleted,
             'inbox_deleted': inbox_deleted
         }
-    
-    def get_stats(self) -> Dict[str, Any]:
+
+    def get_stats(self) -> dict[str, Any]:
         """Get database statistics."""
         conn = self._get_connection()
-        
+
         stats = {}
-        
+
         # Task stats
         row = conn.execute("SELECT COUNT(*) FROM sms_tasks").fetchone()
         stats['total_tasks'] = row[0]
-        
+
         row = conn.execute("SELECT COUNT(*) FROM task_reports").fetchone()
         stats['total_reports'] = row[0]
-        
+
         row = conn.execute("SELECT COUNT(*) FROM inbox_messages").fetchone()
         stats['total_inbox'] = row[0]
-        
+
         row = conn.execute("SELECT COUNT(*) FROM port_status").fetchone()
         stats['total_ports'] = row[0]
-        
+
         # Recent activity
         row = conn.execute("""
             SELECT COUNT(*) FROM sms_tasks 
             WHERE submitted_at >= datetime('now', '-1 day')
         """).fetchone()
         stats['tasks_last_24h'] = row[0]
-        
+
         row = conn.execute("""
             SELECT COUNT(*) FROM inbox_messages 
             WHERE received_at >= datetime('now', '-1 day')
         """).fetchone()
         stats['inbox_last_24h'] = row[0]
-        
+
         return stats
-    
+
     def close(self) -> None:
         """Close database connections."""
         if hasattr(self._local, 'connection'):
@@ -457,7 +458,7 @@ class EjoinStore:
 
 
 # Global store instance (will be initialized by config)
-_store: Optional[EjoinStore] = None
+_store: EjoinStore | None = None
 
 
 def get_store() -> EjoinStore:

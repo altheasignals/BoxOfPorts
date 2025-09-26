@@ -7,10 +7,8 @@ Like ripples in still water, when there is no pebble tossed...
 
 import csv
 import json
-import os
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from rich.console import Console
 from rich.table import Table
@@ -19,10 +17,10 @@ console = Console()
 
 
 def generate_export_filename(
-    profile_name: Optional[str],
+    profile_name: str | None,
     command_name: str,
     file_format: str,
-    custom_filename: Optional[str] = None
+    custom_filename: str | None = None
 ) -> str:
     """
     Generate a filename for export based on profile, command, and timestamp.
@@ -41,18 +39,18 @@ def generate_export_filename(
         if not custom_filename.lower().endswith(f'.{file_format.lower()}'):
             return f"{custom_filename}.{file_format.lower()}"
         return custom_filename
-    
+
     # Generate default filename: {profile_name}-{command}-{timestamp}.{format}
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     profile_part = f"{profile_name}-" if profile_name else "default-"
-    
+
     return f"{profile_part}{command_name}-{timestamp}.{file_format.lower()}"
 
 
 def export_table_data_to_csv(
-    data: List[Dict[str, Any]], 
+    data: list[dict[str, Any]],
     filename: str,
-    fieldnames: Optional[List[str]] = None
+    fieldnames: list[str] | None = None
 ) -> None:
     """
     Export table data to CSV format.
@@ -63,26 +61,26 @@ def export_table_data_to_csv(
         fieldnames: Column names (optional, will be inferred from first row if not provided)
     """
     if not data:
-        console.print(f"[yellow]No data to export to CSV[/yellow]")
+        console.print("[yellow]No data to export to CSV[/yellow]")
         return
-    
+
     # Infer fieldnames from first row if not provided
     if not fieldnames:
         fieldnames = list(data[0].keys())
-    
+
     try:
         with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(data)
-        
+
         console.print(f"[green]✓ CSV export written to: {filename}[/green]")
     except Exception as e:
         console.print(f"[red]Failed to write CSV export: {e}[/red]")
 
 
 def export_table_data_to_json(
-    data: List[Dict[str, Any]], 
+    data: list[dict[str, Any]],
     filename: str,
     indent: int = 2
 ) -> None:
@@ -95,21 +93,21 @@ def export_table_data_to_json(
         indent: JSON indentation level
     """
     if not data:
-        console.print(f"[yellow]No data to export to JSON[/yellow]")
+        console.print("[yellow]No data to export to JSON[/yellow]")
         return
-    
+
     try:
         with open(filename, 'w', encoding='utf-8') as jsonfile:
             json.dump(data, jsonfile, indent=indent, ensure_ascii=False, default=str)
-        
+
         console.print(f"[green]✓ JSON export written to: {filename}[/green]")
     except Exception as e:
         console.print(f"[red]Failed to write JSON export: {e}[/red]")
 
 
 def export_table_data_to_csv_console(
-    data: List[Dict[str, Any]], 
-    fieldnames: Optional[List[str]] = None
+    data: list[dict[str, Any]],
+    fieldnames: list[str] | None = None
 ) -> None:
     """
     Export table data to CSV format directly to console (stdout) for pipeline integration.
@@ -120,11 +118,11 @@ def export_table_data_to_csv_console(
     """
     if not data:
         return
-    
+
     # Infer fieldnames from first row if not provided
     if not fieldnames:
         fieldnames = list(data[0].keys())
-    
+
     import sys
     writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
     writer.writeheader()
@@ -132,7 +130,7 @@ def export_table_data_to_csv_console(
 
 
 def export_table_data_to_json_console(
-    data: List[Dict[str, Any]], 
+    data: list[dict[str, Any]],
     indent: int = 2
 ) -> None:
     """
@@ -144,17 +142,17 @@ def export_table_data_to_json_console(
     """
     if not data:
         return
-    
+
     import sys
     json.dump(data, sys.stdout, indent=indent, ensure_ascii=False, default=str)
 
 
 def handle_table_export(
-    data: List[Dict[str, Any]],
-    profile_name: Optional[str],
+    data: list[dict[str, Any]],
+    profile_name: str | None,
     command_name: str,
-    csv_filename: Optional[str] = None,
-    json_filename: Optional[str] = None,
+    csv_filename: str | None = None,
+    json_filename: str | None = None,
     export_csv: bool = False,
     export_json: bool = False
 ) -> bool:
@@ -177,14 +175,14 @@ def handle_table_export(
     """
     if not (export_csv or export_json):
         return False
-    
+
     if not data:
         if not (csv_filename == "" or json_filename == ""):
             console.print("[dim]No table data available for export[/dim]")
         return False
-    
+
     console_only_output = False
-    
+
     # Export CSV
     if export_csv:
         if csv_filename == "":
@@ -195,7 +193,7 @@ def handle_table_export(
             # File output
             csv_file = generate_export_filename(profile_name, command_name, 'csv', csv_filename)
             export_table_data_to_csv(data, csv_file)
-    
+
     # Export JSON
     if export_json:
         if json_filename == "":
@@ -206,11 +204,11 @@ def handle_table_export(
             # File output
             json_file = generate_export_filename(profile_name, command_name, 'json', json_filename)
             export_table_data_to_json(data, json_file)
-    
+
     return console_only_output
 
 
-def convert_rich_table_to_data(table: Table) -> List[Dict[str, Any]]:
+def convert_rich_table_to_data(table: Table) -> list[dict[str, Any]]:
     """
     Convert a Rich Table object to a list of dictionaries for export.
     
@@ -223,7 +221,7 @@ def convert_rich_table_to_data(table: Table) -> List[Dict[str, Any]]:
     Returns:
         List of dictionaries representing table data
     """
-    # This is a placeholder - in practice, we'll build the export data 
+    # This is a placeholder - in practice, we'll build the export data
     # directly when creating tables rather than trying to extract it from Rich tables
     console.print("[yellow]⚠ Rich table conversion not implemented - build export data directly[/yellow]")
     return []
@@ -231,12 +229,13 @@ def convert_rich_table_to_data(table: Table) -> List[Dict[str, Any]]:
 
 # Utility functions for common table data transformations
 
-def sms_tasks_to_export_data(tasks: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+def sms_tasks_to_export_data(tasks: list[dict[str, Any]], device_alias: str = "") -> list[dict[str, str]]:
     """Convert SMS task data to export format."""
     export_data = []
     for task in tasks:
         export_data.append({
             'TID': str(task.get('tid', '')),
+            'Device Alias': device_alias,
             'Port': str(task.get('from', '')),
             'To': str(task.get('to', '')),
             'Text': str(task.get('sms', '')),
@@ -245,34 +244,37 @@ def sms_tasks_to_export_data(tasks: List[Dict[str, Any]]) -> List[Dict[str, str]
     return export_data
 
 
-def sms_results_to_export_data(results: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+def sms_results_to_export_data(results: list[dict[str, Any]], device_alias: str = "") -> list[dict[str, str]]:
     """Convert SMS result data to export format."""
     export_data = []
     for result in results:
         export_data.append({
             'TID': str(result.get('tid', '')),
+            'Device Alias': device_alias,
             'Status': str(result.get('status', ''))
         })
     return export_data
 
 
-def imei_data_to_export_data(port_imeis: Dict[str, str]) -> List[Dict[str, str]]:
+def imei_data_to_export_data(port_imeis: dict[str, str], device_alias: str = "") -> list[dict[str, str]]:
     """Convert IMEI data to export format."""
     export_data = []
     for port, imei in port_imeis.items():
         export_data.append({
+            'Device Alias': device_alias,
             'Port': str(port),
             'IMEI': str(imei or 'Not available')
         })
     return export_data
 
 
-def profiles_to_export_data(profiles_data: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+def profiles_to_export_data(profiles_data: list[dict[str, Any]]) -> list[dict[str, str]]:
     """Convert profile data to export format."""
     export_data = []
     for profile in profiles_data:
         export_data.append({
             'Name': str(profile.get('name', '')),
+            'Device Alias': str(profile.get('device_alias', '')),
             'Host:Port': str(profile.get('host_port', '')),
             'Username': str(profile.get('username', '')),
             'Status': str(profile.get('status', ''))
@@ -280,25 +282,27 @@ def profiles_to_export_data(profiles_data: List[Dict[str, Any]]) -> List[Dict[st
     return export_data
 
 
-def messages_to_export_data(messages: List[Any], message_type: str = 'standard') -> List[Dict[str, str]]:
+def messages_to_export_data(messages: list[Any], message_type: str = 'standard', device_alias: str = "") -> list[dict[str, str]]:
     """
     Convert message objects to export format.
     
     Args:
         messages: List of message objects
         message_type: Type of messages ('standard', 'delivery_reports', 'search', 'stop')
+        device_alias: Device alias to include in export data
     """
     export_data = []
-    
+
     for msg in messages:
         base_data = {
             'ID': str(msg.id),
+            'Device Alias': device_alias,
             'Type': msg.message_type.value if hasattr(msg, 'message_type') else 'unknown',
             'Port': str(msg.port),
             'From': str(msg.sender),
             'Time': msg.timestamp.isoformat() if hasattr(msg.timestamp, 'isoformat') else str(msg.timestamp),
         }
-        
+
         if message_type == 'delivery_reports':
             # Special format for delivery reports
             base_data.update({
@@ -311,9 +315,9 @@ def messages_to_export_data(messages: List[Any], message_type: str = 'standard')
                 content = f"Status: {msg.delivery_status_code} → {msg.delivery_phone_number or 'N/A'}"
             else:
                 content = str(msg.content)
-            
+
             base_data['Content'] = content
-        
+
         export_data.append(base_data)
-    
+
     return export_data

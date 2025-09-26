@@ -1,14 +1,14 @@
 """Jinja2 templating system for SMS message templates."""
 
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 import jinja2
 
 
 class SMSTemplateEngine:
     """Template engine for SMS messages with built-in variables and filters."""
-    
+
     def __init__(self):
         """Initialize the template environment with custom filters."""
         self.env = jinja2.Environment(
@@ -16,7 +16,7 @@ class SMSTemplateEngine:
             trim_blocks=True,
             lstrip_blocks=True,
         )
-        
+
         # Register custom filters
         self.env.filters.update({
             'phone': self._format_phone,
@@ -26,14 +26,14 @@ class SMSTemplateEngine:
             'pad_left': self._pad_left,
             'pad_right': self._pad_right,
         })
-        
+
         # Register custom functions
         self.env.globals.update({
             'now': self._now,
             'utcnow': self._utcnow,
             'format_time': self._format_time,
         })
-    
+
     def render(self, template_str: str, **variables) -> str:
         """
         Render a template with the given variables.
@@ -58,7 +58,7 @@ class SMSTemplateEngine:
             return template.render(**variables)
         except jinja2.TemplateError as e:
             raise ValueError(f"Template rendering error: {e}") from e
-    
+
     def render_for_port(self, template_str: str, port: str, idx: int = 0, **variables) -> str:
         """
         Render a template for a specific port with built-in variables.
@@ -74,15 +74,15 @@ class SMSTemplateEngine:
         """
         builtin_vars = {
             'port': port,
-            'ts': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            'ts': datetime.now(UTC).isoformat().replace('+00:00', 'Z'),
             'idx': idx,
         }
-        
+
         # User variables override built-ins if there's a conflict
         all_vars = {**builtin_vars, **variables}
-        
+
         return self.render(template_str, **all_vars)
-    
+
     def validate_template(self, template_str: str) -> tuple[bool, str]:
         """
         Validate a template without rendering it.
@@ -98,46 +98,46 @@ class SMSTemplateEngine:
             return True, ""
         except jinja2.TemplateError as e:
             return False, str(e)
-    
+
     # Custom filter functions
     def _format_phone(self, phone: str, format_type: str = 'international') -> str:
         """Format phone number."""
         if not phone:
             return phone
-            
+
         # Remove all non-digit characters
         digits = ''.join(c for c in phone if c.isdigit())
-        
+
         if format_type == 'international' and not digits.startswith('+'):
             return f"+{digits}"
         elif format_type == 'local' and digits.startswith('+'):
             return digits[1:]
-        
+
         return digits
-    
+
     def _truncate(self, text: str, length: int, end: str = '...') -> str:
         """Truncate text to specified length."""
         if len(text) <= length:
             return text
         return text[:length - len(end)] + end
-    
+
     def _pad_left(self, text: str, width: int, fill_char: str = ' ') -> str:
         """Pad text on the left."""
         return str(text).rjust(width, fill_char)
-    
+
     def _pad_right(self, text: str, width: int, fill_char: str = ' ') -> str:
         """Pad text on the right."""
         return str(text).ljust(width, fill_char)
-    
+
     # Global functions
     def _now(self, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
         """Get current local time."""
         return datetime.now().strftime(format_str)
-    
+
     def _utcnow(self, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
         """Get current UTC time."""
         return datetime.utcnow().strftime(format_str)
-    
+
     def _format_time(self, timestamp: str, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
         """Format an ISO timestamp."""
         try:
@@ -179,21 +179,21 @@ def parse_template_variables(var_strings: list[str]) -> dict[str, str]:
         ValueError: If variable format is invalid
     """
     variables = {}
-    
+
     for var_string in var_strings:
         if '=' not in var_string:
             raise ValueError(f"Invalid variable format '{var_string}'. Expected 'key=value'")
-        
+
         key, value = var_string.split('=', 1)
         key = key.strip()
         value = value.strip()
-        
+
         if not key:
             raise ValueError(f"Empty variable name in '{var_string}'")
-        
+
         # Try to convert to appropriate type
         variables[key] = _convert_value(value)
-    
+
     return variables
 
 
@@ -202,19 +202,19 @@ def _convert_value(value: str) -> Any:
     # Try boolean
     if value.lower() in ('true', 'false'):
         return value.lower() == 'true'
-    
+
     # Try integer
     try:
         return int(value)
     except ValueError:
         pass
-    
+
     # Try float
     try:
         return float(value)
     except ValueError:
         pass
-    
+
     # Keep as string
     return value
 
@@ -277,12 +277,12 @@ Built-in Filters:
 
 Examples:
 """
-    
+
     for name, example in TEMPLATE_EXAMPLES.items():
         help_text += f"\n{name.title()}:\n"
         help_text += f"  Template: {example['template']}\n"
         help_text += f"  Description: {example['description']}\n"
         if 'variables' in example:
             help_text += f"  Variables: {example['variables']}\n"
-    
+
     return help_text
