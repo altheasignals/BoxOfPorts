@@ -14,10 +14,17 @@ from .http import EjoinHTTPError, create_sync_client
 from .ports import format_ports_for_api, parse_port_spec
 from .store import get_store, initialize_store
 from .table_export import (
+    get_imei_columns,
+    get_inbox_delivery_reports_columns,
+    get_inbox_messages_columns,
+    get_profiles_columns,
+    get_sms_send_results_columns,
+    get_sms_send_tasks_columns,
     handle_table_export,
     imei_data_to_export_data,
     messages_to_export_data,
     profiles_to_export_data,
+    render_and_export_table,
     sms_results_to_export_data,
     sms_tasks_to_export_data,
 )
@@ -140,6 +147,7 @@ def sms_send(
     timeout: int = typer.Option(30, "--timeout", help="Timeout in seconds"),
     vars: list[str] = typer.Option([], "--var", help="Template variables (key=value)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be sent without sending"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' for ascending (default) or 'd' for descending per column. Default: time desc; or port asc; or second column asc."),
     csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
     json_export: str | None = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
@@ -193,46 +201,23 @@ def sms_send(
                         template_vars=template_vars
                     )
 
-        # Show preview table
-        table = Table(title="SMS Tasks")
-        table.add_column("TID", style="cyan")
-        table.add_column("Device Alias", style="magenta")
-        table.add_column("Port", style="green")
-        table.add_column("To", style="yellow")
-        table.add_column("Text", style="white")
-        table.add_column("Status", style="blue")
-
-        for task in tasks[:10]:  # Show first 10 tasks
-            table.add_row(
-                str(task['tid']),
-                device_alias,
-                task['from'],
-                task['to'],
-                task['sms'][:50] + "..." if len(task['sms']) > 50 else task['sms'],
-                "DRY RUN" if dry_run else "PENDING"
-            )
-
-        if len(tasks) > 10:
-            table.add_row("...", "...", "...", f"... and {len(tasks) - 10} more", "...")
-
-        # Export task preview table if requested
-        console_only_mode = False
-        if csv is not None or json_export is not None:
-            current_profile = config_manager.get_current_profile()
-            task_data = sms_tasks_to_export_data(tasks, device_alias=device_alias)
-            console_only_mode = handle_table_export(
-                data=task_data,
-                profile_name=current_profile,
-                command_name="sms-send-tasks",
-                csv_filename=csv if csv != "" else None,
-                json_filename=json_export if json_export != "" else None,
-                export_csv=(csv is not None),
-                export_json=(json_export is not None)
-            )
-
-        # Only show table if not in console-only export mode
-        if not console_only_mode:
-            console.print(table)
+        # Prepare task data for display and export
+        current_profile = config_manager.get_current_profile()
+        task_data = sms_tasks_to_export_data(tasks, device_alias=device_alias)
+        
+        # Show preview table with centralized rendering
+        console_only_mode = render_and_export_table(
+            title="SMS Tasks",
+            columns=get_sms_send_tasks_columns(),
+            rows=task_data,
+            profile_name=current_profile,
+            command_name="sms-send-tasks",
+            sort_option=sort,
+            csv_filename=csv if csv != "" else None,
+            json_filename=json_export if json_export != "" else None,
+            export_csv=(csv is not None),
+            export_json=(json_export is not None)
+        )
 
         # Return early if in console-only export mode (acts like dry-run for pipeline integration)
         if console_only_mode:
@@ -250,38 +235,27 @@ def sms_send(
             try:
                 response = client.post_json("/goip_post_sms.html", json=request_data)
 
-                # Update table with results
-                result_table = Table(title="SMS Send Results")
-                result_table.add_column("TID", style="cyan")
-                result_table.add_column("Device Alias", style="magenta")
-                result_table.add_column("Status", style="blue")
-
+                # Update local storage and prepare results data
                 for status in response.get('status', []):
                     tid = status['tid']
                     status_text = status['status']
-                    result_table.add_row(str(tid), device_alias, status_text)
-
                     # Update local storage
                     store.update_task_status(tid, status_text)
-
-                # Export results table if requested
-                results_console_only = False
-                if csv is not None or json_export is not None:
-                    current_profile = config_manager.get_current_profile()
-                    results_data = sms_results_to_export_data(response.get('status', []), device_alias=device_alias)
-                    results_console_only = handle_table_export(
-                        data=results_data,
-                        profile_name=current_profile,
-                        command_name="sms-send-results",
-                        csv_filename=csv if csv != "" else None,
-                        json_filename=json_export if json_export != "" else None,
-                        export_csv=(csv is not None),
-                        export_json=(json_export is not None)
-                    )
-
-                # Only show results table if not in console-only export mode
-                if not results_console_only:
-                    console.print(result_table)
+                
+                # Show results table with centralized rendering
+                results_data = sms_results_to_export_data(response.get('status', []), device_alias=device_alias)
+                results_console_only = render_and_export_table(
+                    title="SMS Send Results",
+                    columns=get_sms_send_results_columns(),
+                    rows=results_data,
+                    profile_name=current_profile,
+                    command_name="sms-send-results",
+                    sort_option=sort,
+                    csv_filename=csv if csv != "" else None,
+                    json_filename=json_export if json_export != "" else None,
+                    export_csv=(csv is not None),
+                    export_json=(json_export is not None)
+                )
 
             except EjoinHTTPError as e:
                 console.print(f"[red]Message undeliverable — {e}[/red]")
@@ -299,12 +273,13 @@ def sms_spray(
     text: str = typer.Option(..., "--text", help="SMS text (supports templates)"),
     ports: str = typer.Option(..., "--ports", "--port", help="Ports to spray from (supports CSV files)"),
     intvl_ms: int = typer.Option(250, "--intvl-ms", help="Interval between SMS"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' for ascending (default) or 'd' for descending per column. Default: time desc; or port asc; or second column asc."),
     csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
     json_export: str | None = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
     """Spray the same number via multiple ports quickly."""
     # This is essentially the same as send but with different defaults
-    ctx.invoke(sms_send, to=to, text=text, ports=ports, repeat=1, intvl_ms=intvl_ms, timeout=30, vars=[], dry_run=False, csv=csv, json_export=json_export)
+    ctx.invoke(sms_send, to=to, text=text, ports=ports, repeat=1, intvl_ms=intvl_ms, timeout=30, vars=[], dry_run=False, sort=sort, csv=csv, json_export=json_export)
 
 
 @status_app.command("subscribe")
@@ -570,6 +545,7 @@ def ops_set_imei(
 def ops_get_imei(
     ctx: typer.Context,
     ports: str = typer.Option(..., "--ports", "--port", help="Ports to get IMEI for (e.g., '3A', '1A,2B,3A', or 'ports.csv')"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' for ascending (default) or 'd' for descending per column. Default: time desc; or port asc; or second column asc."),
     csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
     json_export: str | None = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
@@ -585,63 +561,41 @@ def ops_get_imei(
         response = client.get_port_imei(ports)
 
         if response.get("code") == 0:
-            # Check for console-only mode first to determine if we should show messages
-            show_messages = True
-            if csv is not None or json_export is not None:
-                if csv == "" or json_export == "":
-                    show_messages = False
-
-            if show_messages:
-                console.print("[green]✓ IMEI values retrieved[/green]")
-
-            # Display the results in a table
-            table = Table(title="Port IMEI Values")
-            table.add_column("Device Alias", style="magenta")
-            table.add_column("Port", style="cyan")
-            table.add_column("IMEI", style="green")
-
             # Parse the response to extract IMEI values
             port_imeis = response.get("ports", {})
-
+            current_profile = config_manager.get_current_profile()
+            
+            # Prepare data for export - use both found and requested ports
+            all_port_imeis = {}
             if port_imeis:
-                for port, imei in port_imeis.items():
-                    table.add_row(device_alias[:12], port, imei or "Not available")
+                all_port_imeis.update(port_imeis)
             else:
-                # If no ports returned, show an empty result
+                # If no ports returned, include requested ports with "Not found"
                 from boxofports.ports import parse_port_spec
                 requested_ports = parse_port_spec(ports)
                 for port in requested_ports:
-                    table.add_row(device_alias[:12], port, "Not found")
-
-            # Export IMEI table if requested
-            imei_console_only = False
-            if csv is not None or json_export is not None:
-                current_profile = config_manager.get_current_profile()
-                # Prepare data for export - use both found and requested ports
-                all_port_imeis = {}
-                if port_imeis:
-                    all_port_imeis.update(port_imeis)
-                else:
-                    # If no ports returned, include requested ports with "Not found"
-                    from boxofports.ports import parse_port_spec
-                    requested_ports = parse_port_spec(ports)
-                    for port in requested_ports:
-                        all_port_imeis[port] = "Not found"
-
-                imei_export_data = imei_data_to_export_data(all_port_imeis, device_alias=device_alias)
-                imei_console_only = handle_table_export(
-                    data=imei_export_data,
-                    profile_name=current_profile,
-                    command_name="ops-get-imei",
-                    csv_filename=csv if csv != "" else None,
-                    json_filename=json_export if json_export != "" else None,
-                    export_csv=(csv is not None),
-                    export_json=(json_export is not None)
-                )
-
-            # Only show table and messages if not in console-only export mode
+                    all_port_imeis[port] = "Not found"
+                    
+            # Convert to export data format
+            imei_export_data = imei_data_to_export_data(all_port_imeis, device_alias=device_alias)
+            
+            # Show table with centralized rendering
+            imei_console_only = render_and_export_table(
+                title="Port IMEI Values",
+                columns=get_imei_columns(),
+                rows=imei_export_data,
+                profile_name=current_profile,
+                command_name="ops-get-imei",
+                sort_option=sort,
+                csv_filename=csv if csv != "" else None,
+                json_filename=json_export if json_export != "" else None,
+                export_csv=(csv is not None),
+                export_json=(json_export is not None)
+            )
+            
+            # Show success message if not in console-only mode
             if not imei_console_only:
-                console.print(table)
+                console.print("[green]✓ IMEI values retrieved[/green]")
         else:
             console.print(f"[red]✗ Failed to get IMEI values: {response.get('reason', 'Unknown error')}[/red]")
             raise typer.Exit(1)
@@ -900,6 +854,7 @@ def config_add_profile(
 
 @config_app.command("list")
 def config_list_profiles(
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' for ascending (default) or 'd' for descending per column. Default: time desc; or port asc; or second column asc."),
     csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
     json_export: str | None = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
 ):
@@ -912,58 +867,36 @@ def config_list_profiles(
         console.print("Use 'boxofports config add-profile' to create one")
         return
 
-    table = Table(title="Server Profiles")
-    table.add_column("Name", style="cyan")
-    table.add_column("Device Alias", style="magenta")
-    table.add_column("Host:Port", style="green")
-    table.add_column("Username", style="yellow")
-    table.add_column("Status", style="blue")
-
+    # Prepare data for export and display
+    current_profile = config_manager.get_current_profile()
+    profiles_data = []
     for profile_name in profiles:
         profile_config = config_manager.get_profile_config(profile_name)
         if profile_config:
             status = "→ CURRENT" if profile_name == current else ""
-            table.add_row(
-                profile_name,
-                profile_config.device_alias,
-                f"{profile_config.host}:{profile_config.port}",
-                profile_config.username,
-                status
-            )
+            profiles_data.append({
+                "name": profile_name,
+                "device_alias": profile_config.device_alias,
+                "host_port": f"{profile_config.host}:{profile_config.port}",
+                "username": profile_config.username,
+                "status": status
+            })
 
-    # Export profiles table if requested
-    config_console_only = False
-    if csv is not None or json_export is not None:
-        current_profile = config_manager.get_current_profile()
-
-        # Prepare data for export
-        profiles_data = []
-        for profile_name in profiles:
-            profile_config = config_manager.get_profile_config(profile_name)
-            if profile_config:
-                status = "→ CURRENT" if profile_name == current else ""
-                profiles_data.append({
-                    "name": profile_name,
-                    "device_alias": profile_config.device_alias,
-                    "host_port": f"{profile_config.host}:{profile_config.port}",
-                    "username": profile_config.username,
-                    "status": status
-                })
-
-        profiles_export_data = profiles_to_export_data(profiles_data)
-        config_console_only = handle_table_export(
-            data=profiles_export_data,
-            profile_name=current_profile,
-            command_name="config-list",
-            csv_filename=csv if csv != "" else None,
-            json_filename=json_export if json_export != "" else None,
-            export_csv=(csv is not None),
-            export_json=(json_export is not None)
-        )
-
-    # Only show table if not in console-only export mode
-    if not config_console_only:
-        console.print(table)
+    profiles_export_data = profiles_to_export_data(profiles_data)
+    
+    # Show table with centralized rendering
+    config_console_only = render_and_export_table(
+        title="Server Profiles",
+        columns=get_profiles_columns(),
+        rows=profiles_export_data,
+        profile_name=current_profile,
+        command_name="config-list",
+        sort_option=sort,
+        csv_filename=csv if csv != "" else None,
+        json_filename=json_export if json_export != "" else None,
+        export_csv=(csv is not None),
+        export_json=(json_export is not None)
+    )
 
 
 @config_app.command("switch")

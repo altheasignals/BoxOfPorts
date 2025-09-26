@@ -5,6 +5,31 @@ All notable changes to BoxOfPorts will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-09-26
+
+### Added
+- **Sorting for All Tables**: New `--sort` option for all table-producing commands
+  - Multi-column sorting with per-column ascending/descending control: `--sort 2,1d,4`
+  - Smart default sorting behavior: timestamp descending → port ascending → second column ascending
+  - Consistent sorting across display tables, CSV exports, and JSON exports
+  - Column numbering matches display order for intuitive usage
+- **Centralized Table Rendering**: Unified table display and export system
+  - Single point of control for table formatting, sorting, and export integration
+  - Maintains existing CSV/JSON export functionality and console-only modes
+  - Improved code efficiency and consistency across all commands
+
+### Enhanced
+- **Pipeline Integration**: Sorted data flows through all pipeline modes
+  - Console-only exports (`--csv`, `--json`) reflect the same sort order as displayed tables
+  - File exports maintain sorted order for better downstream processing
+  - Default sort provides natural ordering when no explicit sort specified
+
+### Technical
+- Intelligent coercion for timestamps, ports, and generic data types
+- Stable multi-column sorting preserves relative order of equal elements
+- Backward compatible with all existing export and display patterns
+- No new external dependencies - uses only Python standard library
+
 ## [1.1.0] - 2025-01-26
 
 ### Added
