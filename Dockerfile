@@ -5,7 +5,7 @@ FROM python:3.11-slim
 
 # Set metadata
 LABEL maintainer="Althea Signals Network LLC <support@altheasignals.net>"
-LABEL version="1.0.0"
+LABEL version="1.1.0"
 LABEL description="BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
 LABEL vendor="Althea Signals Network LLC"
 LABEL url="https://altheasignals.net"
@@ -71,7 +71,7 @@ USER boxofports
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD boxofports --version || exit 1
+    CMD /usr/local/bin/boxofports --version || exit 1
 
 # Expose potential web interface port (future feature)
 EXPOSE 8080

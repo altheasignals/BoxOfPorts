@@ -1,15 +1,13 @@
-# bop Docker Compose Configuration
+# BoxOfPorts Docker Compose Configuration
 # Copyright (c) 2025 Althea Signals Network LLC. All rights reserved.
 
-version: '3.8'
-
 services:
-  bop:
+  boxofports:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bop-app
-    hostname: bop
+    container_name: boxofports-app
+    hostname: boxofports
     restart: unless-stopped
     
     # Environment variables
@@ -36,15 +34,13 @@ services:
       # Configuration files (read-only)
       - ./config:/app/config:ro
       # Data persistence
-      - bop_data:/app/data
+      - boxofports_data:/app/data
       # Logs
-      - bop_logs:/app/logs
-      # Optional: custom configuration
-      - ./gateways.csv:/app/config/gateways.csv:ro
+      - boxofports_logs:/app/logs
     
     # Network configuration
     networks:
-      - bop_network
+      - boxofports_network
     
     # Resource limits
     deploy:
@@ -58,7 +54,7 @@ services:
     
     # Health check
     healthcheck:
-      test: ["CMD", "python", "-c", "import bop; print('healthy')"]
+      test: ["CMD", "boxofports", "--version"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -68,8 +64,7 @@ services:
     command: ["--help"]
     
     # Security settings
-    user: bop
-    read_only: true
+    user: boxofports
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=100m
     security_opt:
@@ -80,71 +75,71 @@ services:
       - NET_ADMIN  # Only if needed for network operations
 
   # Optional: Web dashboard (future feature)
-  bop-web:
+  boxofports-web:
     build:
       context: .
       dockerfile: Dockerfile
       target: web  # Future multi-stage build
-    container_name: bop-web
+    container_name: boxofports-web
     profiles:
       - web  # Only start with --profile web
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8080}:8080"
     depends_on:
-      bop:
+      boxofports:
         condition: service_healthy
     networks:
-      - bop_network
+      - boxofports_network
     environment:
       - BOXOFPORTS_WEB_HOST=0.0.0.0
       - BOXOFPORTS_WEB_PORT=8080
     volumes:
-      - bop_data:/app/data:ro
-      - bop_logs:/app/logs:ro
+      - boxofports_data:/app/data:ro
+      - boxofports_logs:/app/logs:ro
 
   # Optional: Database for advanced features (future)
-  bop-db:
+  boxofports-db:
     image: postgres:15-alpine
-    container_name: bop-db
+    container_name: boxofports-db
     profiles:
       - database
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=bop
-      - POSTGRES_USER=bop
+      - POSTGRES_DB=boxofports
+      - POSTGRES_USER=boxofports
       - POSTGRES_PASSWORD=${DB_PASSWORD:-secure_password}
     volumes:
-      - bop_db_data:/var/lib/postgresql/data
+      - boxofports_db_data:/var/lib/postgresql/data
     networks:
-      - bop_network
+      - boxofports_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bop"]
+      test: ["CMD-SHELL", "pg_isready -U boxofports"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 networks:
-  bop_network:
+  boxofports_network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.20.0.0/16
 
 volumes:
-  bop_data:
+  boxofports_data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ./data
   
-  bop_logs:
+  boxofports_logs:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ./logs
   
-  bop_db_data:
+  boxofports_db_data:
     driver: local
