@@ -5,7 +5,7 @@ FROM python:3.11-slim
 
 # Set metadata
 LABEL maintainer="Althea Signals Network LLC <support@altheasignals.net>"
-LABEL version="1.1.0"
+LABEL version="1.2.0"
 LABEL description="BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
 LABEL vendor="Althea Signals Network LLC"
 LABEL url="https://altheasignals.net"

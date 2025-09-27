@@ -16,7 +16,7 @@ RESET='\033[0m'
 
 # Project information
 PROJECT_NAME="boxofports"
-VERSION="1.0.0"
+VERSION="1.2.0"
 AUTHOR="Althea Signals Network LLC"
 MIN_PYTHON_VERSION="3.11"
 

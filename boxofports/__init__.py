@@ -20,7 +20,7 @@ Features:
 - Rich CLI output with tables and JSON export
 """
 
-__version__ = "1.0.0"
+__version__ = "1.2.0"
 __author__ = "Althea Signals Network LLC"
 __email__ = "support@altheasignals.net"
 __license__ = "Proprietary"

@@ -59,7 +59,7 @@ class EjoinClient:
                     pool=self.config.connect_timeout,
                 ),
                 headers={
-                    "User-Agent": "BoxOfPorts/1.0.0",
+                    "User-Agent": "BoxOfPorts/1.2.0",
                     "Accept": "application/json",
                 },
             )

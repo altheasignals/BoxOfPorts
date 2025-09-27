@@ -33,7 +33,7 @@ To cleanly remove BoxOfPorts (detects all installation methods):
 curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/uninstall-bop.sh | bash
 ```
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/altheasignals/boxofports)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/altheasignals/boxofports)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 
