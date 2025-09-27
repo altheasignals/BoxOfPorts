@@ -15,6 +15,7 @@ readonly DOCKER_TAG_LATEST="latest"
 readonly HOME_CONFIG_DIR="${HOME}/.boxofports"
 readonly VERSION_CACHE_FILE="${HOME_CONFIG_DIR}/.bop_version_cache"
 readonly FORCE_UPDATE_FILE="${HOME_CONFIG_DIR}/.bop_force_update"
+readonly CONFIG_FILE="${HOME_CONFIG_DIR}/bop.conf"
 
 # Colors for output (keeping it groovy)
 readonly RED='\033[0;31m'
@@ -73,6 +74,16 @@ is_stable_version() {
     [[ "$version" =~ \.[0-9]+\.0$ ]]
 }
 
+# Classify version as stable or dev
+classify_version() {
+    local version="$1"
+    if is_stable_version "$version"; then
+        echo "stable"
+    else
+        echo "dev"
+    fi
+}
+
 # Compare versions (returns 0 if v1 >= v2, 1 otherwise)
 version_gte() {
     local v1="$1"
@@ -107,9 +118,34 @@ is_cache_stale() {
     [[ $age -gt 3600 ]]
 }
 
-# Detect if user wants "Steal Your Face" mode (bleeding edge)
+# Get release track preference (stable, dev, or auto)
+get_release_track() {
+    # Check for command-line argument first (handled elsewhere)
+    # Check environment variable
+    if [[ -n "${BOP_RELEASE_TRACK:-}" ]]; then
+        echo "${BOP_RELEASE_TRACK}"
+        return
+    fi
+    
+    # Check config file
+    if [[ -f "$CONFIG_FILE" ]] && grep -q "^release_track=" "$CONFIG_FILE"; then
+        grep "^release_track=" "$CONFIG_FILE" | cut -d= -f2 | tr -d '"'
+        return
+    fi
+    
+    # Check legacy steal-your-face mode
+    if [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]; then
+        echo "dev"
+        return
+    fi
+    
+    # Default to stable
+    echo "stable"
+}
+
+# Detect if user wants "Steal Your Face" mode (bleeding edge) - kept for backwards compatibility
 is_steal_your_face_mode() {
-    [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]
+    [[ "$(get_release_track)" == "dev" ]]
 }
 
 # Pull Docker image if needed
@@ -191,15 +227,72 @@ check_stable_enforcement() {
     fi
 }
 
+# Resolve Docker tag based on release track
+resolve_docker_tag() {
+    local track="$1"
+    
+    case "$track" in
+        stable)
+            echo "$DOCKER_TAG_STABLE"
+            ;;
+        dev)
+            echo "$DOCKER_TAG_LATEST"
+            ;;
+        auto)
+            # Prefer stable, fall back to latest if stable pull fails
+            if pull_image "$DOCKER_TAG_STABLE" >/dev/null 2>&1; then
+                echo "$DOCKER_TAG_STABLE"
+            else
+                log_warning "Stable track unavailable, falling back to development track"
+                echo "$DOCKER_TAG_LATEST"
+            fi
+            ;;
+        *)
+            log_error "Unknown release track: $track. Valid options: stable, dev, auto"
+            exit 1
+            ;;
+    esac
+}
+
+# Validate track compatibility with version
+validate_track_version() {
+    local track="$1"
+    local tag="$2"
+    local version="$3"
+    
+    # Only enforce stability constraints for stable track
+    if [[ "$track" == "stable" && "$tag" == "$DOCKER_TAG_STABLE" ]]; then
+        local version_class
+        version_class=$(classify_version "$version")
+        
+        if [[ "$version_class" != "stable" ]]; then
+            log_error "The wheel is turning but you can't slow down — stable track expects X.Y.0, but got $version."
+            log_info "Try: BOP_RELEASE_TRACK=dev bop [command] or set release_track=dev in ~/.boxofports/bop.conf"
+            exit 2
+        fi
+    fi
+}
+
 # Main image management logic
 manage_image() {
-    local tag="$DOCKER_TAG_STABLE"
+    local track
+    track=$(get_release_track)
     
-    # Check if user wants bleeding edge
-    if is_steal_your_face_mode; then
-        tag="$DOCKER_TAG_LATEST" 
-        log_cosmic "Steal Your Face mode active - running latest bleeding edge"
-    fi
+    local tag
+    tag=$(resolve_docker_tag "$track")
+    
+    # Show track info
+    case "$track" in
+        stable)
+            log_info "Riding the steady line — using stable releases"
+            ;;
+        dev)
+            log_cosmic "Steal Your Face mode active — running latest bleeding edge"
+            ;;
+        auto)
+            log_info "Auto mode — preferring stable, allowing fallback"
+            ;;
+    esac
     
     # Pull/update image
     pull_image "$tag"
@@ -208,8 +301,8 @@ manage_image() {
     local current_version
     current_version=$(get_local_version "$tag")
     
-    # Enforce stable version requirements
-    check_stable_enforcement "$tag" "$current_version"
+    # Validate track/version compatibility
+    validate_track_version "$track" "$tag" "$current_version"
     
     echo "$tag"
 }
@@ -256,6 +349,23 @@ run_boxofports() {
 # Handle special bop commands
 handle_special_commands() {
     case "${1:-}" in
+        --track)
+            if [[ -z "${2:-}" ]]; then
+                log_error "--track requires an argument: stable, dev, or auto"
+                exit 1
+            fi
+            # Validate track argument
+            case "$2" in
+                stable|dev|auto)
+                    export BOP_RELEASE_TRACK="$2"
+                    shift 2 # Remove --track and its argument from $@
+                    ;;
+                *)
+                    log_error "Invalid track: $2. Valid options: stable, dev, auto"
+                    exit 1
+                    ;;
+            esac
+            ;;
         --steal-your-face)
             if [[ ! -f "$HOME_CONFIG_DIR/.steal_your_face" ]]; then
                 touch "$HOME_CONFIG_DIR/.steal_your_face"
@@ -268,23 +378,45 @@ handle_special_commands() {
             exit 0
             ;;
         --bop-version)
+            local track
+            track=$(get_release_track)
             local tag
-            tag=$(is_steal_your_face_mode && echo "$DOCKER_TAG_LATEST" || echo "$DOCKER_TAG_STABLE")
+            tag=$(resolve_docker_tag "$track")
             local version
             version=$(get_local_version "$tag")
             
-            echo "bop (Docker wrapper) v1.0.0"
+            echo "bop (Docker wrapper) v1.1.0"
             echo "BoxOfPorts container version: $version"
             echo "Docker image: ${DOCKER_IMAGE}:${tag}"
-            echo "Mode: $(is_steal_your_face_mode && echo "Steal Your Face (bleeding edge)" || echo "Stable releases")"
+            echo "Release track: $track"
             exit 0
             ;;
         --bop-update)
             log_info "Forcing update check..."
+            local track
+            track=$(get_release_track)
             local tag
-            tag=$(is_steal_your_face_mode && echo "$DOCKER_TAG_LATEST" || echo "$DOCKER_TAG_STABLE")
+            tag=$(resolve_docker_tag "$track")
             pull_image "$tag" "true"
             log_success "Update complete"
+            exit 0
+            ;;
+        --bop-config)
+            echo "Configuration file: $CONFIG_FILE"
+            if [[ -f "$CONFIG_FILE" ]]; then
+                echo "Current settings:"
+                cat "$CONFIG_FILE"
+            else
+                echo "No configuration file exists. Creating example..."
+                cat > "$CONFIG_FILE" << 'EOF'
+# BoxOfPorts wrapper configuration
+# Set release track: stable (X.Y.0 versions), dev (latest builds), auto (prefer stable)
+release_track=stable
+
+# Other settings can go here in the future
+EOF
+                echo "Created example configuration at $CONFIG_FILE"
+            fi
             exit 0
             ;;
     esac
@@ -294,7 +426,7 @@ handle_special_commands() {
 main() {
     create_config_dir
     
-    # Handle special bop-specific commands
+    # Handle special bop-specific commands (may modify $@ and environment)
     handle_special_commands "$@"
     
     # Manage Docker image and get appropriate tag
