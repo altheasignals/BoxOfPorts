@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# bop (Docker wrapper) v1.2.0
 
 # bop - Docker wrapper for BoxOfPorts CLI
 # "When the music never stops... the container keeps running"
@@ -16,6 +17,9 @@ readonly HOME_CONFIG_DIR="${HOME}/.boxofports"
 readonly VERSION_CACHE_FILE="${HOME_CONFIG_DIR}/.bop_version_cache"
 readonly FORCE_UPDATE_FILE="${HOME_CONFIG_DIR}/.bop_force_update"
 readonly CONFIG_FILE="${HOME_CONFIG_DIR}/bop.conf"
+readonly UPDATE_CHECK_FILE="${HOME_CONFIG_DIR}/.bop_update_check"
+readonly REMOTE_BOP_URL="https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/bop"
+readonly BOP_SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
 
 # Colors for output (keeping it groovy)
 readonly RED='\033[0;31m'
@@ -68,20 +72,11 @@ get_remote_version() {
     docker manifest inspect "${DOCKER_IMAGE}:${tag}" --format='{{index .Config.Labels "version"}}' 2>/dev/null || echo "unknown"
 }
 
-# Check if version is a stable release (ends with .0)
-is_stable_version() {
-    local version="$1"
-    [[ "$version" =~ \.[0-9]+\.0$ ]]
-}
-
-# Classify version as stable or dev
+# Classify version as stable or dev (deprecated - no longer enforced)
 classify_version() {
     local version="$1"
-    if is_stable_version "$version"; then
-        echo "stable"
-    else
-        echo "dev"
-    fi
+    # All versions are considered valid now - classification is based on track selection
+    echo "stable"
 }
 
 # Compare versions (returns 0 if v1 >= v2, 1 otherwise)
@@ -102,6 +97,124 @@ update_version_cache() {
     local current_version="$1"
     echo "$current_version" > "$VERSION_CACHE_FILE"
     echo "$(date '+%s')" >> "$VERSION_CACHE_FILE"
+}
+
+# Get remote bop wrapper version
+get_remote_bop_version() {
+    local remote_version
+    remote_version=$(curl -fsSL "$REMOTE_BOP_URL" 2>/dev/null | grep '^# bop (Docker wrapper) v' | head -n1 | sed 's/.*v\([0-9.]*\).*/\1/' | tr -d '"')
+    echo "${remote_version:-unknown}"
+}
+
+# Check if bop wrapper update check is stale (older than 24 hours)
+is_bop_update_check_stale() {
+    [[ ! -f "$UPDATE_CHECK_FILE" ]] && return 0
+    
+    local check_time
+    check_time=$(cat "$UPDATE_CHECK_FILE" 2>/dev/null || echo "0")
+    local current_time
+    current_time=$(date '+%s')
+    local age=$((current_time - check_time))
+    
+    # Check is stale if older than 24 hours (86400 seconds)
+    [[ $age -gt 86400 ]]
+}
+
+# Update the bop wrapper script
+update_bop_wrapper() {
+    local backup_file="${BOP_SCRIPT_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
+    
+    log_info "Updating bop wrapper..."
+    
+    # Create backup
+    if cp "$BOP_SCRIPT_PATH" "$backup_file" 2>/dev/null; then
+        log_info "Created backup: $(basename "$backup_file")"
+    else
+        log_warning "Could not create backup - continuing anyway"
+    fi
+    
+    # Download new version
+    if curl -fsSL "$REMOTE_BOP_URL" -o "${BOP_SCRIPT_PATH}.new" 2>/dev/null; then
+        # Verify the download
+        if [[ -s "${BOP_SCRIPT_PATH}.new" ]] && head -n1 "${BOP_SCRIPT_PATH}.new" | grep -q "#!/usr/bin/env bash"; then
+            # Replace current script
+            if mv "${BOP_SCRIPT_PATH}.new" "$BOP_SCRIPT_PATH" 2>/dev/null; then
+                chmod +x "$BOP_SCRIPT_PATH" 2>/dev/null || true
+                log_success "Bop wrapper updated successfully"
+                
+                # Clean up old backup files (keep last 3)
+                if command -v find >/dev/null 2>&1; then
+                    find "$(dirname "$BOP_SCRIPT_PATH")" -name "$(basename "$BOP_SCRIPT_PATH").backup.*" -type f 2>/dev/null | \
+                        sort -r | tail -n +4 | xargs rm -f 2>/dev/null || true
+                fi
+                
+                return 0
+            else
+                log_error "Failed to replace bop script"
+            fi
+        else
+            log_error "Downloaded file appears corrupted"
+        fi
+        
+        # Cleanup failed download
+        rm -f "${BOP_SCRIPT_PATH}.new" 2>/dev/null || true
+    else
+        log_error "Failed to download updated bop wrapper"
+    fi
+    
+    # Restore backup on failure
+    if [[ -f "$backup_file" ]]; then
+        if mv "$backup_file" "$BOP_SCRIPT_PATH" 2>/dev/null; then
+            log_info "Restored from backup after failed update"
+        fi
+    fi
+    
+    return 1
+}
+
+# Get current bop wrapper version from script header
+get_current_bop_version() {
+    grep '^# bop (Docker wrapper) v' "$BOP_SCRIPT_PATH" | head -n1 | sed 's/.*v\([0-9.]*\).*/\1/' | tr -d '"'
+}
+
+# Check for bop wrapper updates
+check_bop_wrapper_updates() {
+    # Skip if update check is not stale
+    if ! is_bop_update_check_stale; then
+        return 0
+    fi
+    
+    # Get versions
+    local current_version
+    current_version=$(get_current_bop_version)
+    local remote_version
+    remote_version=$(get_remote_bop_version)
+    
+    # Update check timestamp
+    echo "$(date '+%s')" > "$UPDATE_CHECK_FILE"
+    
+    if [[ "$remote_version" == "unknown" ]]; then
+        # Can't check for updates, but don't fail
+        return 0
+    fi
+    
+    # Compare versions
+    if ! version_gte "$current_version" "$remote_version"; then
+        log_warning "Bop wrapper update available: $current_version → $remote_version"
+        
+        # Auto-update if we can write to the script location
+        if [[ -w "$BOP_SCRIPT_PATH" ]] || [[ -w "$(dirname "$BOP_SCRIPT_PATH")" ]]; then
+            log_info "Attempting automatic update..."
+            if update_bop_wrapper; then
+                log_cosmic "🎉 Bop wrapper updated! Restarting with new version..."
+                # Restart with new version
+                exec "$BOP_SCRIPT_PATH" "$@"
+            fi
+        else
+            log_warning "Cannot auto-update (no write permission)"
+            log_info "💡 To update manually: curl -fsSL $REMOTE_BOP_URL | sudo tee $BOP_SCRIPT_PATH > /dev/null && sudo chmod +x $BOP_SCRIPT_PATH"
+        fi
+    fi
 }
 
 # Check if cache is stale (older than 1 hour)
@@ -254,23 +367,15 @@ resolve_docker_tag() {
     esac
 }
 
-# Validate track compatibility with version
+# Validate track/version compatibility (deprecated - no longer enforces .0 constraint)
 validate_track_version() {
     local track="$1"
     local tag="$2"
     local version="$3"
     
-    # Only enforce stability constraints for stable track
-    if [[ "$track" == "stable" && "$tag" == "$DOCKER_TAG_STABLE" ]]; then
-        local version_class
-        version_class=$(classify_version "$version")
-        
-        if [[ "$version_class" != "stable" ]]; then
-            log_error "The wheel is turning but you can't slow down — stable track expects X.Y.0, but got $version."
-            log_info "Try: BOP_RELEASE_TRACK=dev bop [command] or set release_track=dev in ~/.boxofports/bop.conf"
-            exit 2
-        fi
-    fi
+    # Version constraints are deprecated - all versions are valid for any track
+    # This function remains for compatibility but no longer enforces restrictions
+    return 0
 }
 
 # Main image management logic
@@ -384,8 +489,10 @@ handle_special_commands() {
             tag=$(resolve_docker_tag "$track")
             local version
             version=$(get_local_version "$tag")
+            local bop_version
+            bop_version=$(get_current_bop_version)
             
-            echo "bop (Docker wrapper) v1.1.0"
+            echo "bop (Docker wrapper) v${bop_version}"
             echo "BoxOfPorts container version: $version"
             echo "Docker image: ${DOCKER_IMAGE}:${tag}"
             echo "Release track: $track"
@@ -419,12 +526,44 @@ EOF
             fi
             exit 0
             ;;
+        --bop-update-wrapper)
+            log_info "Checking for bop wrapper updates..."
+            local current_version
+            current_version=$(get_current_bop_version)
+            local remote_version
+            remote_version=$(get_remote_bop_version)
+            
+            if [[ "$remote_version" == "unknown" ]]; then
+                log_warning "Unable to check for updates - network issue or GitHub unavailable"
+                exit 1
+            fi
+            
+            if ! version_gte "$current_version" "$remote_version"; then
+                log_info "Update available: $current_version → $remote_version"
+                if update_bop_wrapper; then
+                    log_cosmic "🎉 Bop wrapper updated successfully! Restarting with new version..."
+                    exec "$BOP_SCRIPT_PATH" "$@"
+                else
+                    log_error "Update failed - see messages above"
+                    exit 1
+                fi
+            else
+                log_success "Already running latest bop wrapper version ($current_version)"
+            fi
+            exit 0
+            ;;
     esac
 }
 
 # Main execution
 main() {
     create_config_dir
+    
+    # Check for bop wrapper updates (skip for --help and internal commands)
+    if [[ "${1:-}" != "--help" && "${1:-}" != "-h" && "${1:-}" != "config" && "${1:-}" != "--version" && \
+          "${1:-}" != "--bop-version" && "${1:-}" != "--bop-update-wrapper" && "${1:-}" != "--bop-config" ]]; then
+        check_bop_wrapper_updates "$@"
+    fi
     
     # Handle special bop-specific commands (may modify $@ and environment)
     handle_special_commands "$@"
