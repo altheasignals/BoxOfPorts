@@ -231,9 +231,15 @@ is_cache_stale() {
     [[ $age -gt 3600 ]]
 }
 
-# Get release track preference (stable, dev, or auto)
+# Get release track preference (stable or dev)
 get_release_track() {
-    # Check for command-line argument first (handled elsewhere)
+    # Check for steal-your-face mode first (always overrides other settings)
+    if [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]; then
+        echo "dev"
+        return
+    fi
+    
+    # Check for command-line argument (handled elsewhere)
     # Check environment variable
     if [[ -n "${BOP_RELEASE_TRACK:-}" ]]; then
         echo "${BOP_RELEASE_TRACK}"
@@ -246,19 +252,13 @@ get_release_track() {
         return
     fi
     
-    # Check legacy steal-your-face mode
-    if [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]; then
-        echo "dev"
-        return
-    fi
-    
     # Default to stable
     echo "stable"
 }
 
-# Detect if user wants "Steal Your Face" mode (bleeding edge) - kept for backwards compatibility
+# Detect if user wants "Steal Your Face" mode (bleeding edge with extra vibes)
 is_steal_your_face_mode() {
-    [[ "$(get_release_track)" == "dev" ]]
+    [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]
 }
 
 # Pull Docker image if needed
@@ -351,17 +351,8 @@ resolve_docker_tag() {
         dev)
             echo "$DOCKER_TAG_LATEST"
             ;;
-        auto)
-            # Prefer stable, fall back to latest if stable pull fails
-            if pull_image "$DOCKER_TAG_STABLE" >/dev/null 2>&1; then
-                echo "$DOCKER_TAG_STABLE"
-            else
-                log_warning "Stable track unavailable, falling back to development track"
-                echo "$DOCKER_TAG_LATEST"
-            fi
-            ;;
         *)
-            log_error "Unknown release track: $track. Valid options: stable, dev, auto"
+            log_error "Unknown release track: $track. Valid options: stable, dev"
             exit 1
             ;;
     esac
@@ -387,17 +378,18 @@ manage_image() {
     tag=$(resolve_docker_tag "$track")
     
     # Show track info
-    case "$track" in
-        stable)
-            log_info "Riding the steady line — using stable releases"
-            ;;
-        dev)
-            log_cosmic "Steal Your Face mode active — running latest bleeding edge"
-            ;;
-        auto)
-            log_info "Auto mode — preferring stable, allowing fallback"
-            ;;
-    esac
+    if is_steal_your_face_mode; then
+        log_cosmic "🌀 Steal Your Face mode active — riding the cosmic wave (dev track + vibes)"
+    else
+        case "$track" in
+            stable)
+                log_info "Riding the steady line — using stable releases"
+                ;;
+            dev)
+                log_info "Development track active — bleeding edge updates"
+                ;;
+        esac
+    fi
     
     # Pull/update image
     pull_image "$tag"
@@ -446,113 +438,133 @@ run_boxofports() {
         fi
     done
     
+    # Enable vibe mode if steal-your-face is active
+    if is_steal_your_face_mode; then
+        docker_args+=(--env "BOXOFPORTS_VIBE_MODE=true")
+    fi
+    
     # Execute boxofports with all passed arguments (entrypoint handles the boxofports command)
     log_info "Running boxofports..."
     exec docker run "${docker_args[@]}" "${DOCKER_IMAGE}:${docker_tag}" "$@"
 }
 
-# Handle special bop commands
+# Handle special bop commands and filter out consumed arguments
 handle_special_commands() {
-    case "${1:-}" in
-        --track)
-            if [[ -z "${2:-}" ]]; then
-                log_error "--track requires an argument: stable, dev, or auto"
-                exit 1
-            fi
-            # Validate track argument
-            case "$2" in
-                stable|dev|auto)
-                    export BOP_RELEASE_TRACK="$2"
-                    shift 2 # Remove --track and its argument from $@
-                    ;;
-                *)
-                    log_error "Invalid track: $2. Valid options: stable, dev, auto"
+    # Process arguments and build new array without consumed args
+    local -a remaining_args=()
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --track)
+                if [[ -z "${2:-}" ]]; then
+                    log_error "--track requires an argument: stable or dev"
                     exit 1
-                    ;;
-            esac
-            ;;
-        --steal-your-face)
-            if [[ ! -f "$HOME_CONFIG_DIR/.steal_your_face" ]]; then
-                touch "$HOME_CONFIG_DIR/.steal_your_face"
-                log_cosmic "Steal Your Face mode enabled - you'll get bleeding edge updates"
-                log_warning "You're now on the bus! Latest development builds will sync automatically."
-            else
-                rm -f "$HOME_CONFIG_DIR/.steal_your_face"
-                log_info "Steal Your Face mode disabled - returning to stable releases"
-            fi
-            exit 0
-            ;;
-        --bop-version)
-            local track
-            track=$(get_release_track)
-            local tag
-            tag=$(resolve_docker_tag "$track")
-            local version
-            version=$(get_local_version "$tag")
-            local bop_version
-            bop_version=$(get_current_bop_version)
-            
-            echo "bop (Docker wrapper) v${bop_version}"
-            echo "BoxOfPorts container version: $version"
-            echo "Docker image: ${DOCKER_IMAGE}:${tag}"
-            echo "Release track: $track"
-            exit 0
-            ;;
-        --bop-update)
-            log_info "Forcing update check..."
-            local track
-            track=$(get_release_track)
-            local tag
-            tag=$(resolve_docker_tag "$track")
-            pull_image "$tag" "true"
-            log_success "Update complete"
-            exit 0
-            ;;
-        --bop-config)
-            echo "Configuration file: $CONFIG_FILE"
-            if [[ -f "$CONFIG_FILE" ]]; then
-                echo "Current settings:"
-                cat "$CONFIG_FILE"
-            else
-                echo "No configuration file exists. Creating example..."
-                cat > "$CONFIG_FILE" << 'EOF'
+                fi
+                # Validate track argument
+                case "$2" in
+                    stable|dev)
+                        export BOP_RELEASE_TRACK="$2"
+                        shift 2 # Skip both --track and its argument
+                        ;;
+                    *)
+                        log_error "Invalid track: $2. Valid options: stable, dev"
+                        exit 1
+                        ;;
+                esac
+                ;;
+            --steal-your-face)
+                if [[ ! -f "$HOME_CONFIG_DIR/.steal_your_face" ]]; then
+                    touch "$HOME_CONFIG_DIR/.steal_your_face"
+                    log_cosmic "🌀 Steal Your Face mode enabled - welcome to the cosmic dance!"
+                    log_warning "You're now on the bus! Development track activated with enhanced vibes."
+                    log_info "💫 This unlocks bleeding edge updates and special interface elements."
+                else
+                    rm -f "$HOME_CONFIG_DIR/.steal_your_face"
+                    log_info "Steal Your Face mode disabled - returning to stable releases"
+                    log_info "The cosmic dance fades... back to the steady line."
+                fi
+                exit 0
+                ;;
+            --bop-version)
+                local track
+                track=$(get_release_track)
+                local tag
+                tag=$(resolve_docker_tag "$track")
+                local version
+                version=$(get_local_version "$tag")
+                local bop_version
+                bop_version=$(get_current_bop_version)
+                
+                echo "bop (Docker wrapper) v${bop_version}"
+                echo "BoxOfPorts container version: $version"
+                echo "Docker image: ${DOCKER_IMAGE}:${tag}"
+                echo "Release track: $track"
+                exit 0
+                ;;
+            --bop-update)
+                log_info "Forcing update check..."
+                local track
+                track=$(get_release_track)
+                local tag
+                tag=$(resolve_docker_tag "$track")
+                pull_image "$tag" "true"
+                log_success "Update complete"
+                exit 0
+                ;;
+            --bop-config)
+                echo "Configuration file: $CONFIG_FILE"
+                if [[ -f "$CONFIG_FILE" ]]; then
+                    echo "Current settings:"
+                    cat "$CONFIG_FILE"
+                else
+                    echo "No configuration file exists. Creating example..."
+                    cat > "$CONFIG_FILE" << 'EOF'
 # BoxOfPorts wrapper configuration
-# Set release track: stable (X.Y.0 versions), dev (latest builds), auto (prefer stable)
+# Set release track: stable (stable builds) or dev (latest builds)
 release_track=stable
 
 # Other settings can go here in the future
 EOF
-                echo "Created example configuration at $CONFIG_FILE"
-            fi
-            exit 0
-            ;;
-        --bop-update-wrapper)
-            log_info "Checking for bop wrapper updates..."
-            local current_version
-            current_version=$(get_current_bop_version)
-            local remote_version
-            remote_version=$(get_remote_bop_version)
-            
-            if [[ "$remote_version" == "unknown" ]]; then
-                log_warning "Unable to check for updates - network issue or GitHub unavailable"
-                exit 1
-            fi
-            
-            if ! version_gte "$current_version" "$remote_version"; then
-                log_info "Update available: $current_version → $remote_version"
-                if update_bop_wrapper; then
-                    log_cosmic "🎉 Bop wrapper updated successfully! Restarting with new version..."
-                    exec "$BOP_SCRIPT_PATH" "$@"
-                else
-                    log_error "Update failed - see messages above"
+                    echo "Created example configuration at $CONFIG_FILE"
+                fi
+                exit 0
+                ;;
+            --bop-update-wrapper)
+                log_info "Checking for bop wrapper updates..."
+                local current_version
+                current_version=$(get_current_bop_version)
+                local remote_version
+                remote_version=$(get_remote_bop_version)
+                
+                if [[ "$remote_version" == "unknown" ]]; then
+                    log_warning "Unable to check for updates - network issue or GitHub unavailable"
                     exit 1
                 fi
-            else
-                log_success "Already running latest bop wrapper version ($current_version)"
-            fi
-            exit 0
-            ;;
-    esac
+                
+                if ! version_gte "$current_version" "$remote_version"; then
+                    log_info "Update available: $current_version → $remote_version"
+                    if update_bop_wrapper; then
+                        log_cosmic "🎉 Bop wrapper updated successfully! Restarting with new version..."
+                        exec "$BOP_SCRIPT_PATH" "$@"
+                    else
+                        log_error "Update failed - see messages above"
+                        exit 1
+                    fi
+                else
+                    log_success "Already running latest bop wrapper version ($current_version)"
+                fi
+                exit 0
+                ;;
+            *)
+                # Not a special command, add to remaining args
+                remaining_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Replace global $@ with remaining arguments
+    set -- "${remaining_args[@]}"
 }
 
 # Main execution
