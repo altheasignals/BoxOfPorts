@@ -163,6 +163,10 @@ deploy-local: install
 	@echo "$(GREEN)Deploying locally...$(RESET)"
 	@echo "$(PROJECT_NAME) is ready to use!"
 	@echo "Try: boxofports --help"
+	@echo "     boxofports help-tree"
+	@echo ""
+	@echo "$(YELLOW)Recommended next step:$(RESET)"
+	@echo "  boxofports --install-completion   # Enable shell completion"
 	@echo "$(GREEN)✓ Local deployment complete$(RESET)"
 
 deploy-docker: docker-build setup-dirs
@@ -194,6 +198,10 @@ dev-setup: install-dev
 	@echo "  make test     - Run tests"
 	@echo "  make lint     - Check code quality"
 	@echo "  make run      - Run the CLI"
+	@echo ""
+	@echo "$(YELLOW)Shell completion setup (recommended):$(RESET)"
+	@echo "  boxofports --install-completion"
+	@echo "  # Restart terminal, then try: boxofports <TAB>"
 
 check: lint test
 	@echo "$(GREEN)✓ All checks passed$(RESET)"

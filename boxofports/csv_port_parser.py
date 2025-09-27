@@ -200,9 +200,10 @@ def _normalize_port_value(port_value: str) -> str:
     if re.match(r'^\d+[A-D]$', port_value) or re.match(r'^\d+\.\d+$', port_value):
         return port_value
 
-    # If it's just a number, default to slot A
+    # If it's just a number, preserve it as-is
+    # Let the main port parser (parse_port_spec) handle slot defaulting consistently
     if port_value.isdigit():
-        return f"{port_value}A"
+        return port_value
 
     # Return as-is for any other format
     return port_value

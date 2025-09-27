@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Smart default sorting behavior: timestamp descending → port ascending → second column ascending
   - Consistent sorting across display tables, CSV exports, and JSON exports
   - Column numbering matches display order for intuitive usage
+- **Enhanced SMS Template Variables**: Expanded templating system with profile-based variables
+  - `{{devicename}}` - Device alias from current profile
+  - `{{profilename}}` - Current profile name
+  - `{{hostport}}` - Host:port from current profile  
+  - `{{datetime}}` - Human-readable timestamp with timezone (e.g. "09/26 15:24:13 UTC-8")
+  - Maintains existing variables: `{{port}}`, `{{ts}}`, `{{idx}}`
+  - Backward compatible with existing templates
 - **Centralized Table Rendering**: Unified table display and export system
   - Single point of control for table formatting, sorting, and export integration
   - Maintains existing CSV/JSON export functionality and console-only modes

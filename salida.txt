@@ -1,0 +1,65 @@
+│ 7952 │ box03        │ 0 OK               │
+│ 7953 │ box03        │ 0 OK               │
+│ 7954 │ box03        │ 0 OK               │
+│ 7955 │ box03        │ 0 OK               │
+│ 7956 │ box03        │ 0 OK               │
+│ 7957 │ box03        │ 2 Port Unavailable │
+│ 7958 │ box03        │ 0 OK               │
+│ 7959 │ box03        │ 2 Port Unavailable │
+│ 7960 │ box03        │ 0 OK               │
+│ 7961 │ box03        │ 0 OK               │
+│ 7962 │ box03        │ 2 Port Unavailable │
+│ 7963 │ box03        │ 0 OK               │
+│ 7964 │ box03        │ 0 OK               │
+│ 7965 │ box03        │ 0 OK               │
+│ 7966 │ box03        │ 0 OK               │
+│ 7967 │ box03        │ 0 OK               │
+│ 7968 │ box03        │ 0 OK               │
+│ 7969 │ box03        │ 2 Port Unavailable │
+│ 7970 │ box03        │ 0 OK               │
+│ 7971 │ box03        │ 0 OK               │
+│ 7972 │ box03        │ 0 OK               │
+│ 7973 │ box03        │ 0 OK               │
+│ 7974 │ box03        │ 0 OK               │
+│ 7975 │ box03        │ 0 OK               │
+│ 7976 │ box03        │ 0 OK               │
+│ 7977 │ box03        │ 0 OK               │
+│ 7978 │ box03        │ 0 OK               │
+│ 7979 │ box03        │ 0 OK               │
+│ 7980 │ box03        │ 0 OK               │
+│ 7981 │ box03        │ 0 OK               │
+│ 7982 │ box03        │ 0 OK               │
+│ 7983 │ box03        │ 0 OK               │
+│ 7984 │ box03        │ 0 OK               │
+│ 7985 │ box03        │ 0 OK               │
+│ 7986 │ box03        │ 0 OK               │
+│ 7987 │ box03        │ 2 Port Unavailable │
+│ 7988 │ box03        │ 2 Port Unavailable │
+│ 7989 │ box03        │ 0 OK               │
+│ 7990 │ box03        │ 2 Port Unavailable │
+│ 7991 │ box03        │ 0 OK               │
+│ 7992 │ box03        │ 0 OK               │
+│ 7993 │ box03        │ 0 OK               │
+│ 7994 │ box03        │ 0 OK               │
+│ 7995 │ box03        │ 0 OK               │
+│ 7996 │ box03        │ 0 OK               │
+│ 7997 │ box03        │ 0 OK               │
+│ 7998 │ box03        │ 0 OK               │
+│ 7999 │ box03        │ 0 OK               │
+│ 8000 │ box03        │ 0 OK               │
+│ 8001 │ box03        │ 0 OK               │
+│ 8002 │ box03        │ 0 OK               │
+│ 8003 │ box03        │ 0 OK               │
+│ 8004 │ box03        │ 0 OK               │
+│ 8005 │ box03        │ 0 OK               │
+│ 8006 │ box03        │ 0 OK               │
+│ 8007 │ box03        │ 2 Port Unavailable │
+│ 8008 │ box03        │ 0 OK               │
+│ 8009 │ box03        │ 0 OK               │
+│ 8010 │ box03        │ 0 OK               │
+│ 8011 │ box03        │ 2 Port Unavailable │
+│ 8012 │ box03        │ 0 OK               │
+│ 8013 │ box03        │ 0 OK               │
+│ 8014 │ box03        │ 0 OK               │
+│ 8015 │ box03        │ 0 OK               │
+└──────┴──────────────┴────────────────────┘

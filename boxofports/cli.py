@@ -29,8 +29,13 @@ from .table_export import (
     sms_tasks_to_export_data,
 )
 from .templating import parse_template_variables, render_sms_template
+from .splash import show_welcome_message
 
-app = typer.Typer(help="BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators")
+app = typer.Typer(
+    help="BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators",
+    no_args_is_help=False,
+    invoke_without_command=True
+)
 sms_app = typer.Typer(help="SMS operations")
 ops_app = typer.Typer(help="Device operations")
 status_app = typer.Typer(help="Status monitoring")
@@ -81,17 +86,25 @@ def get_config_or_exit(ctx: typer.Context) -> EjoinConfig:
     except Exception:
         console.print("[yellow]🎵 Hey now! Gateway configuration needed for this command[/yellow]")
         console.print("")
+        
+        # Show welcome message with splash screen
+        show_welcome_message(console)
+        
+        console.print("[bold blue]✨ New to BoxOfPorts? Start here:[/bold blue]")
+        console.print("   [cyan]boxofports welcome[/cyan]                [dim]# Complete onboarding guide[/dim]")
+        console.print("")
+        
         console.print("[blue]→ Quick setup with a profile:[/blue]")
-        console.print("   boxofports config add-profile mygateway \\")
-        console.print("     --host 192.168.1.100 --user admin --password yourpass")
+        console.print("   [cyan]boxofports config add-profile mygateway \\[/cyan]")
+        console.print("   [cyan]  --host 192.168.1.100 --user admin --password yourpass[/cyan]")
         console.print("")
         console.print("[blue]→ Or set environment variables:[/blue]")
-        console.print("   export EJOIN_HOST=192.168.1.100")
-        console.print("   export EJOIN_USER=admin")
-        console.print("   export EJOIN_PASSWORD=yourpass")
+        console.print("   [cyan]export EJOIN_HOST=192.168.1.100[/cyan]")
+        console.print("   [cyan]export EJOIN_USER=admin[/cyan]")
+        console.print("   [cyan]export EJOIN_PASSWORD=yourpass[/cyan]")
         console.print("")
         console.print("[blue]→ Or use CLI options:[/blue]")
-        console.print("   boxofports --host 192.168.1.100 --user admin --password yourpass <command>")
+        console.print("   [cyan]boxofports --host 192.168.1.100 --user admin --password yourpass <command>[/cyan]")
         console.print("")
         console.print("[dim]Run 'boxofports config --help' for more configuration options[/dim]")
         raise typer.Exit(1)
@@ -126,7 +139,61 @@ def main(
 
     # Commands that don't need gateway configuration
     command_name = ctx.invoked_subcommand
-    config_free_commands = {'completion', 'config'}
+    config_free_commands = {'completion', 'config', 'help-tree', 'welcome'}
+
+    # If no subcommand provided, show welcome message
+    if command_name is None:
+        # Show the beautiful splash screen with random tagline
+        show_welcome_message(console)
+        
+        console.print("[bold green]✨ Welcome to BoxOfPorts — SMS Gateway Management CLI ✨[/bold green]")
+        console.print("[dim]For EJOIN Router Operators[/dim]\n")
+        
+        console.print("🎯 [bold blue]Essential First Steps:[/bold blue]")
+        console.print("")
+        
+        console.print("[yellow]1. Explore Commands:[/yellow]")
+        console.print("   [cyan]boxofports help-tree[/cyan]              [dim]# Visual tree of all commands[/dim]")
+        console.print("")
+        
+        console.print("[yellow]2. Set Up Your Gateway Profile:[/yellow]")
+        console.print("   [cyan]boxofports config add-profile mygateway[/cyan] \\")
+        console.print("   [cyan]     --host 192.168.1.100 --user admin --password yourpass[/cyan]")
+        console.print("   [dim]# Save credentials once, use everywhere![/dim]")
+        console.print("")
+        
+        console.print("[yellow]3. Enable Shell Completion (Highly Recommended):[/yellow]")
+        console.print("   [cyan]boxofports --install-completion[/cyan]    [dim]# TAB completion for all commands[/dim]")
+        console.print("   [dim]# Restart terminal, then try: boxofports <TAB>[/dim]")
+        console.print("")
+        
+        console.print("[yellow]4. Test Your Setup:[/yellow]")
+        console.print("   [cyan]boxofports test-connection[/cyan]         [dim]# Verify gateway connectivity[/dim]")
+        console.print("")
+        
+        console.print("[yellow]5. Send Your First Test Message:[/yellow]")
+        console.print("   [cyan]boxofports sms send --to \"+1234567890\"[/cyan] \\")
+        console.print("   [cyan]     --text \"Hello from BoxOfPorts!\" --ports \"1A\"[/cyan]")
+        console.print("")
+        
+        console.print("🚀 [bold blue]Quick Reference:[/bold blue]")
+        console.print("   [cyan]boxofports --help[/cyan]                  [dim]# Show all commands[/dim]")
+        console.print("   [cyan]boxofports welcome[/cyan]                 [dim]# Show this welcome message again[/dim]")
+        console.print("   [cyan]boxofports <command> --help[/cyan]         [dim]# Get help for any command[/dim]")
+        console.print("   [cyan]boxofports config list[/cyan]             [dim]# List your profiles[/dim]")
+        console.print("   [cyan]boxofports inbox list[/cyan]              [dim]# Check received messages[/dim]")
+        console.print("")
+        
+        console.print("📚 [bold blue]Why BoxOfPorts?[/bold blue]")
+        console.print("   • [green]Profile Management[/green] - Save gateway credentials securely")
+        console.print("   • [green]Template System[/green] - Dynamic SMS with Jinja2 templating")
+        console.print("   • [green]Data Export[/green] - CSV/JSON export for all table commands")
+        console.print("   • [green]Inbox Management[/green] - Filter, search, and analyze messages")
+        console.print("   • [green]Port Operations[/green] - Lock/unlock, IMEI management")
+        console.print("")
+        
+        console.print("[dim]🎵 Ready to let your signals ripple through the network? 🎵[/dim]")
+        raise typer.Exit(0)
 
     if command_name in config_free_commands:
         # These commands work without gateway config
@@ -147,9 +214,9 @@ def sms_send(
     timeout: int = typer.Option(30, "--timeout", help="Timeout in seconds"),
     vars: list[str] = typer.Option([], "--var", help="Template variables (key=value)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be sent without sending"),
-    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' for ascending (default) or 'd' for descending per column. Default: time desc; or port asc; or second column asc."),
-    csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
-    json_export: str | None = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' & 'd' for ascending/descending."),
+    csv: bool = typer.Option(False, "--csv", help="Export table data as CSV to stdout"),
+    json_export: bool = typer.Option(False, "--json", help="Export table data as JSON to stdout"),
 ):
     """Send test SMS with template support and per-port routing."""
     config = get_config_or_exit(ctx)
@@ -161,11 +228,23 @@ def sms_send(
         # Parse ports and template variables
         port_list = parse_port_spec(ports)
         template_vars = parse_template_variables(vars) if vars else {}
+        
+        # Prepare profile-based template variables
+        current_profile_name = config_manager.get_current_profile()
+        profile_template_vars = {
+            'devicename': device_alias,
+            'profilename': current_profile_name or 'default',
+            'hostport': f"{config.host}:{config.port}"
+        }
+        
+        # Check if we're in console-only export mode
+        console_only_mode = csv or json_export
 
-        console.print(f"[blue]Sending SMS to {to} via {len(port_list)} ports[/blue]")
+        if not console_only_mode:
+            console.print(f"[blue]Sending SMS to {to} via {len(port_list)} ports[/blue]")
 
-        if dry_run:
-            console.print("[yellow]DRY RUN - Not actually sending[/yellow]")
+            if dry_run:
+                console.print("[yellow]DRY RUN - Not actually sending[/yellow]")
 
         # Create tasks
         tasks = []
@@ -175,8 +254,8 @@ def sms_send(
             for port_idx, port in enumerate(port_list):
                 tid = tid_base + (repeat_idx * len(port_list)) + port_idx
 
-                # Render template for this port
-                rendered_text = render_sms_template(text, port, port_idx, **template_vars)
+                # Render template for this port with profile variables
+                rendered_text = render_sms_template(text, port, port_idx, profile_template_vars, **template_vars)
 
                 task = {
                     "tid": tid,
@@ -206,21 +285,21 @@ def sms_send(
         task_data = sms_tasks_to_export_data(tasks, device_alias=device_alias)
         
         # Show preview table with centralized rendering
-        console_only_mode = render_and_export_table(
+        render_console_only = render_and_export_table(
             title="SMS Tasks",
             columns=get_sms_send_tasks_columns(),
             rows=task_data,
             profile_name=current_profile,
             command_name="sms-send-tasks",
             sort_option=sort,
-            csv_filename=csv if csv != "" else None,
-            json_filename=json_export if json_export != "" else None,
-            export_csv=(csv is not None),
-            export_json=(json_export is not None)
+            csv_filename=None,
+            json_filename=None,
+            export_csv=csv,
+            export_json=json_export
         )
 
         # Return early if in console-only export mode (acts like dry-run for pipeline integration)
-        if console_only_mode:
+        if render_console_only:
             return
 
         if not dry_run:
@@ -251,10 +330,10 @@ def sms_send(
                     profile_name=current_profile,
                     command_name="sms-send-results",
                     sort_option=sort,
-                    csv_filename=csv if csv != "" else None,
-                    json_filename=json_export if json_export != "" else None,
-                    export_csv=(csv is not None),
-                    export_json=(json_export is not None)
+                    csv_filename=None,
+                    json_filename=None,
+                    export_csv=csv,
+                    export_json=json_export
                 )
 
             except EjoinHTTPError as e:
@@ -273,9 +352,9 @@ def sms_spray(
     text: str = typer.Option(..., "--text", help="SMS text (supports templates)"),
     ports: str = typer.Option(..., "--ports", "--port", help="Ports to spray from (supports CSV files)"),
     intvl_ms: int = typer.Option(250, "--intvl-ms", help="Interval between SMS"),
-    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' for ascending (default) or 'd' for descending per column. Default: time desc; or port asc; or second column asc."),
-    csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
-    json_export: str | None = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' & 'd' for ascending/descending."),
+    csv: bool = typer.Option(False, "--csv", help="Export table data as CSV to stdout"),
+    json_export: bool = typer.Option(False, "--json", help="Export table data as JSON to stdout"),
 ):
     """Spray the same number via multiple ports quickly."""
     # This is essentially the same as send but with different defaults
@@ -545,18 +624,22 @@ def ops_set_imei(
 def ops_get_imei(
     ctx: typer.Context,
     ports: str = typer.Option(..., "--ports", "--port", help="Ports to get IMEI for (e.g., '3A', '1A,2B,3A', or 'ports.csv')"),
-    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' for ascending (default) or 'd' for descending per column. Default: time desc; or port asc; or second column asc."),
-    csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
-    json_export: str | None = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2d,3a'. Use 'a' & 'd' for ascending/descending."),
+    csv: bool = typer.Option(False, "--csv", help="Export table data as CSV to stdout"),
+    json_export: bool = typer.Option(False, "--json", help="Export table data as JSON to stdout"),
 ):
     """Get IMEI values for specified ports — check the cellular signatures."""
     config = get_config_or_exit(ctx)
     device_alias = config.device_alias or config.host
 
     try:
+        # Check if we're in console-only export mode
+        console_only_mode = csv or json_export
+        
         client = create_sync_client(config)
 
-        console.print(f"[blue]Getting IMEI values for ports: {ports}[/blue]")
+        if not console_only_mode:
+            console.print(f"[blue]Getting IMEI values for ports: {ports}[/blue]")
 
         response = client.get_port_imei(ports)
 
@@ -587,10 +670,10 @@ def ops_get_imei(
                 profile_name=current_profile,
                 command_name="ops-get-imei",
                 sort_option=sort,
-                csv_filename=csv if csv != "" else None,
-                json_filename=json_export if json_export != "" else None,
-                export_csv=(csv is not None),
-                export_json=(json_export is not None)
+                csv_filename=None,
+                json_filename=None,
+                export_csv=csv,
+                export_json=json_export
             )
             
             # Show success message if not in console-only mode
@@ -672,112 +755,145 @@ def ops_imei_template(
 
 
 @app.command("completion")
-def completion(
-    shell: str = typer.Option("bash", "--shell", help="Shell type (bash, zsh)"),
-    install: bool = typer.Option(False, "--install", help="Install completion for current user"),
-):
-    """Generate shell completion script or install completion."""
-    import os
-
-    completion_script = '''#!/usr/bin/env bash
-# BoxOfPorts CLI completion script
-# "Such a long long time to be gone, and a short time to be there"
-
-_boxofports_completion() {
-    local cur prev
-    COMPREPLY=()
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
+def completion():
+    """Shell completion setup guide and instructions."""
+    console.print("[bold blue]🔧 BoxOfPorts Shell Completion Setup[/bold blue]\n")
     
-    # Main commands
-    local main_commands="sms ops status inbox config test-connection completion"
+    console.print("[yellow]Shell completion enables TAB completion for commands, options, and values.[/yellow]\n")
     
-    case ${COMP_CWORD} in
-        1)
-            COMPREPLY=($(compgen -W "${main_commands} --host --port --user --password --verbose --version --help" -- ${cur}))
-            ;;
-        2)
-            case "${prev}" in
-                sms) COMPREPLY=($(compgen -W "send spray" -- ${cur})) ;;
-                ops) COMPREPLY=($(compgen -W "lock unlock set-imei get-imei imei-template" -- ${cur})) ;;
-                status) COMPREPLY=($(compgen -W "subscribe" -- ${cur})) ;;
-                inbox) COMPREPLY=($(compgen -W "list search stop summary show" -- ${cur})) ;;
-                config) COMPREPLY=($(compgen -W "add-profile list switch show remove current" -- ${cur})) ;;
-                completion) COMPREPLY=($(compgen -W "--shell --install" -- ${cur})) ;;
-            esac
-            ;;
-        *)
-            # Context-aware completions for options
-            case "${prev}" in
-                --shell) COMPREPLY=($(compgen -W "bash zsh" -- ${cur})) ;;
-                --type) COMPREPLY=($(compgen -W "regular stop system delivery_report" -- ${cur})) ;;
-                --ports|--port) COMPREPLY=($(compgen -W "1A 1B 1C 1D 2A 2B 1A-1D 1.01 2.02 ports.csv all *" -- ${cur})) ;;
-                --imeis) COMPREPLY=($(compgen -W "imeis.csv" -- ${cur})) ;;
-            esac
-            ;;
-    esac
-}
+    console.print("[green]✨ Quick Install (Recommended):[/green]")
+    console.print("   [cyan]boxofports --install-completion[/cyan]")
+    console.print("   [dim]↳ Automatically installs completion for your current shell[/dim]\n")
+    
+    console.print("[green]🔍 View Completion Script:[/green]")
+    console.print("   [cyan]boxofports --show-completion[/cyan]")
+    console.print("   [dim]↳ Shows the completion script for manual installation[/dim]\n")
+    
+    console.print("[green]🛠 Manual Installation:[/green]")
+    console.print("   [bold]For Bash users:[/bold]")
+    console.print("   [cyan]boxofports --show-completion >> ~/.bashrc[/cyan]")
+    console.print("   [cyan]source ~/.bashrc[/cyan]")
+    console.print("")
+    console.print("   [bold]For Zsh users:[/bold]")
+    console.print("   [cyan]boxofports --show-completion >> ~/.zshrc[/cyan]")
+    console.print("   [cyan]source ~/.zshrc[/cyan]\n")
+    
+    console.print("[blue]📋 After Installation:[/blue]")
+    console.print("   1. Restart your terminal or run [cyan]source ~/.bashrc[/cyan] (or [cyan]~/.zshrc[/cyan])")
+    console.print("   2. Test with: [cyan]boxofports <TAB>[/cyan]")
+    console.print("   3. Try: [cyan]boxofports sms <TAB>[/cyan] or [cyan]boxofports --<TAB>[/cyan]\n")
+    
+    console.print("[dim]💡 Completion provides suggestions for commands, options, port numbers, and file paths.[/dim]")
 
-complete -F _boxofports_completion boxofports
 
-# ZSH compatibility
-if [[ -n ${ZSH_VERSION-} ]]; then
-    autoload -U +X bashcompinit && bashcompinit
-    complete -F _boxofports_completion boxofports
-fi'''
+@app.command("welcome")
+def welcome():
+    """Show welcome message with onboarding guidance."""
+    # Show the beautiful splash screen with random tagline
+    show_welcome_message(console)
+    
+    console.print("[bold green]✨ Welcome to BoxOfPorts — SMS Gateway Management CLI ✨[/bold green]")
+    console.print("[dim]For EJOIN Router Operators[/dim]\n")
+    
+    console.print("🎯 [bold blue]Essential First Steps:[/bold blue]")
+    console.print("")
+    
+    console.print("[yellow]1. Explore Commands:[/yellow]")
+    console.print("   [cyan]boxofports help-tree[/cyan]              [dim]# Visual tree of all commands[/dim]")
+    console.print("")
+    
+    console.print("[yellow]2. Set Up Your Gateway Profile:[/yellow]")
+    console.print("   [cyan]boxofports config add-profile mygateway[/cyan] \\")
+    console.print("   [cyan]     --host 192.168.1.100 --user admin --password yourpass[/cyan]")
+    console.print("   [dim]# Save credentials once, use everywhere![/dim]")
+    console.print("")
+    
+    console.print("[yellow]3. Enable Shell Completion (Highly Recommended):[/yellow]")
+    console.print("   [cyan]boxofports --install-completion[/cyan]    [dim]# TAB completion for all commands[/dim]")
+    console.print("   [dim]# Restart terminal, then try: boxofports <TAB>[/dim]")
+    console.print("")
+    
+    console.print("[yellow]4. Test Your Setup:[/yellow]")
+    console.print("   [cyan]boxofports test-connection[/cyan]         [dim]# Verify gateway connectivity[/dim]")
+    console.print("")
+    
+    console.print("[yellow]5. Send Your First Test Message:[/yellow]")
+    console.print("   [cyan]boxofports sms send --to \"+1234567890\"[/cyan] \\")
+    console.print("   [cyan]     --text \"Hello from BoxOfPorts!\" --ports \"1A\"[/cyan]")
+    console.print("")
+    
+    console.print("🚀 [bold blue]Quick Reference:[/bold blue]")
+    console.print("   [cyan]boxofports --help[/cyan]                  [dim]# Show all commands[/dim]")
+    console.print("   [cyan]boxofports <command> --help[/cyan]         [dim]# Get help for any command[/dim]")
+    console.print("   [cyan]boxofports config list[/cyan]             [dim]# List your profiles[/dim]")
+    console.print("   [cyan]boxofports inbox list[/cyan]              [dim]# Check received messages[/dim]")
+    console.print("")
+    
+    console.print("📚 [bold blue]Why BoxOfPorts?[/bold blue]")
+    console.print("   • [green]Profile Management[/green] - Save gateway credentials securely")
+    console.print("   • [green]Template System[/green] - Dynamic SMS with Jinja2 templating")
+    console.print("   • [green]Data Export[/green] - CSV/JSON export for all table commands")
+    console.print("   • [green]Inbox Management[/green] - Filter, search, and analyze messages")
+    console.print("   • [green]Port Operations[/green] - Lock/unlock, IMEI management")
+    console.print("")
+    
+    console.print("[dim]🎵 Ready to let your signals ripple through the network? 🎵[/dim]")
 
-    if install:
-        # Install completion for current user
-        user_shell = os.path.basename(os.environ.get('SHELL', 'bash'))
-        home = Path.home()
 
-        if user_shell == 'zsh' or shell == 'zsh':
-            # Try common zsh completion directories
-            for comp_dir in [
-                home / ".zsh" / "completions",
-                home / ".oh-my-zsh" / "completions",
-                Path("/usr/local/share/zsh/site-functions"),
-            ]:
-                try:
-                    comp_dir.mkdir(parents=True, exist_ok=True)
-                    comp_file = comp_dir / "_boxofports"
-                    comp_file.write_text(completion_script)
-                    console.print(f"[green]✓ Zsh completion installed to {comp_file}[/green]")
-                    console.print("[dim]Restart your shell or open a new terminal to activate completion[/dim]")
-                    console.print("[dim]If completion doesn't work, try: exec zsh[/dim]")
-                    return
-                except (PermissionError, OSError):
-                    continue
-
-        else:  # bash
-            # Try common bash completion directories
-            for comp_dir in [
-                home / ".bash_completion.d",
-                Path("/usr/local/etc/bash_completion.d"),
-                Path("/etc/bash_completion.d"),
-            ]:
-                try:
-                    comp_dir.mkdir(parents=True, exist_ok=True)
-                    comp_file = comp_dir / "boxofports"
-                    comp_file.write_text(completion_script)
-                    console.print(f"[green]✓ Bash completion installed to {comp_file}[/green]")
-                    console.print("[dim]Restart your shell or open a new terminal to activate completion[/dim]")
-                    console.print("[dim]If completion doesn't work, try: exec bash[/dim]")
-                    return
-                except (PermissionError, OSError):
-                    continue
-
-        # Fallback: save to home directory
-        fallback_file = home / ".boxofports-completion.bash"
-        fallback_file.write_text(completion_script)
-        console.print(f"[yellow]✓ Completion saved to {fallback_file}[/yellow]")
-        console.print("[dim]Add this line to your shell config (~/.bashrc or ~/.zshrc):[/dim]")
-        console.print(f"[cyan]source {fallback_file}[/cyan]")
-        console.print("[dim]Then restart your shell or run: exec $SHELL[/dim]")
-
-    else:
-        # Just print the completion script
-        console.print(completion_script)
+@app.command("help-tree")
+def help_tree():
+    """Show complete command tree structure — the scaffolding of possibilities."""
+    console.print("[bold blue]🌳 BoxOfPorts Command Tree Structure[/bold blue]\n")
+    
+    console.print("[cyan]boxofports[/cyan] [dim](SMS Gateway Management CLI)[/dim]")
+    console.print("├── [yellow]Root Commands:[/yellow]")
+    console.print("│   ├── [green]welcome[/green]              [dim]— Show welcome message & onboarding[/dim]")
+    console.print("│   ├── [green]test-connection[/green]       [dim]— Test gateway connectivity[/dim]")
+    console.print("│   ├── [green]completion[/green]            [dim]— Shell completion setup guide[/dim]")
+    console.print("│   └── [green]help-tree[/green]             [dim]— Show this command tree[/dim]")
+    console.print("│")
+    console.print("├── [yellow]📱 sms[/yellow] [dim](SMS Operations)[/dim]")
+    console.print("│   ├── [green]send[/green]                  [dim]— Send SMS with template support[/dim]")
+    console.print("│   └── [green]spray[/green]                 [dim]— Spray SMS across multiple ports[/dim]")
+    console.print("│")
+    console.print("├── [yellow]📥 inbox[/yellow] [dim](Inbox Management)[/dim]")
+    console.print("│   ├── [green]list[/green]                  [dim]— List received messages[/dim]")
+    console.print("│   ├── [green]search[/green]                [dim]— Search messages by content[/dim]")
+    console.print("│   ├── [green]stop[/green]                  [dim]— Show STOP/unsubscribe messages[/dim]")
+    console.print("│   ├── [green]summary[/green]               [dim]— Inbox statistics and overview[/dim]")
+    console.print("│   └── [green]show[/green]                  [dim]— Show detailed message information[/dim]")
+    console.print("│")
+    console.print("├── [yellow]🔧 ops[/yellow] [dim](Device Operations)[/dim]")
+    console.print("│   ├── [green]lock[/green]                  [dim]— Lock specified ports[/dim]")
+    console.print("│   ├── [green]unlock[/green]                [dim]— Unlock specified ports[/dim]")
+    console.print("│   ├── [green]get-imei[/green]              [dim]— Get IMEI values from ports[/dim]")
+    console.print("│   ├── [green]set-imei[/green]              [dim]— Set IMEI values for ports[/dim]")
+    console.print("│   └── [green]imei-template[/green]         [dim]— Generate IMEI change template[/dim]")
+    console.print("│")
+    console.print("├── [yellow]📊 status[/yellow] [dim](Status Monitoring)[/dim]")
+    console.print("│   └── [green]subscribe[/green]             [dim]— Subscribe to status notifications[/dim]")
+    console.print("│")
+    console.print("└── [yellow]⚙️ config[/yellow] [dim](Profile & Configuration Management)[/dim]")
+    console.print("    ├── [green]add-profile[/green]          [dim]— Add new server profile[/dim]")
+    console.print("    ├── [green]list[/green]                 [dim]— List all configured profiles[/dim]")
+    console.print("    ├── [green]show[/green]                 [dim]— Show profile details[/dim]")
+    console.print("    ├── [green]switch[/green]               [dim]— Switch to profile[/dim]")
+    console.print("    ├── [green]current[/green]              [dim]— Show current profile[/dim]")
+    console.print("    ├── [green]edit-profile[/green]         [dim]— Edit current profile settings[/dim]")
+    console.print("    └── [green]remove[/green]               [dim]— Remove profile[/dim]")
+    console.print("")
+    console.print("[blue]🎯 Usage Examples:[/blue]")
+    console.print("   [cyan]boxofports sms send --help[/cyan]       [dim]— Get detailed help for any command[/dim]")
+    console.print("   [cyan]boxofports config list --csv[/cyan]     [dim]— Export data to CSV/JSON formats[/dim]")
+    console.print("   [cyan]boxofports inbox list --sort 2d[/cyan]  [dim]— Sort output by columns[/dim]")
+    console.print("")
+    console.print("[blue]💡 Navigation Tips:[/blue]")
+    console.print("   • Use [cyan]--help[/cyan] with any command for detailed options")
+    console.print("   • Install shell completion with [cyan]boxofports --install-completion[/cyan]")
+    console.print("   • All table commands support [cyan]--csv[/cyan] and [cyan]--json[/cyan] export")
+    console.print("   • Use [cyan]--sort[/cyan] option to arrange output by columns")
+    console.print("")
+    console.print("[dim]🎵 \"Box of rain will ease the pain and love will see you through...\" 🎵[/dim]")
 
 
 @app.command("test-connection")
@@ -854,9 +970,9 @@ def config_add_profile(
 
 @config_app.command("list")
 def config_list_profiles(
-    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,1d,4'. Use 'a' for ascending (default) or 'd' for descending per column. Default: time desc; or port asc; or second column asc."),
-    csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
-    json_export: str | None = typer.Option(None, "--json", help="Export table data to JSON (filename for file output, empty for console output)"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '2,5d,1a'. Use 'a' & 'd' for ascending/descending."),
+    csv: bool = typer.Option(False, "--csv", help="Export table data as CSV to stdout"),
+    json_export: bool = typer.Option(False, "--json", help="Export table data as JSON to stdout"),
 ):
     """List all configured profiles."""
     profiles = config_manager.list_profiles()
@@ -892,10 +1008,10 @@ def config_list_profiles(
         profile_name=current_profile,
         command_name="config-list",
         sort_option=sort,
-        csv_filename=csv if csv != "" else None,
-        json_filename=json_export if json_export != "" else None,
-        export_csv=(csv is not None),
-        export_json=(json_export is not None)
+        csv_filename=None,
+        json_filename=None,
+        export_csv=csv,
+        export_json=json_export
     )
 
 
@@ -1123,8 +1239,9 @@ def inbox_list(
     delivery_reports_only: bool = typer.Option(False, "--delivery-reports-only", help="Show only delivery reports"),
     status: int | None = typer.Option(None, "--status", help="Filter delivery reports by status code (0, 128, 132, 134, etc.)"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
-    csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
-    json_export: str | None = typer.Option(None, "--json-export", help="Export table data to JSON (filename for file output, empty for console output)"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '6d,4,2'. Use 'a' & 'd' for ascending/descending."),
+    csv: bool = typer.Option(False, "--csv", help="Export table data as CSV to stdout"),
+    json_export: bool = typer.Option(False, "--json-export", help="Export table data as JSON to stdout"),
 ):
     """List received SMS messages from the inbox."""
     import json
@@ -1134,6 +1251,9 @@ def inbox_list(
 
     config = get_config_or_exit(ctx)
     device_alias = config.device_alias or config.host
+    
+    # Check if we're in console-only export mode
+    console_only_mode = csv or json_export
 
     try:
         inbox_service = SMSInboxService(config)
@@ -1205,129 +1325,50 @@ def inbox_list(
             return
 
         if not messages:
-            console.print("[yellow]No messages found matching the criteria[/yellow]")
+            if not console_only_mode:
+                console.print("[yellow]No messages found matching the criteria[/yellow]")
             return
 
         # Check if we have any delivery reports to determine table layout
         has_delivery_reports = any(msg.is_delivery_report for msg in messages)
-
-        # Display table with appropriate columns for delivery reports
-        table = Table(title=f"SMS Inbox ({len(messages)} messages)")
-        table.add_column("ID", style="cyan", width=6)
-        table.add_column("Device Alias", style="magenta", width=12)
-        table.add_column("Type", style="blue", width=12)
-        table.add_column("Port", style="green", width=6)
-
+        current_profile = config_manager.get_current_profile()
+        
+        # Determine message type for export formatting and column selection
+        export_message_type = "standard"
         if has_delivery_reports and all(msg.is_delivery_report for msg in messages):
-            # All delivery reports - show From (SMSC), To (original recipient), Status
-            table.add_column("From", style="yellow", width=15)
-            table.add_column("To", style="cyan", width=15)
-            table.add_column("Time", style="magenta", width=16)
-            table.add_column("Status", style="white", width=8)
+            export_message_type = "delivery_reports"
+
+        # Convert messages to export data format
+        messages_export_data = messages_to_export_data(messages, export_message_type, device_alias=device_alias)
+        
+        # Select appropriate columns based on message type
+        if export_message_type == "delivery_reports":
+            columns = get_inbox_delivery_reports_columns()
         else:
-            # Mixed or regular messages - use standard layout
-            table.add_column("From", style="yellow", width=15)
-            table.add_column("Time", style="magenta", width=16)
-            table.add_column("Content", style="white")
+            columns = get_inbox_messages_columns()
+        
+        # Show table with centralized rendering
+        inbox_console_only = render_and_export_table(
+            title=f"SMS Inbox ({len(messages)} messages)",
+            columns=columns,
+            rows=messages_export_data,
+            profile_name=current_profile,
+            command_name="inbox-list",
+            sort_option=sort,
+            csv_filename=None,
+            json_filename=None,
+            export_csv=csv,
+            export_json=json_export
+        )
 
-        for msg in messages:
-            # Format message type with emoji
-            type_display = {
-                MessageType.REGULAR: "📱 Regular",
-                MessageType.STOP: "🛑 STOP",
-                MessageType.SYSTEM: "⚙️ System",
-                MessageType.DELIVERY_REPORT: "✅ Delivery",
-                MessageType.KEYWORD: "🔍 Keyword"
-            }.get(msg.message_type, msg.message_type.value)
+        # Show summary if not in console-only export mode
+        if not inbox_console_only and len(messages) > 0:
+            types_count = {}
+            for msg in messages:
+                types_count[msg.message_type.value] = types_count.get(msg.message_type.value, 0) + 1
 
-            # Format content based on message type
-            if msg.is_delivery_report and msg.delivery_status_code is not None:
-                # Show status code and phone number for delivery reports
-                content = f"Status: {msg.delivery_status_code} → {msg.delivery_phone_number or 'N/A'}"
-            else:
-                # Truncate long content for regular messages
-                content = msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
-
-            # Format timestamp
-            time_str = msg.timestamp.strftime("%m-%d %H:%M")
-
-            # Generate table row based on table layout
-            if has_delivery_reports and all(m.is_delivery_report for m in messages):
-                # Delivery report layout: ID, Type, Port, From, To, Time, Status
-                if msg.is_delivery_report:
-                    from_display = msg.sender  # SMSC/carrier sending the delivery report
-                    to_display = msg.delivery_phone_number or msg.recipient or "N/A"  # Original SMS recipient
-                    status_display = str(msg.delivery_status_code) if msg.delivery_status_code is not None else "N/A"
-
-                    table.add_row(
-                        str(msg.id),
-                        device_alias[:12],
-                        type_display,
-                        msg.port,
-                        from_display[-12:] if len(from_display) > 12 else from_display,
-                        to_display[-12:] if len(to_display) > 12 else to_display,
-                        time_str,
-                        status_display
-                    )
-                else:
-                    # Fallback for non-delivery report in delivery-only view
-                    table.add_row(
-                        str(msg.id),
-                        device_alias[:12],
-                        type_display,
-                        msg.port,
-                        "N/A",
-                        "N/A",
-                        time_str,
-                        "N/A"
-                    )
-            else:
-                # Standard layout: ID, Device Alias, Type, Port, From, Time, Content
-                from_display = msg.sender[-12:] if len(msg.sender) > 12 else msg.sender
-
-                table.add_row(
-                    str(msg.id),
-                    device_alias[:12],
-                    type_display,
-                    msg.port,
-                    from_display,
-                    time_str,
-                    content
-                )
-
-        # Export inbox messages table if requested
-        inbox_console_only = False
-        if csv is not None or json_export is not None:
-            current_profile = config_manager.get_current_profile()
-
-            # Determine message type for export formatting
-            export_message_type = "standard"
-            if has_delivery_reports and all(msg.is_delivery_report for msg in messages):
-                export_message_type = "delivery_reports"
-
-            messages_export_data = messages_to_export_data(messages, export_message_type, device_alias=device_alias)
-            inbox_console_only = handle_table_export(
-                data=messages_export_data,
-                profile_name=current_profile,
-                command_name="inbox-list",
-                csv_filename=csv if csv != "" else None,
-                json_filename=json_export if json_export != "" else None,
-                export_csv=(csv is not None),
-                export_json=(json_export is not None)
-            )
-
-        # Only show table and summary if not in console-only export mode
-        if not inbox_console_only:
-            console.print(table)
-
-            # Show summary
-            if len(messages) > 0:
-                types_count = {}
-                for msg in messages:
-                    types_count[msg.message_type.value] = types_count.get(msg.message_type.value, 0) + 1
-
-                summary_parts = [f"{count} {type_name}" for type_name, count in types_count.items()]
-                console.print(f"\n[dim]Summary: {', '.join(summary_parts)}[/dim]")
+            summary_parts = [f"{count} {type_name}" for type_name, count in types_count.items()]
+            console.print(f"\n[dim]Summary: {', '.join(summary_parts)}[/dim]")
 
     except Exception as e:
         console.print(f"[red]Error retrieving inbox: {e}[/red]")
@@ -1341,30 +1382,29 @@ def inbox_search(
     start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID"),
     count: int = typer.Option(0, "--count", help="Max messages to search (0=all)"),
     show_details: bool = typer.Option(False, "--details", help="Show full message details"),
-    csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
-    json_export: str | None = typer.Option(None, "--json-export", help="Export table data to JSON (filename for file output, empty for console output)"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '6d,5a'. Use 'a' & 'd' for ascending/descending."),
+    csv: bool = typer.Option(False, "--csv", help="Export table data as CSV to stdout"),
+    json_export: bool = typer.Option(False, "--json-export", help="Export table data as JSON to stdout"),
 ):
     """Search for messages containing specific text."""
     from .inbox import SMSInboxService
 
     config = get_config_or_exit(ctx)
     device_alias = config.device_alias or config.host
+    
+    # Check for console-only export mode
+    console_only_mode = csv or json_export
 
     try:
         inbox_service = SMSInboxService(config)
         messages = inbox_service.get_messages_containing(text, start_id=start_id)
 
         if not messages:
-            console.print(f"[yellow]No messages found containing '{text}'[/yellow]")
+            if not console_only_mode:
+                console.print(f"[yellow]No messages found containing '{text}'[/yellow]")
             return
 
-        # Check for console-only export mode
-        search_console_only = False
-        if (csv is not None or json_export is not None) and not show_details:
-            if csv == "" or json_export == "":
-                search_console_only = True
-
-        if not search_console_only:
+        if not console_only_mode and not show_details:
             console.print(f"[blue]Found {len(messages)} messages containing '{text}'[/blue]")
 
         if show_details:
@@ -1380,46 +1420,27 @@ def inbox_search(
                 if msg.contains_keywords:
                     console.print(f"  Keywords: {', '.join(msg.contains_keywords)}")
         else:
-            # Show compact table
-            table = Table(title=f"Search Results for '{text}'")
-            table.add_column("ID", style="cyan")
-            table.add_column("Device Alias", style="magenta")
-            table.add_column("Port", style="green")
-            table.add_column("From", style="yellow")
-            table.add_column("Time", style="magenta")
-            table.add_column("Content", style="white")
-
-            for msg in messages[:20]:  # Limit to first 20
-                content = msg.content[:60] + "..." if len(msg.content) > 60 else msg.content
-                table.add_row(
-                    str(msg.id),
-                    device_alias[:12],
-                    msg.port,
-                    msg.sender[-10:],
-                    msg.timestamp.strftime("%m-%d %H:%M"),
-                    content
-                )
-
+            # Show compact table with centralized rendering
+            current_profile = config_manager.get_current_profile()
+            messages_export_data = messages_to_export_data(messages, "search", device_alias=device_alias)
+            
             # Export search results table if requested (only when showing table, not details)
-            if (csv is not None or json_export is not None) and not show_details:
-                current_profile = config_manager.get_current_profile()
-                messages_export_data = messages_to_export_data(messages, "search", device_alias=device_alias)
-                search_console_only = handle_table_export(
-                    data=messages_export_data,
-                    profile_name=current_profile,
-                    command_name="inbox-search",
-                    csv_filename=csv if csv != "" else None,
-                    json_filename=json_export if json_export != "" else None,
-                    export_csv=(csv is not None),
-                    export_json=(json_export is not None)
-                )
+            render_console_only = render_and_export_table(
+                title=f"Search Results for '{text}'",
+                columns=get_inbox_messages_columns(),
+                rows=messages_export_data,
+                profile_name=current_profile,
+                command_name="inbox-search",
+                sort_option=sort,
+                csv_filename=None,
+                json_filename=None,
+                export_csv=csv,
+                export_json=json_export
+            )
 
-            # Only show table and message count if not in console-only export mode
-            if not search_console_only:
-                console.print(table)
-
-                if len(messages) > 20:
-                    console.print(f"[dim]... and {len(messages) - 20} more messages[/dim]")
+            # Only show message count if not in console-only export mode
+            if not console_only_mode and len(messages) > 20:
+                console.print(f"[dim]... and {len(messages) - 20} more messages[/dim]")
 
     except Exception as e:
         console.print(f"[red]Error searching inbox: {e}[/red]")
@@ -1431,8 +1452,9 @@ def inbox_stop(
     ctx: typer.Context,
     start_id: int = typer.Option(1, "--start-id", help="Starting SMS ID"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
-    csv: str | None = typer.Option(None, "--csv", help="Export table data to CSV (filename for file output, empty for console output)"),
-    json_export: str | None = typer.Option(None, "--json-export", help="Export table data to JSON (filename for file output, empty for console output)"),
+    sort: str | None = typer.Option(None, "--sort", help="Sort by column numbers, e.g. '6d,4'. Use 'a' & 'd' for ascending/descending."),
+    csv: bool = typer.Option(False, "--csv", help="Export table data as CSV to stdout"),
+    json_export: bool = typer.Option(False, "--json-export", help="Export table data as JSON to stdout"),
 ):
     """Show all STOP/unsubscribe messages."""
     import json
@@ -1441,22 +1463,20 @@ def inbox_stop(
 
     config = get_config_or_exit(ctx)
     device_alias = config.device_alias or config.host
+    
+    # Check for console-only export mode
+    console_only_mode = csv or json_export
 
     try:
         inbox_service = SMSInboxService(config)
         messages = inbox_service.get_stop_messages(start_id=start_id)
 
         if not messages:
-            console.print("[green]No STOP messages found[/green]")
+            if not console_only_mode:
+                console.print("[green]No STOP messages found[/green]")
             return
 
-        # Check for console-only export mode
-        stop_console_only = False
-        if csv is not None or json_export is not None:
-            if csv == "" or json_export == "":
-                stop_console_only = True
-
-        if not stop_console_only:
+        if not console_only_mode:
             console.print(f"[red]Found {len(messages)} STOP messages[/red]")
 
         if json_output:
@@ -1470,41 +1490,25 @@ def inbox_stop(
             console.print(json.dumps(json_data, indent=2))
             return
 
-        table = Table(title="🛑 STOP Messages")
-        table.add_column("ID", style="cyan")
-        table.add_column("Device Alias", style="magenta")
-        table.add_column("Port", style="green")
-        table.add_column("From", style="yellow")
-        table.add_column("Time", style="magenta")
-        table.add_column("Content", style="red")
+        # Show table with centralized rendering
+        current_profile = config_manager.get_current_profile()
+        messages_export_data = messages_to_export_data(messages, "stop", device_alias=device_alias)
+        
+        render_console_only = render_and_export_table(
+            title="🛑 STOP Messages",
+            columns=get_inbox_messages_columns(),
+            rows=messages_export_data,
+            profile_name=current_profile,
+            command_name="inbox-stop",
+            sort_option=sort,
+            csv_filename=None,
+            json_filename=None,
+            export_csv=csv,
+            export_json=json_export
+        )
 
-        for msg in messages:
-            table.add_row(
-                str(msg.id),
-                device_alias[:12],
-                msg.port,
-                msg.sender,
-                msg.timestamp.strftime("%m-%d %H:%M:%S"),
-                msg.content
-            )
-
-        # Export STOP messages table if requested
-        if csv is not None or json_export is not None:
-            current_profile = config_manager.get_current_profile()
-            messages_export_data = messages_to_export_data(messages, "stop", device_alias=device_alias)
-            stop_console_only = handle_table_export(
-                data=messages_export_data,
-                profile_name=current_profile,
-                command_name="inbox-stop",
-                csv_filename=csv if csv != "" else None,
-                json_filename=json_export if json_export != "" else None,
-                export_csv=(csv is not None),
-                export_json=(json_export is not None)
-            )
-
-        # Only show table and warning message if not in console-only export mode
-        if not stop_console_only:
-            console.print(table)
+        # Only show warning message if not in console-only export mode
+        if not console_only_mode:
             console.print(f"\n[bold red]⚠️  {len(messages)} users have requested to stop receiving messages[/bold red]")
 
     except Exception as e:

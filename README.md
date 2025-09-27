@@ -8,7 +8,11 @@
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/install-bop.sh | bash
-boxofports --help
+
+# Essential first steps:
+boxofports help-tree                    # Explore all available commands
+boxofports --install-completion         # Enable shell completion
+boxofports config add-profile mygateway # Add your gateway (saves typing credentials)
 ```
 
 ### System-wide Installation
@@ -151,6 +155,55 @@ docker run --rm altheasignals/boxofports boxofports --host 192.168.1.100 --user 
 
 ### Basic Usage
 
+#### Shell Completion Setup (Highly Recommended)
+
+**Enable TAB completion for all commands and options:**
+
+```bash
+# Install completion for your shell
+boxofports --install-completion
+
+# Restart your terminal or source your shell config
+source ~/.bashrc  # For bash users
+source ~/.zshrc   # For zsh users
+
+# Test completion
+boxofports <TAB>           # Shows all available commands
+boxofports sms <TAB>       # Shows SMS subcommands
+boxofports --<TAB>         # Shows global options
+```
+
+**Why use completion?** BoxOfPorts has many commands and options. Shell completion makes it much easier to:
+- Discover available commands and subcommands
+- Remember complex option names and formats
+- Navigate the CLI efficiently
+- Reduce typing errors
+
+#### 🎯 Essential First Steps for New Users
+
+**1. Explore the command structure:**
+```bash
+boxofports help-tree       # Visual tree of all available commands
+```
+
+**2. Create a profile (avoid typing credentials every time):**
+```bash
+# Add your gateway as a profile (one-time setup)
+boxofports config add-profile mygateway \
+  --host 192.168.1.100 --user admin --password yourpass
+
+# Now use commands without credentials!
+boxofports test-connection
+boxofports sms send --to "+1234567890" --text "Hello" --ports "1A"
+boxofports inbox list
+```
+
+**Why use profiles?** Instead of typing `--host 192.168.1.100 --user admin --password yourpass` with every command, profiles let you:
+- Save connection details once and reuse them
+- Switch between multiple gateways easily
+- Keep credentials secure in config files
+- Use friendly device aliases that appear in all tables
+
 #### Local CLI Usage (Direct Installation)
 
 ```bash
@@ -166,6 +219,13 @@ boxofports --host 192.168.1.100 --user admin --password your_password \
 ```
 
 #### Docker Wrapper Usage (Container-based)
+
+**First, set up shell completion (highly recommended):**
+```bash
+# Enable TAB completion for Docker wrapper too
+boxofports --install-completion  # Same command works for Docker wrapper
+# Restart terminal, then try: boxofports <TAB>
+```
 
 ```bash
 # Test connection to your gateway
@@ -254,6 +314,8 @@ boxofports [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 ### Available Commands
 
 > **Note**: Commands work identically with both `boxofports` (local CLI) and `bop` (Docker wrapper). Examples below show local CLI format.
+>
+> **💡 New User?** Start with the **Essential First Steps** above: run `boxofports help-tree` to explore commands, then `boxofports config add-profile` to avoid typing credentials repeatedly!
 
 #### Profile Management
 

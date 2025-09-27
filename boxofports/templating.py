@@ -59,7 +59,7 @@ class SMSTemplateEngine:
         except jinja2.TemplateError as e:
             raise ValueError(f"Template rendering error: {e}") from e
 
-    def render_for_port(self, template_str: str, port: str, idx: int = 0, **variables) -> str:
+    def render_for_port(self, template_str: str, port: str, idx: int = 0, profile_vars: dict | None = None, **variables) -> str:
         """
         Render a template for a specific port with built-in variables.
         
@@ -67,6 +67,7 @@ class SMSTemplateEngine:
             template_str: Template string
             port: Port identifier
             idx: Iteration index
+            profile_vars: Profile-based template variables
             **variables: Additional template variables
             
         Returns:
@@ -75,8 +76,13 @@ class SMSTemplateEngine:
         builtin_vars = {
             'port': port,
             'ts': datetime.now(UTC).isoformat().replace('+00:00', 'Z'),
+            'datetime': self._format_human_datetime(),
             'idx': idx,
         }
+        
+        # Add profile-based variables if provided
+        if profile_vars:
+            builtin_vars.update(profile_vars)
 
         # User variables override built-ins if there's a conflict
         all_vars = {**builtin_vars, **variables}
@@ -145,24 +151,66 @@ class SMSTemplateEngine:
             return dt.strftime(format_str)
         except (ValueError, AttributeError):
             return timestamp
+    
+    def _format_human_datetime(self) -> str:
+        """Format current local time in human-readable format with timezone.
+        
+        Returns format like: "09/26 15:24:13 UTC-8"
+        """
+        now = datetime.now()
+        
+        # Get timezone offset
+        utc_offset = now.astimezone().utcoffset()
+        if utc_offset:
+            # Convert to hours and format as UTC±N
+            offset_hours = int(utc_offset.total_seconds() / 3600)
+            if offset_hours >= 0:
+                tz_str = f"UTC+{offset_hours}"
+            else:
+                tz_str = f"UTC{offset_hours}"  # negative sign already included
+        else:
+            tz_str = "UTC"
+        
+        # Format as MM/dd HH:mm:ss TZ
+        return now.strftime(f"%m/%d %H:%M:%S {tz_str}")
 
 
 # Global template engine instance
 template_engine = SMSTemplateEngine()
 
 
-def render_sms_template(template: str, port: str, idx: int = 0, **variables) -> str:
+def render_sms_template(template: str, port: str, idx: int = 0, profile_vars: dict | None = None, **variables) -> str:
     """
     Convenience function to render an SMS template.
+    
+    Args:
+        template: Template string with Jinja2 syntax
+        port: Port identifier (e.g., "1A", "2.02")
+        idx: Iteration index (0-based)
+        profile_vars: Profile-based template variables (devicename, profilename, hostport)
+        **variables: Additional template variables
+    
+    Built-in template variables:
+        - port: Current port identifier
+        - ts: Current UTC timestamp in ISO format  
+        - datetime: Human-readable timestamp with timezone (e.g. "09/26 15:24:13 UTC-8")
+        - idx: Current iteration index
+        - devicename: Device alias from current profile (if profile_vars provided)
+        - profilename: Current profile name (if profile_vars provided)
+        - hostport: Host:port from current profile (if profile_vars provided)
     
     Examples:
         >>> render_sms_template("Hi from {{port}} at {{ts}}", "1A")
         "Hi from 1A at 2023-12-07T10:30:45Z"
         
-        >>> render_sms_template("Test #{{idx + 1}}: {{message}}", "2B", 0, message="Hello")
-        "Test #1: Hello"
+        >>> render_sms_template("Alert {{datetime}} port {{port}}", "1A")
+        "Alert 09/26 15:24:13 UTC-8 port 1A"
+        
+        >>> profile_vars = {"devicename": "Gateway01", "profilename": "production", "hostport": "192.168.1.100:80"}
+        >>> render_sms_template("{{devicename}} port {{port}} status OK", "1A", profile_vars=profile_vars)
+        "Gateway01 port 1A status OK"
     """
-    return template_engine.render_for_port(template, port, idx, **variables)
+    return template_engine.render_for_port(template, port, idx, profile_vars, **variables)
 
 
 def parse_template_variables(var_strings: list[str]) -> dict[str, str]:
@@ -258,9 +306,13 @@ SMS Template Help
 =================
 
 Built-in Variables:
-  port    - Current port identifier (e.g., "1A", "2.02")
-  ts      - Current UTC timestamp in ISO format
-  idx     - Current iteration index (0-based)
+  port        - Current port identifier (e.g., "1A", "2.02")
+  ts          - Current UTC timestamp in ISO format
+  datetime    - Human-readable timestamp with timezone (e.g., "09/26 15:24:13 UTC-8")
+  idx         - Current iteration index (0-based)
+  devicename  - Device alias from current profile (when available)
+  profilename - Current profile name (when available)
+  hostport    - Host:port from current profile (when available)
 
 Built-in Functions:
   now(format)     - Current local time (default: "%Y-%m-%d %H:%M:%S")

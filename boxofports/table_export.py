@@ -525,13 +525,13 @@ def render_and_export_table(
         title: Table title for display
         columns: Column specifications defining structure and behavior
         rows: Raw data rows (will be sorted)
-        profile_name: Current profile for export filenames
-        command_name: Command identifier for export filenames
+        profile_name: Current profile (unused, kept for compatibility)
+        command_name: Command identifier (unused, kept for compatibility)
         sort_option: Sort specification string (e.g. "2,1d,4a")
-        csv_filename: CSV export filename (None means no export)
-        json_filename: JSON export filename (None means no export)
-        export_csv: Whether to export CSV
-        export_json: Whether to export JSON
+        csv_filename: Unused, kept for compatibility
+        json_filename: Unused, kept for compatibility
+        export_csv: Whether to export CSV to stdout
+        export_json: Whether to export JSON to stdout
         table_console: Console for table output (uses module console if None)
         
     Returns:
@@ -750,18 +750,16 @@ def handle_table_export(
     export_json: bool = False
 ) -> bool:
     """
-    Handle exporting table data to CSV and/or JSON based on user options.
-    
-    This is the main function that should be called after displaying a table.
+    Handle exporting table data to CSV and/or JSON to stdout.
     
     Args:
         data: Table data as list of dictionaries
-        profile_name: Current profile name
-        command_name: Command identifier (e.g., 'inbox-list', 'sms-send')
-        csv_filename: Custom CSV filename (optional)
-        json_filename: Custom JSON filename (optional) 
-        export_csv: Whether to export CSV
-        export_json: Whether to export JSON
+        profile_name: Current profile name (unused, kept for compatibility)
+        command_name: Command identifier (unused, kept for compatibility)
+        csv_filename: Unused, kept for compatibility
+        json_filename: Unused, kept for compatibility
+        export_csv: Whether to export CSV to stdout
+        export_json: Whether to export JSON to stdout
     
     Returns:
         bool: True if console-only output was used (suppresses other output)
@@ -770,33 +768,21 @@ def handle_table_export(
         return False
 
     if not data:
-        if not (csv_filename == "" or json_filename == ""):
+        if csv_filename is not None or json_filename is not None:
             console.print("[dim]No table data available for export[/dim]")
         return False
 
     console_only_output = False
 
-    # Export CSV
+    # Export CSV (always to console now)
     if export_csv:
-        if csv_filename == "":
-            # Console output for pipeline integration
-            export_table_data_to_csv_console(data)
-            console_only_output = True
-        else:
-            # File output
-            csv_file = generate_export_filename(profile_name, command_name, 'csv', csv_filename)
-            export_table_data_to_csv(data, csv_file)
+        export_table_data_to_csv_console(data)
+        console_only_output = True
 
-    # Export JSON
+    # Export JSON (always to console now) 
     if export_json:
-        if json_filename == "":
-            # Console output for pipeline integration
-            export_table_data_to_json_console(data)
-            console_only_output = True
-        else:
-            # File output
-            json_file = generate_export_filename(profile_name, command_name, 'json', json_filename)
-            export_table_data_to_json(data, json_file)
+        export_table_data_to_json_console(data)
+        console_only_output = True
 
     return console_only_output
 

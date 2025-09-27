@@ -40,7 +40,16 @@ def parse_port_spec(port_spec: str) -> list[str]:
     try:
         csv_ports = expand_csv_ports_if_needed(port_spec)
         if csv_ports is not None:
-            return csv_ports
+            # Apply the same normalization as regular port parsing
+            normalized_ports = [_normalize_port(port) for port in csv_ports]
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_ports = []
+            for port in normalized_ports:
+                if port not in seen:
+                    seen.add(port)
+                    unique_ports.append(port)
+            return unique_ports
     except CSVPortParseError as e:
         raise PortParseError(f"CSV parsing failed: {e}") from e
 
