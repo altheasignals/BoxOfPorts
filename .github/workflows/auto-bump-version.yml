@@ -57,11 +57,11 @@ jobs:
       id: version
       if: steps.check.outputs.skip == 'false'
       run: |
-        python << 'EOF'
+        python3 << 'EOF'
         import json
-        import tomllib
         import sys
         import re
+        import os
         
         # Load current version from version registry
         with open('version_registry.json', 'r') as f:
@@ -69,6 +69,11 @@ jobs:
         
         current_dev_version = registry['versions']['development']
         print(f"Current development version: {current_dev_version}")
+        
+        # Handle empty version by defaulting to stable version
+        if not current_dev_version or current_dev_version.strip() == "":
+            current_dev_version = registry['versions']['stable']
+            print(f"Using stable version as base: {current_dev_version}")
         
         # Parse version parts
         version_match = re.match(r'^(\d+)\.(\d+)\.(\d+)$', current_dev_version)
@@ -82,11 +87,17 @@ jobs:
         new_version = f"{major}.{minor}.{patch + 1}"
         print(f"New development version: {new_version}")
         
-        # Set outputs
-        with open('$GITHUB_OUTPUT', 'a') as f:
-            f.write(f"current_version={current_dev_version}\n")
-            f.write(f"new_version={new_version}\n")
-            f.write(f"tag=v{new_version}\n")
+        # Set outputs using environment file
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write(f"current_version={current_dev_version}\n")
+                f.write(f"new_version={new_version}\n")
+                f.write(f"tag=v{new_version}\n")
+            print(f"Set GitHub outputs: current={current_dev_version}, new={new_version}, tag=v{new_version}")
+        else:
+            print("ERROR: GITHUB_OUTPUT environment variable not found")
+            sys.exit(1)
         EOF
         
     - name: "📝 Update version registry and sync all files"

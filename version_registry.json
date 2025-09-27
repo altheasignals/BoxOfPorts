@@ -6,7 +6,7 @@
   },
   "versions": {
     "stable": "1.2.0",
-    "development": "",
+    "development": "1.2.3",
     "api": "2.2"
   },
   "release_info": {
@@ -48,7 +48,7 @@
     }
   },
   "bop_wrapper": {
-    "version": "",
+    "version": "1.2.3",
     "description": "Docker wrapper for BoxOfPorts with dual-track support and auto-updates"
   }
 }
