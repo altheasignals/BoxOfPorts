@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+
+# bop - Docker wrapper for BoxOfPorts CLI
+# "When the music never stops... the container keeps running"
+#
+# This wrapper ensures you're always running the latest stable version
+# of BoxOfPorts via Docker, with automatic version checking and updates.
+
+set -euo pipefail
+
+# Configuration
+readonly DOCKER_IMAGE="altheasignals/boxofports"
+readonly DOCKER_TAG_STABLE="stable"
+readonly DOCKER_TAG_LATEST="latest"
+readonly HOME_CONFIG_DIR="${HOME}/.boxofports"
+readonly VERSION_CACHE_FILE="${HOME_CONFIG_DIR}/.bop_version_cache"
+readonly FORCE_UPDATE_FILE="${HOME_CONFIG_DIR}/.bop_force_update"
+
+# Colors for output (keeping it groovy)
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m' 
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly PURPLE='\033[0;35m'
+readonly CYAN='\033[0;36m'
+readonly NC='\033[0m' # No Color
+
+# Logging functions with a touch of cosmic vibes
+log_info() {
+    echo -e "${BLUE}🎵 $*${NC}" >&2
+}
+
+log_success() {
+    echo -e "${GREEN}✓ $*${NC}" >&2  
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠️  $*${NC}" >&2
+}
+
+log_error() {
+    echo -e "${RED}✗ $*${NC}" >&2
+}
+
+log_cosmic() {
+    echo -e "${PURPLE}🌌 $*${NC}" >&2
+}
+
+# Ensure config directory exists
+create_config_dir() {
+    if [[ ! -d "$HOME_CONFIG_DIR" ]]; then
+        mkdir -p "$HOME_CONFIG_DIR"
+        log_info "Created config directory at $HOME_CONFIG_DIR"
+    fi
+}
+
+# Get current local Docker image version
+get_local_version() {
+    local tag="$1"
+    docker inspect "${DOCKER_IMAGE}:${tag}" --format='{{index .Config.Labels "version"}}' 2>/dev/null || echo "unknown"
+}
+
+# Get remote Docker image version from registry  
+get_remote_version() {
+    local tag="$1"
+    # Use docker manifest to get version info without pulling
+    docker manifest inspect "${DOCKER_IMAGE}:${tag}" --format='{{index .Config.Labels "version"}}' 2>/dev/null || echo "unknown"
+}
+
+# Check if version is a stable release (ends with .0)
+is_stable_version() {
+    local version="$1"
+    [[ "$version" =~ \.[0-9]+\.0$ ]]
+}
+
+# Compare versions (returns 0 if v1 >= v2, 1 otherwise)
+version_gte() {
+    local v1="$1"
+    local v2="$2"
+    
+    # Handle "unknown" versions
+    [[ "$v1" == "unknown" ]] && return 1
+    [[ "$v2" == "unknown" ]] && return 0
+    
+    # Use sort -V for semantic version comparison
+    [[ "$(printf '%s\n' "$v1" "$v2" | sort -V | tail -n1)" == "$v1" ]]
+}
+
+# Update version cache
+update_version_cache() {
+    local current_version="$1"
+    echo "$current_version" > "$VERSION_CACHE_FILE"
+    echo "$(date '+%s')" >> "$VERSION_CACHE_FILE"
+}
+
+# Check if cache is stale (older than 1 hour)
+is_cache_stale() {
+    [[ ! -f "$VERSION_CACHE_FILE" ]] && return 0
+    
+    local cache_time
+    cache_time=$(sed -n '2p' "$VERSION_CACHE_FILE" 2>/dev/null || echo "0")
+    local current_time
+    current_time=$(date '+%s')
+    local age=$((current_time - cache_time))
+    
+    # Cache is stale if older than 1 hour (3600 seconds)
+    [[ $age -gt 3600 ]]
+}
+
+# Detect if user wants "Steal Your Face" mode (bleeding edge)
+is_steal_your_face_mode() {
+    [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]
+}
+
+# Pull Docker image if needed
+pull_image() {
+    local tag="$1"
+    local force="${2:-false}"
+    
+    log_info "Checking for image updates..."
+    
+    # Check if we have the image locally
+    if ! docker image inspect "${DOCKER_IMAGE}:${tag}" >/dev/null 2>&1 || [[ "$force" == "true" ]]; then
+        log_info "Pulling ${DOCKER_IMAGE}:${tag}..."
+        if docker pull "${DOCKER_IMAGE}:${tag}"; then
+            log_success "Image updated successfully"
+            return 0
+        else
+            log_error "Failed to pull image"
+            return 1
+        fi
+    fi
+    
+    # Check versions if not forcing
+    if [[ "$force" != "true" ]] && ! is_cache_stale; then
+        return 0  # Skip version check if cache is fresh
+    fi
+    
+    local local_version remote_version
+    local_version=$(get_local_version "$tag")
+    
+    log_info "Current version: $local_version"
+    
+    # Try to get remote version (may fail if registry is unavailable)
+    if remote_version=$(get_remote_version "$tag" 2>/dev/null); then
+        log_info "Latest version: $remote_version"
+        
+        if ! version_gte "$local_version" "$remote_version"; then
+            log_warning "New version available: $remote_version"
+            log_info "Updating to latest version..."
+            
+            if docker pull "${DOCKER_IMAGE}:${tag}"; then
+                log_success "Updated to version $remote_version"
+                update_version_cache "$remote_version"
+            else
+                log_error "Failed to update image"
+                return 1
+            fi
+        else
+            log_success "You're on the latest version"
+            update_version_cache "$local_version"
+        fi
+    else
+        log_warning "Could not check for updates (registry unavailable)"
+        update_version_cache "$local_version"
+    fi
+}
+
+# Force stable version update if needed
+check_stable_enforcement() {
+    local current_tag="$1"
+    local current_version="$2"
+    
+    # Only enforce if running stable tag
+    [[ "$current_tag" != "$DOCKER_TAG_STABLE" ]] && return 0
+    
+    # Check if current version is actually stable
+    if ! is_stable_version "$current_version"; then
+        log_warning "Current version $current_version is not stable"
+        log_info "Checking for latest stable release..."
+        
+        # Force pull stable
+        if pull_image "$DOCKER_TAG_STABLE" "true"; then
+            local new_version
+            new_version=$(get_local_version "$DOCKER_TAG_STABLE")
+            if is_stable_version "$new_version"; then
+                log_success "Updated to stable version $new_version"
+                touch "$FORCE_UPDATE_FILE"
+            fi
+        fi
+    fi
+}
+
+# Main image management logic
+manage_image() {
+    local tag="$DOCKER_TAG_STABLE"
+    
+    # Check if user wants bleeding edge
+    if is_steal_your_face_mode; then
+        tag="$DOCKER_TAG_LATEST" 
+        log_cosmic "Steal Your Face mode active - running latest bleeding edge"
+    fi
+    
+    # Pull/update image
+    pull_image "$tag"
+    
+    # Get current version after potential update
+    local current_version
+    current_version=$(get_local_version "$tag")
+    
+    # Enforce stable version requirements
+    check_stable_enforcement "$tag" "$current_version"
+    
+    echo "$tag"
+}
+
+# Run boxofports in container
+run_boxofports() {
+    local docker_tag="$1"
+    shift
+    
+    # Mount home config directory to container
+    local docker_args=(
+        --rm
+        --interactive
+        --tty
+        --volume "$HOME_CONFIG_DIR:/root/.boxofports"
+    )
+    
+    # Mount current directory if it looks like a project directory
+    if [[ -f "pyproject.toml" ]] || [[ -f "setup.py" ]] || [[ -d ".git" ]]; then
+        docker_args+=(--volume "$(pwd):/workspace" --workdir /workspace)
+    fi
+    
+    # Pass through relevant environment variables
+    local env_vars=(
+        "EJOIN_HOST"
+        "EJOIN_PORT" 
+        "EJOIN_USER"
+        "EJOIN_PASSWORD"
+        "BOP_PROFILE"
+        "BOP_VERBOSE"
+    )
+    
+    for env_var in "${env_vars[@]}"; do
+        if [[ -n "${!env_var:-}" ]]; then
+            docker_args+=(--env "$env_var=${!env_var}")
+        fi
+    done
+    
+    # Execute boxofports with all passed arguments
+    log_info "Running boxofports..."
+    exec docker run "${docker_args[@]}" "${DOCKER_IMAGE}:${docker_tag}" boxofports "$@"
+}
+
+# Handle special bop commands
+handle_special_commands() {
+    case "${1:-}" in
+        --steal-your-face)
+            if [[ ! -f "$HOME_CONFIG_DIR/.steal_your_face" ]]; then
+                touch "$HOME_CONFIG_DIR/.steal_your_face"
+                log_cosmic "Steal Your Face mode enabled - you'll get bleeding edge updates"
+                log_warning "You're now on the bus! Latest development builds will sync automatically."
+            else
+                rm -f "$HOME_CONFIG_DIR/.steal_your_face"
+                log_info "Steal Your Face mode disabled - returning to stable releases"
+            fi
+            exit 0
+            ;;
+        --bop-version)
+            local tag
+            tag=$(is_steal_your_face_mode && echo "$DOCKER_TAG_LATEST" || echo "$DOCKER_TAG_STABLE")
+            local version
+            version=$(get_local_version "$tag")
+            
+            echo "bop (Docker wrapper) v1.0.0"
+            echo "BoxOfPorts container version: $version"
+            echo "Docker image: ${DOCKER_IMAGE}:${tag}"
+            echo "Mode: $(is_steal_your_face_mode && echo "Steal Your Face (bleeding edge)" || echo "Stable releases")"
+            exit 0
+            ;;
+        --bop-update)
+            log_info "Forcing update check..."
+            local tag
+            tag=$(is_steal_your_face_mode && echo "$DOCKER_TAG_LATEST" || echo "$DOCKER_TAG_STABLE")
+            pull_image "$tag" "true"
+            log_success "Update complete"
+            exit 0
+            ;;
+    esac
+}
+
+# Main execution
+main() {
+    create_config_dir
+    
+    # Handle special bop-specific commands
+    handle_special_commands "$@"
+    
+    # Manage Docker image and get appropriate tag
+    local docker_tag
+    docker_tag=$(manage_image)
+    
+    # Run boxofports with all arguments
+    run_boxofports "$docker_tag" "$@"
+}
+
+# Ensure we have Docker
+if ! command -v docker >/dev/null 2>&1; then
+    log_error "Docker is required but not installed"
+    log_info "Please install Docker: https://docs.docker.com/get-docker/"
+    exit 1
+fi
+
+# Run main function with all arguments
+main "$@"
