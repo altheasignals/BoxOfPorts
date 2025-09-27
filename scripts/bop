@@ -409,6 +409,9 @@ run_boxofports() {
     local docker_tag="$1"
     shift
     
+    # Ensure config directory exists and has proper permissions
+    create_config_dir
+    
     # Mount home config directory to container
     local docker_args=(
         --rm
