@@ -1,0 +1,200 @@
+name: "Publish on Tag"
+# "When the music gets heavy, you lift up your head"
+# Build and publish Docker images when tags are created
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: altheasignals/boxofports
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    - name: "🌈 Checkout the magnificent codebase"
+      uses: actions/checkout@v4
+      
+    - name: "🏷️ Parse version from tag"
+      id: version
+      run: |
+        # Extract version from Git tag (remove 'v' prefix)
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+        
+        # Parse semantic version parts
+        IFS='.' read -ra PARTS <<< "$VERSION"
+        MAJOR=${PARTS[0]}
+        MINOR=${PARTS[1]}  
+        PATCH=${PARTS[2]}
+        
+        echo "major=$MAJOR" >> $GITHUB_OUTPUT
+        echo "minor=$MINOR" >> $GITHUB_OUTPUT
+        echo "patch=$PATCH" >> $GITHUB_OUTPUT
+        
+        # Classify version (stable if patch is 0, dev otherwise)
+        if [[ $PATCH == "0" ]]; then
+          echo "is_stable=true" >> $GITHUB_OUTPUT
+          echo "track=stable" >> $GITHUB_OUTPUT
+          echo "🎉 This is a stable release: $VERSION"
+        else
+          echo "is_stable=false" >> $GITHUB_OUTPUT
+          echo "track=dev" >> $GITHUB_OUTPUT
+          echo "🔄 This is a development release: $VERSION"
+        fi
+        
+    - name: "🎭 Set up Python environment"
+      uses: actions/setup-python@v4  
+      with:
+        python-version: '3.11'
+        
+    - name: "📦 Build Python package"
+      run: |
+        python -m pip install --upgrade pip build
+        python -m build
+        echo "🏗️ Python package built successfully"
+        
+    - name: "🐳 Set up Docker Buildx"
+      uses: docker/setup-buildx-action@v3
+      
+    - name: "🔑 Login to DockerHub"
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: "🏷️ Extract Docker metadata"
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=${{ steps.version.outputs.version }},priority=100
+          type=raw,value=${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }},priority=90
+        labels: |
+          org.opencontainers.image.title=BoxOfPorts
+          org.opencontainers.image.description=SMS Gateway Management CLI for EJOIN Router Operators
+          org.opencontainers.image.vendor=Althea Signals Network LLC
+          org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          org.opencontainers.image.revision=${{ github.sha }}
+          io.boxofports.track=${{ steps.version.outputs.track }}
+          io.boxofports.stable=${{ steps.version.outputs.is_stable }}
+          
+    - name: "🚀 Build and push Docker image"
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}
+          ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          VERSION=${{ steps.version.outputs.version }}
+          BUILD_DATE=${{ github.event.repository.updated_at }}
+          GIT_SHA=${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: "🔄 Update latest tag for dev releases"
+      if: steps.version.outputs.is_stable == 'false'
+      run: |
+        echo "🔄 Development release detected - updating latest tag"
+        ./scripts/retag_by_digest.sh \
+          "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" \
+          "${{ env.IMAGE_NAME }}:latest"
+        echo "✅ Latest tag now points to ${{ steps.version.outputs.version }}"
+        
+    - name: "🎵 Stable release note"
+      if: steps.version.outputs.is_stable == 'true'
+      run: |
+        echo "🎉 Stable release published: ${{ steps.version.outputs.version }}"
+        echo "📝 Note: The 'stable' tag is not automatically updated."
+        echo "📝 Use the 'Promote Stable' workflow to update the stable tag when ready."
+        echo "📝 This allows for additional validation before promoting to stable."
+        
+    - name: "🏷️ Create GitHub release"
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        release_name: BoxOfPorts ${{ steps.version.outputs.version }}
+        body: |
+          ## BoxOfPorts ${{ steps.version.outputs.version }}
+          
+          *"The music never stopped playing..."* 🎵
+          
+          ### What's New
+          - **Release Type**: ${{ steps.version.outputs.track }} (${{ steps.version.outputs.is_stable == 'true' && 'stable' || 'development' }})
+          - **Docker Images**: 
+            - `${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}`
+            - `${{ env.IMAGE_NAME }}:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}`
+          ${{ steps.version.outputs.is_stable == 'false' && '  - `altheasignals/boxofports:latest` (updated automatically)' || '' }}
+          
+          ### Installation
+          
+          **Docker Wrapper (Recommended):**
+          ```bash
+          # Download and install bop wrapper
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/bop -o bop
+          chmod +x bop
+          sudo mv bop /usr/local/bin/
+          
+          # Use stable track (X.Y.0 versions only)
+          bop --help
+          
+          # Use development track (latest builds)
+          BOP_RELEASE_TRACK=dev bop --help
+          ```
+          
+          **Direct Docker:**
+          ```bash
+          docker run --rm -it ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} --help
+          ```
+          
+          **Local Installation:**
+          ```bash
+          pip install ./dist/boxofports-${{ steps.version.outputs.version }}-py3-none-any.whl
+          ```
+          
+          ### Version Notes
+          ${{ steps.version.outputs.is_stable == 'true' && '
+          This is a **stable release** (X.Y.0). It can be promoted to the `stable` Docker tag using the "Promote Stable" workflow when ready for production deployment.
+          ' || '
+          This is a **development release** (X.Y.Z where Z > 0). The `latest` Docker tag has been automatically updated to point to this version.
+          ' }}
+          
+          ---
+          
+          *Built with ❤️ by Althea Signals Network LLC*
+          
+        draft: false
+        prerelease: ${{ steps.version.outputs.is_stable != 'true' }}
+        
+    - name: "🎉 Summary"
+      run: |
+        echo "🎵 Publish workflow completed successfully!"
+        echo "  Version: ${{ steps.version.outputs.version }}"
+        echo "  Track: ${{ steps.version.outputs.track }}"
+        echo "  Stable: ${{ steps.version.outputs.is_stable }}"
+        echo "  Docker images:"
+        echo "    - ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
+        echo "    - ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}"
+        if [[ "${{ steps.version.outputs.is_stable }}" == "false" ]]; then
+          echo "    - ${{ env.IMAGE_NAME }}:latest (updated)"
+        fi
+        echo ""
+        echo "🌊 The river flows on, carrying new melodies downstream..."

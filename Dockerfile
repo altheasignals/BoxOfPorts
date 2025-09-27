@@ -3,12 +3,25 @@
 
 FROM python:3.11-slim
 
-# Set metadata
+# Build arguments for version info and labels
+ARG VERSION=unknown
+ARG BUILD_DATE=unknown
+ARG GIT_SHA=unknown
+
+# Set metadata with dynamic values
 LABEL maintainer="Althea Signals Network LLC <support@altheasignals.net>"
-LABEL version="1.2.0"
-LABEL description="BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
-LABEL vendor="Althea Signals Network LLC"
-LABEL url="https://altheasignals.net"
+LABEL org.opencontainers.image.title="BoxOfPorts"
+LABEL org.opencontainers.image.description="SMS Gateway Management CLI for EJOIN Router Operators"
+LABEL org.opencontainers.image.vendor="Althea Signals Network LLC"
+LABEL org.opencontainers.image.url="https://altheasignals.net"
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
+LABEL org.opencontainers.image.revision="${GIT_SHA}"
+LABEL org.opencontainers.image.source="https://github.com/altheasignals/boxofports"
+LABEL org.opencontainers.image.documentation="https://github.com/altheasignals/boxofports/blob/main/README.md"
+# BoxOfPorts specific labels
+LABEL io.boxofports.version="${VERSION}"
+LABEL io.boxofports.built-by="GitHub Actions"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -68,6 +81,11 @@ RUN chmod +x /app/entrypoint.sh && \
 
 # Switch to non-root user
 USER boxofports
+
+# Add version info to environment for runtime access
+ENV BOXOFPORTS_VERSION=${VERSION}
+ENV BOXOFPORTS_BUILD_DATE=${BUILD_DATE}
+ENV BOXOFPORTS_GIT_SHA=${GIT_SHA}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

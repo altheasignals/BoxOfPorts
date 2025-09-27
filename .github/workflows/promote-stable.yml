@@ -1,0 +1,216 @@
+name: "Promote Stable"
+# "Standing on the moon, I see the battle rage below"
+# Manual promotion of stable Docker tag - deliberate and intentional
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_version:
+        description: 'Version to promote to stable (e.g., 1.2.0). Must end in .0'
+        required: false
+        type: string
+      auto_select:
+        description: 'Auto-select the latest X.Y.0 version available'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Dry run - show what would be done without making changes'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: altheasignals/boxofports
+
+jobs:
+  promote-stable:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    - name: "🌈 Checkout the magnificent codebase"
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: "🔍 Determine target version"
+      id: target
+      run: |
+        TARGET_VERSION=""
+        
+        if [[ "${{ github.event.inputs.auto_select }}" == "true" ]]; then
+          echo "🔍 Auto-selecting latest X.Y.0 version..."
+          
+          # Get all Git tags that match vX.Y.0 pattern, sort them, get the latest
+          LATEST_STABLE=$(git tag -l 'v*.*.*' | grep -E 'v[0-9]+\.[0-9]+\.0$' | sort -V | tail -n 1)
+          
+          if [[ -z "$LATEST_STABLE" ]]; then
+            echo "❌ No stable versions (X.Y.0) found in Git tags"
+            exit 1
+          fi
+          
+          # Remove 'v' prefix
+          TARGET_VERSION=${LATEST_STABLE#v}
+          echo "🎯 Auto-selected version: $TARGET_VERSION"
+          
+        elif [[ -n "${{ github.event.inputs.target_version }}" ]]; then
+          TARGET_VERSION="${{ github.event.inputs.target_version }}"
+          echo "🎯 Using specified version: $TARGET_VERSION"
+          
+        else
+          echo "❌ Either target_version must be provided or auto_select must be true"
+          exit 1
+        fi
+        
+        # Validate version format
+        if [[ ! "$TARGET_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "❌ Invalid version format: $TARGET_VERSION (must be X.Y.Z)"
+          exit 1
+        fi
+        
+        # Validate it's a stable version (ends with .0)
+        if [[ ! "$TARGET_VERSION" =~ \.[0-9]+\.0$ ]]; then
+          echo "❌ Version $TARGET_VERSION is not stable (must end with .0)"
+          echo "💡 Use the development track for non-stable versions: BOP_RELEASE_TRACK=dev bop --help"
+          exit 1
+        fi
+        
+        echo "target_version=$TARGET_VERSION" >> $GITHUB_OUTPUT
+        echo "source_tag=${IMAGE_NAME}:${TARGET_VERSION}" >> $GITHUB_OUTPUT
+        echo "stable_tag=${IMAGE_NAME}:stable" >> $GITHUB_OUTPUT
+        
+    - name: "🐳 Set up Docker Buildx"
+      uses: docker/setup-buildx-action@v3
+      
+    - name: "🔍 Verify source image exists"
+      id: verify
+      run: |
+        echo "🔍 Checking if source image exists: ${{ steps.target.outputs.source_tag }}"
+        
+        if docker buildx imagetools inspect "${{ steps.target.outputs.source_tag }}" >/dev/null 2>&1; then
+          echo "✅ Source image found: ${{ steps.target.outputs.source_tag }}"
+          echo "exists=true" >> $GITHUB_OUTPUT
+          
+          # Get current stable tag info for comparison
+          if docker buildx imagetools inspect "${{ steps.target.outputs.stable_tag }}" >/dev/null 2>&1; then
+            echo "📝 Current stable tag exists"
+            echo "stable_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "📝 No current stable tag"
+            echo "stable_exists=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "❌ Source image not found: ${{ steps.target.outputs.source_tag }}"
+          echo "💡 Make sure the version has been built and published first"
+          echo "💡 Available tags: docker images --format 'table {{.Repository}}:{{.Tag}}' | grep boxofports"
+          exit 1
+        fi
+        
+    - name: "🔍 Show promotion plan (dry run)"
+      if: ${{ github.event.inputs.dry_run == 'true' }}
+      run: |
+        echo "🎵 Dry run mode - would promote:"
+        echo "  Source: ${{ steps.target.outputs.source_tag }}"
+        echo "  Target: ${{ steps.target.outputs.stable_tag }}"
+        echo "  Version: ${{ steps.target.outputs.target_version }}"
+        echo ""
+        echo "🔍 Current state:"
+        if [[ "${{ steps.verify.outputs.stable_exists }}" == "true" ]]; then
+          echo "  Current stable tag exists and would be replaced"
+        else
+          echo "  No current stable tag - would be created"
+        fi
+        
+    - name: "🔑 Login to DockerHub"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: "🏷️ Promote to stable"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      run: |
+        echo "🎵 Promoting ${{ steps.target.outputs.target_version }} to stable..."
+        
+        # Use our retag script for consistent behavior
+        ./scripts/retag_by_digest.sh \
+          "${{ steps.target.outputs.source_tag }}" \
+          "${{ steps.target.outputs.stable_tag }}"
+          
+        echo "✅ Successfully promoted ${{ steps.target.outputs.target_version }} to stable"
+        
+    - name: "🔍 Verify promotion"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      run: |
+        echo "🔍 Verifying stable tag promotion..."
+        
+        # Give Docker registry a moment to update
+        sleep 5
+        
+        if docker buildx imagetools inspect "${{ steps.target.outputs.stable_tag }}" >/dev/null 2>&1; then
+          echo "✅ Stable tag verification successful"
+          
+          # Try to extract version label if available
+          echo "📋 Stable tag info:"
+          docker buildx imagetools inspect "${{ steps.target.outputs.stable_tag }}" --format '{{json .}}' | \
+            jq -r '.manifest.config.labels // {} | to_entries[] | "  \(.key): \(.value)"' 2>/dev/null || \
+            echo "  Labels not available via imagetools"
+        else
+          echo "❌ Stable tag verification failed"
+          exit 1
+        fi
+        
+    - name: "📝 Log promotion"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      run: |
+        # Create a simple log for rollback purposes
+        LOG_DIR="${HOME}/.boxofports"
+        mkdir -p "$LOG_DIR"
+        LOG_FILE="$LOG_DIR/stable-promotions.log"
+        
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        echo "$TIMESTAMP,${{ steps.target.outputs.target_version }},promoted by GitHub Actions" >> "$LOG_FILE"
+        
+        echo "📝 Logged promotion to $LOG_FILE"
+        echo "💡 This can be used for rollback tracking"
+        
+    - name: "🎉 Summary"
+      run: |
+        echo "🎵 Promote stable workflow completed!"
+        echo ""
+        if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+          echo "🔍 DRY RUN - No changes made"
+          echo "  Would promote: ${{ steps.target.outputs.target_version }} → stable"
+        else
+          echo "✅ PROMOTION COMPLETED"
+          echo "  Version: ${{ steps.target.outputs.target_version }}"
+          echo "  Docker tag: ${{ steps.target.outputs.stable_tag }}"
+        fi
+        echo ""
+        echo "🌊 Users on stable track will now receive this version:"
+        echo "  bop --help  # Uses stable track by default"
+        echo ""
+        echo "🎼 The steady rhythm continues, carrying all souls downstream..."
+        
+    - name: "📢 Deployment notice"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      run: |
+        echo "🚀 Deployment Notice:"
+        echo ""
+        echo "The stable Docker tag has been updated to version ${{ steps.target.outputs.target_version }}"
+        echo ""
+        echo "This affects:"
+        echo "• Users running 'bop' commands (stable track by default)"
+        echo "• Docker deployments using the ':stable' tag"
+        echo "• Production systems configured for stable releases"
+        echo ""
+        echo "🔄 To rollback if needed:"
+        echo "  ./scripts/retag_by_digest.sh \${OLD_VERSION_TAG} ${{ steps.target.outputs.stable_tag }}"
+        echo ""
+        echo "🎵 May this release bring harmony to all who use it."

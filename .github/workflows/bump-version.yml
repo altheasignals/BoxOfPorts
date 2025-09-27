@@ -1,0 +1,211 @@
+name: "Version Bump"
+# "Sometimes the light's all shinin' on me, other times I can barely see"
+# Manual version control - no surprises, just intentional releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Version bump mode'
+        required: true
+        default: 'dev-patch'
+        type: choice
+        options:
+        - dev-patch
+        - minor
+        - major
+        - set-exact
+      exact_version:
+        description: 'Exact version (only used if mode is set-exact)'
+        required: false
+        type: string
+      create_tag:
+        description: 'Create and push Git tag'
+        required: false
+        default: true
+        type: boolean
+      make_pr:
+        description: 'Create PR instead of direct commit'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Dry run - show what would be done'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+    - name: "🌈 Checkout the magnificent codebase"
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: "🎭 Set up Python environment"  
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: "📦 Install dependencies"
+      run: |
+        python -m pip install --upgrade pip
+        pip install tomlkit
+        
+    - name: "🔢 Calculate target version"
+      id: version
+      run: |
+        python << 'EOF'
+        import tomllib
+        import sys
+        import re
+        
+        # Read current version
+        with open('pyproject.toml', 'rb') as f:
+            data = tomllib.load(f)
+        current_version = data['project']['version']
+        print(f"Current version: {current_version}")
+        
+        # Parse version parts
+        version_match = re.match(r'^(\d+)\.(\d+)\.(\d+)$', current_version)
+        if not version_match:
+            print(f"ERROR: Invalid version format: {current_version}")
+            sys.exit(1)
+            
+        major, minor, patch = map(int, version_match.groups())
+        
+        # Calculate new version based on mode
+        mode = "${{ github.event.inputs.mode }}"
+        
+        if mode == "dev-patch":
+            new_version = f"{major}.{minor}.{patch + 1}"
+        elif mode == "minor":
+            new_version = f"{major}.{minor + 1}.0"
+        elif mode == "major":
+            new_version = f"{major + 1}.0.0"
+        elif mode == "set-exact":
+            exact = "${{ github.event.inputs.exact_version }}"
+            if not exact:
+                print("ERROR: exact_version is required when mode is set-exact")
+                sys.exit(1)
+            # Validate exact version format
+            if not re.match(r'^\d+\.\d+\.\d+$', exact):
+                print(f"ERROR: Invalid exact version format: {exact}")
+                sys.exit(1)
+            new_version = exact
+        else:
+            print(f"ERROR: Unknown mode: {mode}")
+            sys.exit(1)
+            
+        print(f"Target version: {new_version}")
+        
+        # Set outputs
+        with open('$GITHUB_OUTPUT', 'a') as f:
+            f.write(f"current_version={current_version}\n")
+            f.write(f"new_version={new_version}\n")
+            f.write(f"tag=v{new_version}\n")
+            
+        # Classify version
+        is_stable = new_version.endswith('.0')
+        track = "stable" if is_stable else "dev"
+        with open('$GITHUB_OUTPUT', 'a') as f:
+            f.write(f"is_stable={str(is_stable).lower()}\n")
+            f.write(f"track={track}\n")
+        EOF
+        
+    - name: "📝 Update version in pyproject.toml"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      run: |
+        python << 'EOF'
+        import tomlkit
+        
+        # Read and update pyproject.toml
+        with open('pyproject.toml', 'r') as f:
+            data = tomlkit.load(f)
+            
+        data['project']['version'] = "${{ steps.version.outputs.new_version }}"
+        
+        with open('pyproject.toml', 'w') as f:
+            tomlkit.dump(data, f)
+            
+        print("✅ Updated pyproject.toml")
+        EOF
+        
+    - name: "🔍 Show changes (dry run)"
+      if: ${{ github.event.inputs.dry_run == 'true' }}
+      run: |
+        echo "🎵 Dry run mode - would make these changes:"
+        echo "  Current version: ${{ steps.version.outputs.current_version }}"
+        echo "  New version: ${{ steps.version.outputs.new_version }}"
+        echo "  Track: ${{ steps.version.outputs.track }}"
+        echo "  Create tag: ${{ github.event.inputs.create_tag }}"
+        echo "  Make PR: ${{ github.event.inputs.make_pr }}"
+        
+    - name: "📝 Commit version change"
+      if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.make_pr != 'true' }}
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action [bump-version]"
+        git add pyproject.toml
+        git commit -m "chore(version): bump to ${{ steps.version.outputs.new_version }}"
+        git push
+        echo "🎵 Version bumped and committed to main"
+        
+    - name: "🎯 Create and push Git tag"
+      if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.create_tag == 'true' && github.event.inputs.make_pr != 'true' }}
+      run: |
+        git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.new_version }} (${{ steps.version.outputs.track }} track)"
+        git push origin "${{ steps.version.outputs.tag }}"
+        echo "🏷️ Created and pushed tag: ${{ steps.version.outputs.tag }}"
+        
+    - name: "🔀 Create Pull Request"
+      if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.make_pr == 'true' }}
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore(version): bump to ${{ steps.version.outputs.new_version }}"
+        title: "🔖 Version bump: ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.new_version }}"
+        body: |
+          ## Version Bump: ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.new_version }}
+          
+          *"The music never stopped playing..."* 🎵
+          
+          ### Changes
+          - **Mode**: `${{ github.event.inputs.mode }}`
+          - **Track**: `${{ steps.version.outputs.track }}`
+          - **Stable release**: ${{ steps.version.outputs.is_stable }}
+          
+          ### Next Steps
+          After merging this PR:
+          1. The new version will be available in `main`
+          2. ${{ github.event.inputs.create_tag == 'true' && 'Create tag manually or re-run workflow to create tag' || 'No tag will be created automatically' }}
+          3. Tag creation will trigger the publish workflow
+          
+          ---
+          
+          *Generated by the bump-version workflow*
+        branch: version-bump-${{ steps.version.outputs.new_version }}
+        delete-branch: true
+        
+    - name: "🎉 Summary"
+      run: |
+        echo "🎵 Version bump workflow completed!"
+        echo "  Mode: ${{ github.event.inputs.mode }}"
+        echo "  Version: ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.new_version }}"
+        echo "  Track: ${{ steps.version.outputs.track }}"
+        echo "  Tag: ${{ steps.version.outputs.tag }}"
+        echo "  Dry run: ${{ github.event.inputs.dry_run }}"
+        echo "  PR mode: ${{ github.event.inputs.make_pr }}"
+        
+        if [[ "${{ github.event.inputs.dry_run }}" != "true" ]]; then
+          if [[ "${{ github.event.inputs.create_tag }}" == "true" && "${{ github.event.inputs.make_pr }}" != "true" ]]; then
+            echo "🚀 Tag created - this will trigger the publish workflow!"
+          fi
+        fi
