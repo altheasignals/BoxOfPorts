@@ -130,7 +130,7 @@ jobs:
           exit 0
         fi
         
-        git commit -m "chore(version): auto-bump development to ${{ steps.version.outputs.new_version }}
+        COMMIT_MSG="chore(version): auto-bump development to ${{ steps.version.outputs.new_version }}
 
 🔄 Automatic version increment on push
 - Updated version registry: development → ${{ steps.version.outputs.new_version }}
@@ -138,6 +138,7 @@ jobs:
 - Ready for tag creation and Docker image build
 
 🎵 Keep on truckin'... the development train rolls on"
+        git commit -m "$COMMIT_MSG"
         
         git push
         echo "🎵 Development version auto-bumped to ${{ steps.version.outputs.new_version }}"
@@ -145,12 +146,13 @@ jobs:
     - name: "🏷️ Create and push development tag"
       if: steps.check.outputs.skip == 'false'
       run: |
-        git tag -a "${{ steps.version.outputs.tag }}" -m "Development release ${{ steps.version.outputs.new_version }}
+        TAG_MSG="Development release ${{ steps.version.outputs.new_version }}
 
 🔄 Auto-generated development release
 - Incremented from ${{ steps.version.outputs.current_version }}
 - Contains latest changes from main branch
 - Will trigger Docker image build for 'latest' tag"
+        git tag -a "${{ steps.version.outputs.tag }}" -m "$TAG_MSG"
 
         git push origin "${{ steps.version.outputs.tag }}"
         echo "🏷️ Created and pushed development tag: ${{ steps.version.outputs.tag }}"
