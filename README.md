@@ -25,6 +25,30 @@ curl -fsSL https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scrip
 
 For details, see docs/DISTRIBUTION.md.
 
+## 🎵 Release Tracks & Versioning
+
+BoxOfPorts uses a dual-track release system designed for both stability and innovation:
+
+- **🎯 Stable Track** (X.Y.0): Production-ready releases, thoroughly tested
+- **🚀 Development Track** (X.Y.Z where Z>0): Latest features and fixes
+
+The `bop` wrapper automatically selects the stable track by default:
+
+```bash
+# Uses stable track (production ready)
+bop --help
+
+# Switch to development track (latest features)
+BOP_RELEASE_TRACK=dev bop --help
+
+# Check current version and track
+bop --bop-version
+```
+
+**Why dual-track?** No more surprise updates! You choose when to ride the bleeding edge.
+
+For complete details on our release process, see [docs/VERSIONING.md](docs/VERSIONING.md).
+
 ## 🗑️ Uninstalling
 
 To cleanly remove BoxOfPorts (detects all installation methods):
