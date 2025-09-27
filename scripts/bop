@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bop (Docker wrapper) v1.2.1
+# bop (Docker wrapper) v1.2.2
 
 # bop - Docker wrapper for BoxOfPorts CLI
 # "When the music never stops... the container keeps running"
@@ -413,11 +413,14 @@ run_boxofports() {
     create_config_dir
     
     # Mount home config directory to container
+    # Note: Running as current user to ensure volume mount permissions work correctly
     local docker_args=(
         --rm
         --interactive
         --tty
-        --volume "$HOME_CONFIG_DIR:/root/.boxofports"
+        --user "$(id -u):$(id -g)"
+        --env "HOME=/tmp"
+        --volume "$HOME_CONFIG_DIR:/tmp/.boxofports"
     )
     
     # Mount current directory if it looks like a project directory
