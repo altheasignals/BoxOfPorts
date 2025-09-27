@@ -1,0 +1,96 @@
+name: "Version Lint"
+# "Playing in the band, keeping the rhythm tight"
+# Prevents accidental version changes and ensures proper commit conventions
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'pyproject.toml'
+
+jobs:
+  version-lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: "🌈 Checkout the magnificent codebase"
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: "🔍 Check version change validity"
+      run: |
+        echo "🎵 Checking if version change is authorized..."
+        
+        # Get the changed files in this PR
+        CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+        
+        # Check if pyproject.toml was modified
+        if echo "$CHANGED_FILES" | grep -q "pyproject.toml"; then
+          echo "📝 pyproject.toml was modified in this PR"
+          
+          # Get the version change
+          OLD_VERSION=$(git show origin/main:pyproject.toml | grep '^version = ' | sed 's/version = "\(.*\)"/\1/')
+          NEW_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          
+          echo "  Old version: $OLD_VERSION"
+          echo "  New version: $NEW_VERSION"
+          
+          if [[ "$OLD_VERSION" != "$NEW_VERSION" ]]; then
+            echo "⚠️  Version change detected: $OLD_VERSION → $NEW_VERSION"
+            
+            # Check commit messages for proper convention
+            COMMIT_MESSAGES=$(git log --pretty=format:"%s" origin/main..HEAD)
+            
+            if echo "$COMMIT_MESSAGES" | grep -q "^chore(version):"; then
+              echo "✅ Found chore(version): commit - version change is authorized"
+              
+              # Additional check: ensure stable versions (.0) aren't being created in regular PRs
+              if [[ "$NEW_VERSION" =~ \.[0-9]+\.0$ ]]; then
+                echo "⚠️  WARNING: This PR creates a stable version ($NEW_VERSION)"
+                echo "💡 Stable versions should typically be created via the Version Bump workflow"
+                echo "💡 If this is intentional, ensure proper testing and review"
+              fi
+              
+            else
+              echo "❌ Version change detected but no chore(version): commit found"
+              echo ""
+              echo "🎼 Version changes should be made via:"
+              echo "  1. GitHub Actions → Version Bump workflow (recommended)"
+              echo "  2. Manual commits with 'chore(version): bump to X.Y.Z' message"
+              echo ""
+              echo "This prevents accidental version bumps and maintains release integrity."
+              exit 1
+            fi
+          fi
+        else
+          echo "✅ No version changes detected"
+        fi
+        
+    - name: "🎯 Check PR title for stable implications"
+      if: github.event.pull_request.title != ''
+      run: |
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        echo "🔍 Checking PR title: $PR_TITLE"
+        
+        # Check if PR title implies a stable release but version doesn't end in .0
+        if echo "$PR_TITLE" | grep -qi -E "(stable|release|production)"; then
+          NEW_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          
+          if [[ ! "$NEW_VERSION" =~ \.[0-9]+\.0$ ]]; then
+            echo "⚠️  WARNING: PR title suggests stable release but version ($NEW_VERSION) is not stable"
+            echo "💡 Stable releases should end with .0 (e.g., 1.3.0, 2.0.0)"
+            echo "💡 Development releases end with non-zero patch (e.g., 1.2.1, 1.2.2)"
+            echo ""
+            echo "Consider:"
+            echo "  - Use 'development' or 'dev' in title for non-.0 versions"
+            echo "  - Use Version Bump workflow with 'minor' or 'major' mode for stable releases"
+          else
+            echo "✅ PR title and version are aligned for stable release"
+          fi
+        fi
+        
+    - name: "🎉 Version lint complete"
+      run: |
+        echo "🎵 Version lint checks passed!"
+        echo "The rhythm stays tight, the changes flow right."
