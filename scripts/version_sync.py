@@ -17,9 +17,10 @@ from typing import Dict, List, Any
 
 
 class VersionSync:
-    def __init__(self, registry_path: str = "version_registry.json"):
+    def __init__(self, registry_path: str = "version_registry.json", track: str = "stable"):
         self.registry_path = registry_path
         self.repo_root = Path(__file__).parent.parent
+        self.track = track  # "stable" or "development" 
         self.registry = self._load_registry()
         self.errors: List[str] = []
         self.updates: List[str] = []
@@ -32,6 +33,13 @@ class VersionSync:
             
         with open(registry_file, 'r') as f:
             return json.load(f)
+    
+    def get_target_version(self) -> str:
+        """Get the version to sync to based on the selected track."""
+        if self.track == "development":
+            return self.registry["versions"]["development"]
+        else:
+            return self.registry["versions"]["stable"]
     
     def _update_file(self, file_path: Path, updates: Dict[str, str], description: str = None):
         """Update a file with version replacements."""
@@ -61,13 +69,13 @@ class VersionSync:
     
     def sync_python_version_files(self):
         """Sync Python version files."""
-        stable_version = self.registry["versions"]["stable"]
+        target_version = self.get_target_version()
         constants = self.registry["constants"]
         
         # Update __version__.py
         version_file = self.repo_root / "boxofports" / "__version__.py"
         updates = {
-            r'__version__ = "[^"]*"': f'__version__ = "{stable_version}"',
+            r'__version__ = "[^"]*"': f'__version__ = "{target_version}"',
             r'__title__ = "[^"]*"': f'__title__ = "{constants["title"]}"',
             r'__command__ = "[^"]*"': f'__command__ = "{constants["command"]}"',
             r'__description__ = "[^"]*"': f'__description__ = "{constants["description"]}"',
@@ -84,37 +92,37 @@ class VersionSync:
         # Update __init__.py
         init_file = self.repo_root / "boxofports" / "__init__.py"
         init_updates = {
-            r'__version__ = "[^"]*"': f'__version__ = "{stable_version}"',
+            r'__version__ = "[^"]*"': f'__version__ = "{target_version}"',
             r'__author__ = "[^"]*"': f'__author__ = "{constants["author"]}"',
             r'__email__ = "[^"]*"': f'__email__ = "{constants["author_email"]}"',
             r'__license__ = "[^"]*"': f'__license__ = "{constants["license"]}"',
         }
         self._update_file(init_file, init_updates, "Package init version")
         
-        # Update pyproject.toml with stable version
+        # Update pyproject.toml with target version
         pyproject_file = self.repo_root / "pyproject.toml"
         pyproject_updates = {
-            r'version = "[^"]*"': f'version = "{stable_version}"',
+            r'version = "[^"]*"': f'version = "{target_version}"',
             r'description = "[^"]*"': f'description = "{constants["description"]}"',
         }
         self._update_file(pyproject_file, pyproject_updates, "Python package version")
     
     def sync_docker_files(self):
         """Sync Docker-related files."""
-        stable_version = self.registry["versions"]["stable"]
+        target_version = self.get_target_version()
         
         # Update Dockerfile
         dockerfile = self.repo_root / "Dockerfile"
         dockerfile_updates = {
-            r'LABEL version="[^"]*"': f'LABEL version="{stable_version}"',
+            r'LABEL version="[^"]*"': f'LABEL version="{target_version}"',
             r'LABEL org\.opencontainers\.image\.version="[^"]*"': 
-                f'LABEL org.opencontainers.image.version="{stable_version}"',
+                f'LABEL org.opencontainers.image.version="{target_version}"',
         }
         self._update_file(dockerfile, dockerfile_updates, "Docker version labels")
     
     def sync_installation_scripts(self):
         """Sync installation and utility scripts."""
-        stable_version = self.registry["versions"]["stable"]
+        target_version = self.get_target_version()
         
         scripts_dir = self.repo_root / "scripts"
         scripts_to_update = [
@@ -129,11 +137,11 @@ class VersionSync:
         ]
         
         version_patterns = {
-            r'VERSION="[^"]*"': f'VERSION="{stable_version}"',
-            r'version="[^"]*"': f'version="{stable_version}"',
-            r'VERSION=[0-9]+\.[0-9]+\.[0-9]+': f'VERSION={stable_version}',
-            r'v[0-9]+\.[0-9]+\.[0-9]+': f'v{stable_version}',
-            r'[0-9]+\.[0-9]+\.[0-9]+ \(example': f'{stable_version} (example',
+            r'VERSION="[^"]*"': f'VERSION="{target_version}"',
+            r'version="[^"]*"': f'version="{target_version}"',
+            r'VERSION=[0-9]+\.[0-9]+\.[0-9]+': f'VERSION={target_version}',
+            r'v[0-9]+\.[0-9]+\.[0-9]+': f'v{target_version}',
+            r'[0-9]+\.[0-9]+\.[0-9]+ \(example': f'{target_version} (example',
         }
         
         for script_name in scripts_to_update:
@@ -226,7 +234,10 @@ class VersionSync:
     
     def sync_all(self):
         """Perform complete version synchronization."""
+        target_version = self.get_target_version()
         print("🎵 Starting comprehensive version synchronization...")
+        print(f"Target track: {self.track}")
+        print(f"Target version: {target_version}")
         print(f"Stable version: {self.registry['versions']['stable']}")
         print(f"Development version: {self.registry['versions']['development']}")
         print()
@@ -261,11 +272,25 @@ class VersionSync:
 
 def main():
     """Main execution function."""
-    if len(sys.argv) > 1 and sys.argv[1] == "--dry-run":
+    track = "stable"  # Default to stable
+    dry_run = False
+    
+    # Parse command line arguments
+    for arg in sys.argv[1:]:
+        if arg == "--dry-run":
+            dry_run = True
+        elif arg == "--development":
+            track = "development"
+        elif arg == "--stable":
+            track = "stable"
+        elif arg.startswith("--track="):
+            track = arg.split("=")[1]
+    
+    if dry_run:
         print("🔍 Dry run mode - no files will be modified")
         return
     
-    sync = VersionSync()
+    sync = VersionSync(track=track)
     success = sync.sync_all()
     
     sys.exit(0 if success else 1)

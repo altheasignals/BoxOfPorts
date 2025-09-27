@@ -121,8 +121,8 @@ jobs:
         print(f"✅ Updated development version in registry: {new_version}")
         EOF
         
-        # Sync all files with the registry
-        python3 scripts/version_sync.py
+        # Sync all files with the registry using development track
+        python3 scripts/version_sync.py --development
         
     - name: "📝 Commit and push version bump"
       if: steps.check.outputs.skip == 'false'
