@@ -1,6 +1,6 @@
 """Version information for BoxOfPorts."""
 
-__version__ = "1.2.4"
+__version__ = "1.2.5"
 __title__ = "BoxOfPorts"
 __command__ = "boxofports"
 __description__ = "SMS Gateway Management CLI for EJOIN Router Operators"

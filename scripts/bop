@@ -498,7 +498,7 @@ handle_special_commands() {
                 local bop_version
                 bop_version=$(get_current_bop_version)
                 
-                echo "bop (Docker wrapper) v1.2.4"
+                echo "bop (Docker wrapper) v1.2.5"
                 echo "BoxOfPorts container version: $version"
                 echo "Docker image: ${DOCKER_IMAGE}:${tag}"
                 echo "Release track: $track"
