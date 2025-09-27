@@ -1,12 +1,12 @@
 {
   "_meta": {
     "description": "Central version registry for BoxOfPorts",
-    "updated": "2025-09-27T12:15:58.527093+00:00",
+    "updated": "2025-09-27T12:53:31.364145+00:00",
     "managed_by": "version_sync.py script and GitHub workflows"
   },
   "versions": {
     "stable": "1.2.0",
-    "development": "1.2.3",
+    "development": "",
     "api": "2.2"
   },
   "release_info": {
@@ -48,7 +48,7 @@
     }
   },
   "bop_wrapper": {
-    "version": "1.2.3",
+    "version": "",
     "description": "Docker wrapper for BoxOfPorts with dual-track support and auto-updates"
   }
 }

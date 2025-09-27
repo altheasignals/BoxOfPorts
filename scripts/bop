@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bop (Docker wrapper) v1.2.3
+# bop (Docker wrapper) v
 
 # bop - Docker wrapper for BoxOfPorts CLI
 # "When the music never stops... the container keeps running"
@@ -498,7 +498,7 @@ handle_special_commands() {
                 local bop_version
                 bop_version=$(get_current_bop_version)
                 
-                echo "bop (Docker wrapper) v1.2.3"
+                echo "bop (Docker wrapper) v"
                 echo "BoxOfPorts container version: $version"
                 echo "Docker image: ${DOCKER_IMAGE}:${tag}"
                 echo "Release track: $track"
