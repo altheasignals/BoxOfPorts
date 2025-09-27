@@ -341,9 +341,9 @@ run_boxofports() {
         fi
     done
     
-    # Execute boxofports with all passed arguments
+    # Execute boxofports with all passed arguments (entrypoint handles the boxofports command)
     log_info "Running boxofports..."
-    exec docker run "${docker_args[@]}" "${DOCKER_IMAGE}:${docker_tag}" boxofports "$@"
+    exec docker run "${docker_args[@]}" "${DOCKER_IMAGE}:${docker_tag}" "$@"
 }
 
 # Handle special bop commands
