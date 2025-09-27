@@ -1,0 +1,54 @@
+{
+  "_meta": {
+    "description": "Central version registry for BoxOfPorts",
+    "updated": "2025-09-27T12:15:58.527093+00:00",
+    "managed_by": "version_sync.py script and GitHub workflows"
+  },
+  "versions": {
+    "stable": "1.2.0",
+    "development": "1.2.3",
+    "api": "2.2"
+  },
+  "release_info": {
+    "stable": {
+      "version": "1.2.0",
+      "track": "stable",
+      "docker_tag": "stable",
+      "git_tag": "v1.2.0",
+      "released": "2025-01-26T00:00:00Z",
+      "notes": "Production-ready stable release"
+    },
+    "development": {
+      "version": "1.2.3",
+      "track": "dev",
+      "docker_tag": "latest",
+      "git_tag": "v1.2.3",
+      "released": "2025-09-27T12:00:00Z",
+      "notes": "Development release with bop wrapper improvements and volume mount fixes"
+    }
+  },
+  "constants": {
+    "title": "BoxOfPorts",
+    "command": "boxofports",
+    "description": "SMS Gateway Management CLI for EJOIN Router Operators",
+    "author": "Althea Signals Network LLC",
+    "author_email": "support@altheasignals.net",
+    "url": "https://altheasignals.net",
+    "license": "Proprietary",
+    "build_date": "2025-01-26",
+    "python_requires": ">=3.11",
+    "inspiration": "And it's just a box of ports. I don't know who put it there"
+  },
+  "docker": {
+    "registry": "docker.io",
+    "image_name": "altheasignals/boxofports",
+    "tags": {
+      "stable": "stable",
+      "development": "latest"
+    }
+  },
+  "bop_wrapper": {
+    "version": "1.2.3",
+    "description": "Docker wrapper for BoxOfPorts with dual-track support and auto-updates"
+  }
+}

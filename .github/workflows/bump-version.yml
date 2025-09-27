@@ -120,23 +120,37 @@ jobs:
             f.write(f"track={track}\n")
         EOF
         
-    - name: "📝 Update version in pyproject.toml"
+    - name: "📝 Update version registry and sync all files"
       if: ${{ github.event.inputs.dry_run != 'true' }}
       run: |
         python << 'EOF'
-        import tomlkit
+        # First update the registry
+        import json
+        from datetime import datetime, timezone
         
-        # Read and update pyproject.toml
-        with open('pyproject.toml', 'r') as f:
-            data = tomlkit.load(f)
+        registry_file = 'version_registry.json'
+        with open(registry_file, 'r') as f:
+            registry = json.load(f)
             
-        data['project']['version'] = "${{ steps.version.outputs.new_version }}"
+        new_version = "${{ steps.version.outputs.new_version }}"
+        is_stable = "${{ steps.version.outputs.is_stable }}" == "true"
+        track = "${{ steps.version.outputs.track }}"
         
-        with open('pyproject.toml', 'w') as f:
-            tomlkit.dump(data, f)
+        if is_stable:
+            registry['versions']['stable'] = new_version
+        else:
+            registry['versions']['development'] = new_version
             
-        print("✅ Updated pyproject.toml")
+        registry['_meta']['updated'] = datetime.now(timezone.utc).isoformat()
+        
+        with open(registry_file, 'w') as f:
+            json.dump(registry, f, indent=2)
+            
+        print(f"✅ Updated version registry: {track} → {new_version}")
         EOF
+        
+        # Now sync all files with the registry
+        python3 scripts/version_sync.py
         
     - name: "🔍 Show changes (dry run)"
       if: ${{ github.event.inputs.dry_run == 'true' }}
@@ -153,10 +167,18 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action [bump-version]"
-        git add pyproject.toml
-        git commit -m "chore(version): bump to ${{ steps.version.outputs.new_version }}"
+        git add version_registry.json pyproject.toml boxofports/ Dockerfile docker/ scripts/
+        git commit -m "chore(version): bump to ${{ steps.version.outputs.new_version }}
+        
+        ✨ Synchronized all version references across the codebase
+        - Updated version registry: ${{ steps.version.outputs.track }} → ${{ steps.version.outputs.new_version }}
+        - Python package files aligned
+        - Docker labels updated
+        - Wrapper versions consistent
+        
+        🎵 The harmony flows through every file..."
         git push
-        echo "🎵 Version bumped and committed to main"
+        echo "🎵 Version bumped and all files synchronized"
         
     - name: "🎯 Create and push Git tag"
       if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.create_tag == 'true' && github.event.inputs.make_pr != 'true' }}

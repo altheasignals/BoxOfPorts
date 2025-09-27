@@ -1,0 +1,241 @@
+name: "Promote Any Version to Stable"
+# "Sometimes the perfect song isn't the one that follows the rules"
+# Promote any development version to stable, then bump dev to next version
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_version:
+        description: 'Version to promote to stable (leave empty to use current dev version)'
+        required: false
+        type: string
+      auto_bump_dev:
+        description: 'Automatically bump dev version after promotion'
+        required: false
+        default: true
+        type: boolean
+      dry_run:
+        description: 'Dry run - show what would be done without making changes'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: altheasignals/boxofports
+
+jobs:
+  promote-to-stable:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      
+    steps:
+    - name: "🌈 Checkout the magnificent codebase"
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: "🎭 Set up Python environment"
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: "🎯 Determine source version"
+      id: source
+      run: |
+        # Load version registry
+        CURRENT_DEV=$(python3 -c "import json; print(json.load(open('version_registry.json'))['versions']['development'])")
+        CURRENT_STABLE=$(python3 -c "import json; print(json.load(open('version_registry.json'))['versions']['stable'])")
+        
+        if [[ -n "${{ github.event.inputs.source_version }}" ]]; then
+          SOURCE_VERSION="${{ github.event.inputs.source_version }}"
+          echo "🎯 Using specified version: $SOURCE_VERSION"
+        else
+          SOURCE_VERSION="$CURRENT_DEV"
+          echo "🎯 Using current development version: $SOURCE_VERSION"
+        fi
+        
+        echo "source_version=$SOURCE_VERSION" >> $GITHUB_OUTPUT
+        echo "current_stable=$CURRENT_STABLE" >> $GITHUB_OUTPUT
+        echo "current_dev=$CURRENT_DEV" >> $GITHUB_OUTPUT
+        
+        # Validate version format
+        if [[ ! "$SOURCE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "❌ Invalid version format: $SOURCE_VERSION"
+          exit 1
+        fi
+        
+        echo "✅ Source version validated: $SOURCE_VERSION"
+        
+    - name: "🔍 Verify source image exists"
+      run: |
+        echo "🔍 Checking if source image exists: ${IMAGE_NAME}:${{ steps.source.outputs.source_version }}"
+        
+        if docker buildx imagetools inspect "${IMAGE_NAME}:${{ steps.source.outputs.source_version }}" >/dev/null 2>&1; then
+          echo "✅ Source image found: ${IMAGE_NAME}:${{ steps.source.outputs.source_version }}"
+        else
+          echo "❌ Source image not found: ${IMAGE_NAME}:${{ steps.source.outputs.source_version }}"
+          echo "💡 Make sure the version has been built and published first"
+          exit 1
+        fi
+        
+    - name: "🔍 Show promotion plan"
+      run: |
+        echo "🎵 Promotion Plan:"
+        echo "  Current stable: ${{ steps.source.outputs.current_stable }}"
+        echo "  Current dev:    ${{ steps.source.outputs.current_dev }}"
+        echo "  Promoting:      ${{ steps.source.outputs.source_version }} → stable"
+        
+        if [[ "${{ github.event.inputs.auto_bump_dev }}" == "true" ]]; then
+          # Calculate next dev version
+          VERSION="${{ steps.source.outputs.source_version }}"
+          IFS='.' read -ra PARTS <<< "$VERSION"
+          MAJOR=${PARTS[0]}
+          MINOR=${PARTS[1]}
+          PATCH=${PARTS[2]}
+          NEW_DEV_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          echo "  New dev version: $NEW_DEV_VERSION"
+          echo "new_dev_version=$NEW_DEV_VERSION" >> $GITHUB_OUTPUT
+        else
+          echo "  Dev version: (unchanged)"
+        fi
+        
+        if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+          echo "🔍 DRY RUN - No changes will be made"
+        fi
+        
+    - name: "🐳 Set up Docker Buildx"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      uses: docker/setup-buildx-action@v3
+      
+    - name: "🔑 Login to DockerHub"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: "🏷️ Update version registry"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      run: |
+        echo "📝 Updating version registry..."
+        
+        python3 << 'EOF'
+        import json
+        from datetime import datetime, timezone
+        
+        # Load registry
+        with open('version_registry.json', 'r') as f:
+            registry = json.load(f)
+        
+        # Update stable version
+        old_stable = registry['versions']['stable']
+        new_stable = "${{ steps.source.outputs.source_version }}"
+        registry['versions']['stable'] = new_stable
+        registry['release_info']['stable']['version'] = new_stable
+        registry['release_info']['stable']['released'] = datetime.now(timezone.utc).isoformat()
+        registry['release_info']['stable']['notes'] = f"Promoted from development version {new_stable}"
+        
+        # Update dev version if requested
+        if "${{ github.event.inputs.auto_bump_dev }}" == "true":
+            new_dev = "${{ steps.source.outputs.new_dev_version }}"
+            registry['versions']['development'] = new_dev
+            registry['release_info']['development']['version'] = new_dev  
+            registry['release_info']['development']['released'] = datetime.now(timezone.utc).isoformat()
+            registry['release_info']['development']['notes'] = f"Auto-bumped after promoting {new_stable} to stable"
+            print(f"📝 Updated development version: {new_dev}")
+        
+        # Update metadata
+        registry['_meta']['updated'] = datetime.now(timezone.utc).isoformat()
+        
+        # Save registry
+        with open('version_registry.json', 'w') as f:
+            json.dump(registry, f, indent=2)
+            
+        print(f"✅ Updated registry: stable {old_stable} → {new_stable}")
+        EOF
+        
+        # Sync all files with new versions
+        python3 scripts/version_sync.py
+        
+    - name: "🏷️ Promote Docker stable tag"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      run: |
+        echo "🎵 Promoting Docker stable tag..."
+        
+        # Use retag script for consistent behavior
+        ./scripts/retag_by_digest.sh \
+          "${IMAGE_NAME}:${{ steps.source.outputs.source_version }}" \
+          "${IMAGE_NAME}:stable"
+          
+        echo "✅ Successfully promoted ${{ steps.source.outputs.source_version }} to stable Docker tag"
+        
+    - name: "📝 Commit changes"
+      if: ${{ github.event.inputs.dry_run != 'true' }}
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action [promote-stable]"
+        
+        git add version_registry.json boxofports/ pyproject.toml Dockerfile docker/ scripts/
+        
+        COMMIT_MSG="feat(release): promote ${{ steps.source.outputs.source_version }} to stable
+        
+        🎉 Stable release promotion complete!
+        - Promoted version: ${{ steps.source.outputs.source_version }} → stable
+        - Docker tag 'stable' now points to ${{ steps.source.outputs.source_version }}
+        - All version files synchronized"
+        
+        if [[ "${{ github.event.inputs.auto_bump_dev }}" == "true" ]]; then
+          COMMIT_MSG="$COMMIT_MSG
+        - Development version bumped: ${{ steps.source.outputs.new_dev_version }}"
+        fi
+        
+        COMMIT_MSG="$COMMIT_MSG
+        
+        🌊 The stable current flows to a new destination..."
+        
+        git commit -m "$COMMIT_MSG"
+        git push
+        
+    - name: "🎯 Create Git tag for new dev version"
+      if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.auto_bump_dev == 'true' }}
+      run: |
+        NEW_DEV_TAG="v${{ steps.source.outputs.new_dev_version }}"
+        echo "🏷️ Creating tag for new development version: $NEW_DEV_TAG"
+        
+        git tag -a "$NEW_DEV_TAG" -m "Development version ${{ steps.source.outputs.new_dev_version }}
+        
+        Auto-created after promoting ${{ steps.source.outputs.source_version }} to stable.
+        This tag will trigger the publish workflow to build the new dev version."
+        
+        git push origin "$NEW_DEV_TAG"
+        echo "✅ Created and pushed tag: $NEW_DEV_TAG"
+        
+    - name: "🎉 Summary"
+      run: |
+        echo "🎵 Promote to Stable workflow completed!"
+        echo ""
+        
+        if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+          echo "🔍 DRY RUN - No changes made"
+          echo "  Would promote: ${{ steps.source.outputs.source_version }} → stable"
+          if [[ "${{ github.event.inputs.auto_bump_dev }}" == "true" ]]; then
+            echo "  Would bump dev: ${{ steps.source.outputs.new_dev_version }}"
+          fi
+        else
+          echo "✅ PROMOTION COMPLETED"
+          echo "  Promoted to stable: ${{ steps.source.outputs.source_version }}"
+          echo "  Docker stable tag updated: ${IMAGE_NAME}:stable"
+          
+          if [[ "${{ github.event.inputs.auto_bump_dev }}" == "true" ]]; then
+            echo "  New dev version: ${{ steps.source.outputs.new_dev_version }}"
+            echo "  🚀 New dev version will be built automatically"
+          fi
+        fi
+        
+        echo ""
+        echo "🌊 Users on stable track will now receive: ${{ steps.source.outputs.source_version }}"
+        echo "🎼 The music flows to its intended destination..."

@@ -36,7 +36,7 @@ No more surprise version bumps! All releases are **intentional and controlled**.
 **Location**: GitHub Actions → "Version Bump" workflow
 
 **Options**:
-- `dev-patch`: 1.2.0 → 1.2.1 (development increment)
+- `dev-patch`: 1.2.0 → 1.2.3 (development increment)
 - `minor`: 1.2.3 → 1.3.0 (new stable release)  
 - `major`: 1.3.2 → 2.0.0 (breaking changes)
 - `set-exact`: Specify exact version (e.g., 1.2.5)
@@ -135,7 +135,7 @@ BOP_RELEASE_TRACK=dev bop --version
 If stable track resolves to a non-X.Y.0 version, bop shows a helpful error:
 
 ```bash
-❌ The wheel is turning but you can't slow down — stable track expects X.Y.0, but got 1.2.1.
+❌ The wheel is turning but you can't slow down — stable track expects X.Y.0, but got 1.2.3.
 💡 Try: BOP_RELEASE_TRACK=dev bop [command] or set release_track=dev in ~/.boxofports/bop.conf
 ```
 
@@ -144,7 +144,7 @@ If stable track resolves to a non-X.Y.0 version, bop shows a helpful error:
 ### Creating a Development Release
 
 1. **Bump version**: Run "Version Bump" workflow with `dev-patch` mode
-   - Creates version like 1.2.1, 1.2.2, etc.
+   - Creates version like 1.2.3, 1.2.2, etc.
    - Automatically creates and pushes Git tag
 2. **Automatic build**: Publish workflow triggers automatically
    - Builds and pushes Docker images

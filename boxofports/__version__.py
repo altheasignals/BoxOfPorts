@@ -3,7 +3,7 @@
 __version__ = "1.2.0"
 __title__ = "BoxOfPorts"
 __command__ = "boxofports"
-__description__ = "SMS Gateway Management CLI for EJOIN Multi-WAN Router Operators"
+__description__ = "SMS Gateway Management CLI for EJOIN Router Operators"
 __author__ = "Althea Signals Network LLC"
 __author_email__ = "support@altheasignals.net"
 __url__ = "https://altheasignals.net"
