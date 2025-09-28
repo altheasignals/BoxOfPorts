@@ -27,6 +27,8 @@ jobs:
     steps:
     - name: "🌈 Checkout the magnificent codebase"
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/v{0}', github.event.inputs.version) || github.ref }}
       
     - name: "🏷️ Parse version from tag or input"
       id: version
