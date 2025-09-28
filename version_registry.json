@@ -1,7 +1,7 @@
 {
   "_meta": {
     "description": "Central version registry for BoxOfPorts",
-    "updated": "2025-09-28T01:35:59.605320+00:00",
+    "updated": "2025-09-28T02:18:28.185886+00:00",
     "managed_by": "version_sync.py script and GitHub workflows"
   },
   "versions": {
@@ -15,7 +15,7 @@
       "track": "stable",
       "docker_tag": "stable",
       "git_tag": "v1.2.0",
-      "released": "2025-09-28T01:27:04.132700+00:00",
+      "released": "2025-09-28T01:43:07.293076+00:00",
       "notes": "Production-ready stable release"
     },
     "development": {

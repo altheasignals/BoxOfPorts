@@ -9,9 +9,78 @@ Usage: python3 scripts/update_version_registry.py [--stable VERSION] [--dev VERS
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+def promote_github_release(version):
+    """Promote a GitHub release from prerelease to stable (non-prerelease)."""
+    print(f"🏷️ Attempting to promote GitHub release v{version} to stable...")
+    
+    # Check if GITHUB_TOKEN is available
+    github_token = os.environ.get('GITHUB_TOKEN')
+    if not github_token:
+        print("⚠️  No GITHUB_TOKEN found - skipping GitHub release promotion")
+        print("   To enable GitHub release promotion, set GITHUB_TOKEN environment variable")
+        return True  # Not a failure, just skip
+    
+    try:
+        # First, check if the release exists
+        check_cmd = [
+            'curl', '-s', '-H', f'Authorization: token {github_token}',
+            f'https://api.github.com/repos/altheasignals/boxofports/releases/tags/v{version}'
+        ]
+        
+        result = subprocess.run(check_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"❌ Failed to check GitHub release: {result.stderr}")
+            return False
+            
+        release_data = json.loads(result.stdout)
+        if 'id' not in release_data:
+            print(f"❌ No GitHub release found for v{version}")
+            print(f"   Make sure the tag v{version} has been pushed and release created")
+            return False
+            
+        release_id = release_data['id']
+        current_prerelease = release_data.get('prerelease', True)
+        
+        if not current_prerelease:
+            print(f"✅ Release v{version} is already marked as stable (non-prerelease)")
+            return True
+            
+        # Update the release to set prerelease: false
+        update_cmd = [
+            'curl', '-s', '-X', 'PATCH',
+            '-H', f'Authorization: token {github_token}',
+            '-H', 'Content-Type: application/json',
+            f'https://api.github.com/repos/altheasignals/boxofports/releases/{release_id}',
+            '-d', json.dumps({'prerelease': False})
+        ]
+        
+        result = subprocess.run(update_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"❌ Failed to update GitHub release: {result.stderr}")
+            return False
+            
+        updated_data = json.loads(result.stdout)
+        if updated_data.get('prerelease') == False:
+            print(f"✅ Successfully promoted GitHub release v{version} to stable")
+            print(f"   Release is now available via GitHub's /releases/latest API")
+            return True
+        else:
+            print(f"❌ Failed to update release prerelease status")
+            return False
+            
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse GitHub API response: {e}")
+        return False
+    except Exception as e:
+        print(f"❌ Unexpected error promoting GitHub release: {e}")
+        return False
 
 
 def update_registry(stable_version=None, dev_version=None, sync_only=False):
@@ -44,6 +113,12 @@ def update_registry(stable_version=None, dev_version=None, sync_only=False):
         registry["release_info"]["stable"]["version"] = stable_version
         registry["release_info"]["stable"]["released"] = datetime.now(timezone.utc).isoformat()
         changes_made = True
+        
+        # Also promote the corresponding GitHub release
+        print("\n🔄 Promoting corresponding GitHub release...")
+        github_success = promote_github_release(stable_version)
+        if not github_success:
+            print("⚠️  GitHub release promotion failed, but registry update will continue")
     
     if dev_version:
         print(f"📝 Updating development version: {current_dev} → {dev_version}")
