@@ -1,186 +1,168 @@
-name: "Auto-Bump Version"
-# "Every little thing gonna be alright" - automatic version increment on every push
-# This ensures development version always advances with each commit
+name: auto-bump-version
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths-ignore:
       - 'docs/**'
-      - '.github/**'
+      - '**/*.md'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Bump type: patch | minor | major'
+        required: false
+        default: 'patch'
+      base:
+        description: 'Override base version (e.g., 1.2.10). When set, skips Docker/tag detection.'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-bump-version
+  cancel-in-progress: false
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: altheasignals/boxofports
+  DOCKER_REF: docker.io/altheasignals/boxofports:latest
 
 jobs:
-  auto-bump:
+  bump:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      
     steps:
-    - name: "🌈 Checkout the magnificent codebase"
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: "🎭 Set up Python environment"
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        
-    - name: "📦 Install dependencies"
-      run: |
-        python -m pip install --upgrade pip
-        pip install tomlkit
-        
-    - name: "🔍 Check if version bump is needed"
-      id: check
-      run: |
-        # Skip if commit message contains [skip version]
-        if git log -1 --pretty=%B | grep -q '\[skip version\]'; then
-          echo "skip=true" >> $GITHUB_OUTPUT
-          echo "Skipping version bump - [skip version] found in commit message"
-          exit 0
-        fi
-        
-        # Skip if commit is a version bump itself
-        if git log -1 --pretty=%B | grep -q '^chore(version): bump to'; then
-          echo "skip=true" >> $GITHUB_OUTPUT
-          echo "Skipping version bump - this is already a version bump commit"
-          exit 0
-        fi
-        
-        echo "skip=false" >> $GITHUB_OUTPUT
-        echo "Version bump needed"
-        
-    - name: "🔢 Calculate new development version"
-      id: version
-      if: steps.check.outputs.skip == 'false'
-      run: |
-        python3 << 'EOF'
-        import json
-        import sys
-        import re
-        import os
-        
-        # Load current version from version registry
-        with open('version_registry.json', 'r') as f:
-            registry = json.load(f)
-        
-        current_dev_version = registry['versions']['development']
-        print(f"Current development version: {current_dev_version}")
-        
-        # Handle empty version by defaulting to stable version
-        if not current_dev_version or current_dev_version.strip() == "":
-            current_dev_version = registry['versions']['stable']
-            print(f"Using stable version as base: {current_dev_version}")
-        
-        # Parse version parts
-        version_match = re.match(r'^(\d+)\.(\d+)\.(\d+)$', current_dev_version)
-        if not version_match:
-            print(f"ERROR: Invalid version format: {current_dev_version}")
-            sys.exit(1)
-            
-        major, minor, patch = map(int, version_match.groups())
-        
-        # Increment patch version for development
-        new_version = f"{major}.{minor}.{patch + 1}"
-        print(f"New development version: {new_version}")
-        
-        # Set outputs using environment file
-        github_output = os.environ.get('GITHUB_OUTPUT')
-        if github_output:
-            with open(github_output, 'a') as f:
-                f.write(f"current_version={current_dev_version}\n")
-                f.write(f"new_version={new_version}\n")
-                f.write(f"tag=v{new_version}\n")
-            print(f"Set GitHub outputs: current={current_dev_version}, new={new_version}, tag=v{new_version}")
-        else:
-            print("ERROR: GITHUB_OUTPUT environment variable not found")
-            sys.exit(1)
-        EOF
-        
-    - name: "📝 Update version registry and sync all files"
-      if: steps.check.outputs.skip == 'false'
-      run: |
-        python << 'EOF'
-        import json
-        from datetime import datetime, timezone
-        
-        # Update development version in registry
-        with open('version_registry.json', 'r') as f:
-            registry = json.load(f)
-            
-        new_version = "${{ steps.version.outputs.new_version }}"
-        registry['versions']['development'] = new_version
-        registry['_meta']['updated'] = datetime.now(timezone.utc).isoformat()
-        
-        with open('version_registry.json', 'w') as f:
-            json.dump(registry, f, indent=2)
-            
-        print(f"✅ Updated development version in registry: {new_version}")
-        EOF
-        
-        # Sync all files with the registry using development track
-        python3 scripts/version_sync.py --development
-        
-    - name: "📝 Commit and push version bump"
-      if: steps.check.outputs.skip == 'false'
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action [auto-bump]"
-        
-        # Add all changed files
-        git add version_registry.json pyproject.toml boxofports/ Dockerfile scripts/ docs/
-        
-        # Check if there are actually changes to commit
-        if git diff --cached --quiet; then
-          echo "No version changes detected, skipping commit"
-          exit 0
-        fi
-        
-        git commit -m "chore(version): auto-bump development to ${{ steps.version.outputs.new_version }}
-        
-        🔄 Automatic version increment on push
-        - Updated version registry: development → ${{ steps.version.outputs.new_version }}
-        - Synchronized all files with new development version
-        - Ready for tag creation and Docker image build
-        
-        🎵 Keep on truckin'... the development train rolls on"
-        
-        git push
-        echo "🎵 Development version auto-bumped to ${{ steps.version.outputs.new_version }}"
-        
-    - name: "🏷️ Create and push development tag"
-      if: steps.check.outputs.skip == 'false'
-      run: |
-        git tag -a "${{ steps.version.outputs.tag }}" -m "Development release ${{ steps.version.outputs.new_version }}
-        
-        🔄 Auto-generated development release
-        - Incremented from ${{ steps.version.outputs.current_version }}
-        - Contains latest changes from main branch
-        - Will trigger Docker image build for 'latest' tag"
-        
-        git push origin "${{ steps.version.outputs.tag }}"
-        echo "🏷️ Created and pushed development tag: ${{ steps.version.outputs.tag }}"
-        
-    - name: "🎉 Summary"
-      if: steps.check.outputs.skip == 'false'
-      run: |
-        echo "🎵 Auto-bump completed successfully!"
-        echo "  Previous: ${{ steps.version.outputs.current_version }}"
-        echo "  New: ${{ steps.version.outputs.new_version }}"
-        echo "  Tag: ${{ steps.version.outputs.tag }}"
-        echo ""
-        echo "🚀 This tag will trigger:"
-        echo "  • Docker image build with tag: latest"
-        echo "  • Version sync across all files"
-        echo "  • Available for dev track users immediately"
-        echo ""
-        echo "🌊 The development river keeps flowing..."
-        
-    - name: "ℹ️ Skipped"
-      if: steps.check.outputs.skip == 'true'
-      run: |
-        echo "🎵 Auto-bump skipped"
-        echo "Reason: Version bump not needed for this commit"
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Capture commit message
+        id: msg
+        run: |
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "${{ github.event.head_commit.message }}" >> $GITHUB_OUTPUT || true
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Respect [skip version]
+        id: skipcheck
+        run: |
+          msg="${{ steps.msg.outputs.message }}"
+          if echo "$msg" | grep -qi '\[skip version\]'; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Commit requests to skip version bump. Exiting."
+            exit 0
+          fi
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+      - name: Determine bump type
+        id: bumptype
+        if: steps.skipcheck.outputs.skip == 'false'
+        run: |
+          bump="${{ github.event.inputs.bump }}"
+          msg="${{ steps.msg.outputs.message }}"
+          if [ -z "$bump" ] || [ "$bump" = "patch" ]; then
+            if echo "$msg" | grep -qi 'bump:major'; then bump="major"; fi
+            if echo "$msg" | grep -qi 'bump:minor'; then bump="minor"; fi
+            [ -z "$bump" ] && bump="patch"
+          fi
+          case "$bump" in
+            major|minor|patch) echo "bump=$bump" >> $GITHUB_OUTPUT ;;
+            *) echo "Invalid bump type '$bump'"; exit 1 ;;
+          esac
+          echo "Using bump type: $bump"
+
+      - name: Install tools
+        if: steps.skipcheck.outputs.skip == 'false'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq skopeo
+
+      - name: Read Docker :latest version label
+        id: dockerver
+        if: steps.skipcheck.outputs.skip == 'false' && github.event.inputs.base == ''
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -n "$DH_USER" ] && [ -n "$DH_TOKEN" ]; then
+            AUTH="--creds ${DH_USER}:${DH_TOKEN}"
+          else
+            AUTH=""
+          fi
+          version=""
+          if skopeo inspect $AUTH docker://${{ env.DOCKER_REF }} > /tmp/ins.json 2>/dev/null; then
+            version=$(jq -r '.Labels["org.opencontainers.image.version"] // .Labels["io.boxofports.version"] // empty' /tmp/ins.json)
+          fi
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Fallback to latest semver git tag (vX.Y.Z)
+        id: gittag
+        if: steps.skipcheck.outputs.skip == 'false' && github.event.inputs.base == '' && steps.dockerver.outputs.version == ''
+        run: |
+          git fetch --tags --force
+          latest_tag=$(git tag -l "v[0-9]*.[0-9]*.[0-9]*" | sort -V | tail -n1)
+          if [ -n "$latest_tag" ]; then
+            echo "version=${latest_tag#v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=0.0.0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Select base version
+        id: base
+        if: steps.skipcheck.outputs.skip == 'false'
+        run: |
+          manual="${{ github.event.inputs.base }}"
+          docker_v="${{ steps.dockerver.outputs.version }}"
+          git_v="${{ steps.gittag.outputs.version }}"
+          if [ -n "$manual" ]; then base="$manual"
+          elif [ -n "$docker_v" ]; then base="$docker_v"
+          elif [ -n "$git_v" ]; then base="$git_v"
+          else base="0.0.0"
+          fi
+          echo "version=$base" >> $GITHUB_OUTPUT
+          echo "Base version: $base"
+
+      - name: Compute next version
+        id: nextver
+        if: steps.skipcheck.outputs.skip == 'false'
+        run: |
+          python3 - << 'PY'
+import os, re, sys
+base = os.environ.get("BASE") or ""
+bump = os.environ.get("BUMP") or "patch"
+m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', base)
+if not m:
+    print(f"::error::Base version '{base}' is not valid X.Y.Z")
+    sys.exit(1)
+major, minor, patch = map(int, m.groups())
+if bump == "major":
+    major, minor, patch = major+1, 0, 0
+elif bump == "minor":
+    minor, patch = minor+1, 0
+else:
+    patch += 1
+print(f"::set-output name=next::{major}.{minor}.{patch}")
+PY
+        env:
+          BASE: ${{ steps.base.outputs.version }}
+          BUMP: ${{ steps.bumptype.outputs.bump }}
+
+      - name: Export next version
+        if: steps.skipcheck.outputs.skip == 'false'
+        run: echo "NEXT_VERSION=${{ steps.nextver.outputs.next }}" >> $GITHUB_ENV
+
+      - name: Create annotated tag v${{ env.NEXT_VERSION }}
+        if: steps.skipcheck.outputs.skip == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          tag="v${NEXT_VERSION}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists. Nothing to do."
+            exit 0
+          fi
+          git tag -a "$tag" -m "ci: auto-bump to ${NEXT_VERSION}"
+          git push origin "$tag"
+          echo "Created and pushed tag $tag"

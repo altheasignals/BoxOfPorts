@@ -1,233 +1,285 @@
-name: "Version Bump"
-# "Sometimes the light's all shinin' on me, other times I can barely see"
-# Manual version control - no surprises, just intentional releases
+name: bump-version
 
 on:
   workflow_dispatch:
     inputs:
-      mode:
-        description: 'Version bump mode'
+      track:
+        description: "Which track to bump: dev or stable"
         required: true
-        default: 'dev-patch'
+        default: "dev"
         type: choice
-        options:
-        - dev-patch
-        - minor
-        - major
-        - set-exact
-      exact_version:
-        description: 'Exact version (only used if mode is set-exact)'
+        options: [dev, stable]
+      bump:
+        description: "Bump type when computing next version"
         required: false
-        type: string
-      create_tag:
-        description: 'Create and push Git tag'
+        default: "patch"
+        type: choice
+        options: [patch, minor, major]
+      base:
+        description: "Override base version (X.Y.Z). If set, skips detection."
         required: false
-        default: true
-        type: boolean
-      make_pr:
-        description: 'Create PR instead of direct commit'
+      next_version:
+        description: "Explicit next version (X.Y.Z). If set, skips bump calculation."
         required: false
-        default: false
-        type: boolean
-      dry_run:
-        description: 'Dry run - show what would be done'
+      promote_stable_now:
+        description: "When track=stable: after tagging, retag :stable to this version"
         required: false
-        default: false
-        type: boolean
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+      flip_release:
+        description: "When promoting: flip GitHub Release to non-prerelease"
+        required: false
+        default: "true"
+        type: choice
+        options: ["false", "true"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump-version
+  cancel-in-progress: false
+
+env:
+  IMAGE: docker.io/altheasignals/boxofports
 
 jobs:
-  bump-version:
+  bump:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    
     steps:
-    - name: "🌈 Checkout the magnificent codebase"
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: "🎭 Set up Python environment"  
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        
-    - name: "📦 Install dependencies"
-      run: |
-        python -m pip install --upgrade pip
-        pip install tomlkit
-        
-    - name: "🔢 Calculate target version"
-      id: version
-      run: |
-        python << 'EOF'
-        import tomllib
-        import sys
-        import re
-        
-        # Read current version
-        with open('pyproject.toml', 'rb') as f:
-            data = tomllib.load(f)
-        current_version = data['project']['version']
-        print(f"Current version: {current_version}")
-        
-        # Parse version parts
-        version_match = re.match(r'^(\d+)\.(\d+)\.(\d+)$', current_version)
-        if not version_match:
-            print(f"ERROR: Invalid version format: {current_version}")
-            sys.exit(1)
-            
-        major, minor, patch = map(int, version_match.groups())
-        
-        # Calculate new version based on mode
-        mode = "${{ github.event.inputs.mode }}"
-        
-        if mode == "dev-patch":
-            new_version = f"{major}.{minor}.{patch + 1}"
-        elif mode == "minor":
-            new_version = f"{major}.{minor + 1}.0"
-        elif mode == "major":
-            new_version = f"{major + 1}.0.0"
-        elif mode == "set-exact":
-            exact = "${{ github.event.inputs.exact_version }}"
-            if not exact:
-                print("ERROR: exact_version is required when mode is set-exact")
-                sys.exit(1)
-            # Validate exact version format
-            if not re.match(r'^\d+\.\d+\.\d+$', exact):
-                print(f"ERROR: Invalid exact version format: {exact}")
-                sys.exit(1)
-            new_version = exact
-        else:
-            print(f"ERROR: Unknown mode: {mode}")
-            sys.exit(1)
-            
-        print(f"Target version: {new_version}")
-        
-        # Set outputs
-        with open('$GITHUB_OUTPUT', 'a') as f:
-            f.write(f"current_version={current_version}\n")
-            f.write(f"new_version={new_version}\n")
-            f.write(f"tag=v{new_version}\n")
-            
-        # Classify version
-        is_stable = new_version.endswith('.0')
-        track = "stable" if is_stable else "dev"
-        with open('$GITHUB_OUTPUT', 'a') as f:
-            f.write(f"is_stable={str(is_stable).lower()}\n")
-            f.write(f"track={track}\n")
-        EOF
-        
-    - name: "📝 Update version registry and sync all files"
-      if: ${{ github.event.inputs.dry_run != 'true' }}
-      run: |
-        python << 'EOF'
-        # First update the registry
-        import json
-        from datetime import datetime, timezone
-        
-        registry_file = 'version_registry.json'
-        with open(registry_file, 'r') as f:
-            registry = json.load(f)
-            
-        new_version = "${{ steps.version.outputs.new_version }}"
-        is_stable = "${{ steps.version.outputs.is_stable }}" == "true"
-        track = "${{ steps.version.outputs.track }}"
-        
-        if is_stable:
-            registry['versions']['stable'] = new_version
-        else:
-            registry['versions']['development'] = new_version
-            
-        registry['_meta']['updated'] = datetime.now(timezone.utc).isoformat()
-        
-        with open(registry_file, 'w') as f:
-            json.dump(registry, f, indent=2)
-            
-        print(f"✅ Updated version registry: {track} → {new_version}")
-        EOF
-        
-        # Now sync all files with the registry
-        python3 scripts/version_sync.py
-        
-    - name: "🔍 Show changes (dry run)"
-      if: ${{ github.event.inputs.dry_run == 'true' }}
-      run: |
-        echo "🎵 Dry run mode - would make these changes:"
-        echo "  Current version: ${{ steps.version.outputs.current_version }}"
-        echo "  New version: ${{ steps.version.outputs.new_version }}"
-        echo "  Track: ${{ steps.version.outputs.track }}"
-        echo "  Create tag: ${{ github.event.inputs.create_tag }}"
-        echo "  Make PR: ${{ github.event.inputs.make_pr }}"
-        
-    - name: "📝 Commit version change"
-      if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.make_pr != 'true' }}
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action [bump-version]"
-        git add version_registry.json pyproject.toml boxofports/ Dockerfile docker/ scripts/
-        git commit -m "chore(version): bump to ${{ steps.version.outputs.new_version }}
-        
-        ✨ Synchronized all version references across the codebase
-        - Updated version registry: ${{ steps.version.outputs.track }} → ${{ steps.version.outputs.new_version }}
-        - Python package files aligned
-        - Docker labels updated
-        - Wrapper versions consistent
-        
-        🎵 The harmony flows through every file..."
-        git push
-        echo "🎵 Version bumped and all files synchronized"
-        
-    - name: "🎯 Create and push Git tag"
-      if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.create_tag == 'true' && github.event.inputs.make_pr != 'true' }}
-      run: |
-        git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.new_version }} (${{ steps.version.outputs.track }} track)"
-        git push origin "${{ steps.version.outputs.tag }}"
-        echo "🏷️ Created and pushed tag: ${{ steps.version.outputs.tag }}"
-        
-    - name: "🔀 Create Pull Request"
-      if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.make_pr == 'true' }}
-      uses: peter-evans/create-pull-request@v5
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "chore(version): bump to ${{ steps.version.outputs.new_version }}"
-        title: "🔖 Version bump: ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.new_version }}"
-        body: |
-          ## Version Bump: ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.new_version }}
-          
-          *"The music never stopped playing..."* 🎵
-          
-          ### Changes
-          - **Mode**: `${{ github.event.inputs.mode }}`
-          - **Track**: `${{ steps.version.outputs.track }}`
-          - **Stable release**: ${{ steps.version.outputs.is_stable }}
-          
-          ### Next Steps
-          After merging this PR:
-          1. The new version will be available in `main`
-          2. ${{ github.event.inputs.create_tag == 'true' && 'Create tag manually or re-run workflow to create tag' || 'No tag will be created automatically' }}
-          3. Tag creation will trigger the publish workflow
-          
-          ---
-          
-          *Generated by the bump-version workflow*
-        branch: version-bump-${{ steps.version.outputs.new_version }}
-        delete-branch: true
-        
-    - name: "🎉 Summary"
-      run: |
-        echo "🎵 Version bump workflow completed!"
-        echo "  Mode: ${{ github.event.inputs.mode }}"
-        echo "  Version: ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.new_version }}"
-        echo "  Track: ${{ steps.version.outputs.track }}"
-        echo "  Tag: ${{ steps.version.outputs.tag }}"
-        echo "  Dry run: ${{ github.event.inputs.dry_run }}"
-        echo "  PR mode: ${{ github.event.inputs.make_pr }}"
-        
-        if [[ "${{ github.event.inputs.dry_run }}" != "true" ]]; then
-          if [[ "${{ github.event.inputs.create_tag }}" == "true" && "${{ github.event.inputs.make_pr }}" != "true" ]]; then
-            echo "🚀 Tag created - this will trigger the publish workflow!"
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need tags
+
+      - name: Validate inputs
+        run: |
+          T="${{ github.event.inputs.track }}"
+          case "$T" in
+            dev|stable) ;;
+            *) echo "::error::Invalid track '$T' (use dev|stable)"; exit 1 ;;
+          esac
+          B="${{ github.event.inputs.bump }}"
+          case "$B" in
+            patch|minor|major) ;;
+            "") ;;
+            *) echo "::error::Invalid bump '$B'"; exit 1 ;;
+          esac
+          NV="${{ github.event.inputs.next_version }}"
+          if [ -n "$NV" ] && ! echo "$NV" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid next_version '$NV' (expected X.Y.Z)"; exit 1
           fi
-        fi
+          BV="${{ github.event.inputs.base }}"
+          if [ -n "$BV" ] && ! echo "$BV" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid base '$BV' (expected X.Y.Z)"; exit 1
+          fi
+
+      - name: Install tools (jq + skopeo)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq skopeo
+
+      - name: Detect base from Docker tag (track→tag)
+        id: docker_base
+        if: github.event.inputs.base == '' && github.event.inputs.next_version == ''
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="latest"
+          if [ "${{ github.event.inputs.track }}" = "stable" ]; then TAG="stable"; fi
+
+          AUTH=""
+          if [ -n "$DH_USER" ] && [ -n "$DH_TOKEN" ]; then
+            AUTH="--creds ${DH_USER}:${DH_TOKEN}"
+          fi
+
+          VER=""
+          if skopeo inspect $AUTH docker://${{ env.IMAGE }}:${TAG} > /tmp/ins.json 2>/dev/null; then
+            VER=$(jq -r '.Labels["org.opencontainers.image.version"] // .Labels["io.boxofports.version"] // empty' /tmp/ins.json)
+          fi
+
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "Detected Docker ${TAG} base: ${VER:-<none>}"
+
+      - name: Fallback base to highest semver git tag
+        id: git_base
+        if: github.event.inputs.base == '' && github.event.inputs.next_version == '' && steps.docker_base.outputs.version == ''
+        run: |
+          git fetch --tags --force
+          LATEST=$(git tag -l "v[0-9]*.[0-9]*.[0-9]*" | sort -V | tail -n1)
+          if [ -n "$LATEST" ]; then
+            echo "version=${LATEST#v}" >> $GITHUB_OUTPUT
+            echo "Using fallback git base: ${LATEST#v}"
+          else
+            echo "version=0.0.0" >> $GITHUB_OUTPUT
+            echo "No tags found, using base 0.0.0"
+          fi
+
+      - name: Choose base
+        id: base
+        run: |
+          if [ -n "${{ github.event.inputs.base }}" ]; then
+            BASE="${{ github.event.inputs.base }}"
+          elif [ -n "${{ steps.docker_base.outputs.version }}" ]; then
+            BASE="${{ steps.docker_base.outputs.version }}"
+          elif [ -n "${{ steps.git_base.outputs.version }}" ]; then
+            BASE="${{ steps.git_base.outputs.version }}"
+          else
+            BASE="0.0.0"
+          fi
+          echo "version=$BASE" >> $GITHUB_OUTPUT
+          echo "Base version: $BASE"
+
+      - name: Compute or accept next version
+        id: next
+        run: |
+          if [ -n "${{ github.event.inputs.next_version }}" ]; then
+            NEXT="${{ github.event.inputs.next_version }}"
+            echo "version=$NEXT" >> $GITHUB_OUTPUT
+            echo "Next version (explicit): $NEXT"
+            exit 0
+          fi
+
+          BASE="${{ steps.base.outputs.version }}"
+          BUMP="${{ github.event.inputs.bump }}"
+          python3 - << 'PY' > /tmp/next.txt
+import os, re, sys
+base = os.environ["BASE"]
+bump = os.environ.get("BUMP","patch")
+m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', base)
+if not m:
+    print(f"ERROR: invalid base '{base}'", file=sys.stderr)
+    sys.exit(1)
+maj, minr, pat = map(int, m.groups())
+if bump == "major":
+    maj, minr, pat = maj+1, 0, 0
+elif bump == "minor":
+    minr, pat = minr+1, 0
+else:
+    pat += 1
+print(f"{maj}.{minr}.{pat}")
+PY
+          NEXT=$(cat /tmp/next.txt)
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "Next version (computed): $NEXT"
+        env:
+          BASE: ${{ steps.base.outputs.version }}
+          BUMP: ${{ github.event.inputs.bump }}
+
+      - name: Create annotated tag
+        run: |
+          V="${{ steps.next.outputs.version }}"
+          if ! echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Bad next version '$V'"
+            exit 1
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          TAG="v${V}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Nothing to do."
+          else
+            git tag -a "$TAG" -m "manual bump: ${TAG} (track=${{ github.event.inputs.track }})"
+            git push origin "$TAG"
+            echo "Created and pushed $TAG"
+          fi
+
+      - name: Summary
+        run: |
+          echo "Track: ${{ github.event.inputs.track }}" >> $GITHUB_STEP_SUMMARY
+          echo "Base:  ${{ steps.base.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "Next:  ${{ steps.next.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "Tag:   v${{ steps.next.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+
+  promote_if_requested:
+    needs: bump
+    if: github.event.inputs.track == 'stable' && github.event.inputs.promote_stable_now == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker login
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Wait for image manifest and resolve digest
+        id: digest
+        run: |
+          V="${{ needs.bump.outputs.next_version || '' }}"
+          # When job outputs aren't used, recompute from tag name we just pushed:
+          if [ -z "$V" ]; then
+            V="${{ github.event.workflow_run.head_branch }}"
+          fi
+          V="${{ needs.bump.outputs.next_version }}"
+          if [ -z "$V" ]; then
+            echo "::notice::Deriving version from tagging step."
+            V="${{ github.event.inputs.next_version }}"
+            [ -z "$V" ] && V="${{ github.event.inputs.base }}"
+            [ -z "$V" ] && { echo "::error::Cannot derive version."; exit 1; }
+          fi
+
+          # Poll for manifest availability
+          tries=30
+          sleep_s=10
+          digest=""
+          for i in $(seq 1 $tries); do
+            out=$(docker buildx imagetools inspect "${{ env.IMAGE }}:${V}" 2>/dev/null || true)
+            digest=$(echo "$out" | sed -n 's/^Name:\s\+\(.*@sha256:[0-9a-f]\+\).*$/\1/p' | head -n1 | awk -F@ '{print $2}')
+            if [ -n "$digest" ]; then
+              echo "digest=$digest" >> $GITHUB_OUTPUT
+              echo "Resolved digest: $digest"
+              break
+            fi
+            echo "Waiting for ${V} manifest... ($i/$tries)"
+            sleep $sleep_s
+          done
+
+          if [ -z "$digest" ]; then
+            echo "::error::Could not resolve digest for :$V. Make sure publish-on-tag finished."
+            exit 1
+          fi
+
+      - name: Point :stable to this digest
+        run: |
+          docker buildx imagetools create \
+            -t "${{ env.IMAGE }}:stable" \
+            "${{ env.IMAGE }}@${{ steps.digest.outputs.digest }}"
+
+      - name: Flip GitHub Release to non-prerelease (optional)
+        if: github.event.inputs.flip_release == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = `${{ needs.bump.outputs.next_version || github.event.inputs.next_version || github.event.inputs.base }}`;
+            const tag = `v${version}`;
+            const { data: rels } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const rel = rels.find(r => r.tag_name === tag);
+            if (!rel) {
+              core.info(`No release found for ${tag}. Skipping flip.`);
+            } else if (rel.prerelease) {
+              await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: rel.id,
+                prerelease: false
+              });
+              core.info(`Release ${tag} flipped to non-prerelease.`);
+            } else {
+              core.info(`Release ${tag} already non-prerelease.`);
+            }
+
+      - name: Promotion summary
+        run: |
+          echo "Promoted ${{ needs.bump.outputs.next_version || github.event.inputs.next_version || github.event.inputs.base }} to :stable" >> $GITHUB_STEP_SUMMARY

@@ -1,53 +1,105 @@
-name: Publish Docker image
+name: docker-ci
 
 on:
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/workflows/**'
   push:
     branches: [ main ]
-    tags: [ 'v*.*.*' ]
-  workflow_dispatch: {}
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: altheasignals/boxofports
 
 jobs:
-  docker:
+  build-and-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Extract version from pyproject
+      - name: Set meta (CI version + local tag)
         id: meta
         run: |
-          VERSION=$(python - <<'PY'
-          import tomllib, sys
-          with open('pyproject.toml','rb') as f:
-              d=tomllib.load(f)
-          print(d['project']['version'])
-          PY
-          )
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          # CI-only version string; real releases come from tags.
+          V="0.0.0-ci-${GITHUB_SHA::12}"
+          echo "version=$V" >> $GITHUB_OUTPUT
+          echo "local_tag=${{ env.IMAGE_NAME }}:ci-${GITHUB_SHA::12}" >> $GITHUB_OUTPUT
+          echo "Using CI version: $V"
+          echo "Local tag: ${{ env.IMAGE_NAME }}:ci-${GITHUB_SHA::12}"
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Build and push
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Validate both architectures compile (no push, cache-only)
+      - name: Build (multi-arch validate, no push)
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
           platforms: linux/amd64,linux/arm64
-          tags: |
-            altheasignals/boxofports:latest
-            altheasignals/boxofports:${{ steps.meta.outputs.version }}
-          cache-from: type=registry,ref=altheasignals/boxofports:buildcache
-          cache-to: type=registry,ref=altheasignals/boxofports:buildcache,mode=max
+          push: false
+          outputs: type=cacheonly
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            io.boxofports.version=${{ steps.meta.outputs.version }}
+            io.boxofports.track=dev
+            io.boxofports.stable=false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Load amd64 image locally to run a quick smoke test
+      - name: Build (amd64, load locally for tests)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.meta.outputs.local_tag }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            io.boxofports.version=${{ steps.meta.outputs.version }}
+            io.boxofports.track=dev
+            io.boxofports.stable=false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test (--version)
+        run: |
+          set -euo pipefail
+          # Try a quick, non-interactive invocation. Adjust if your entrypoint differs.
+          timeout 20s docker run --rm ${{ steps.meta.outputs.local_tag }} --version || {
+            echo "::warning::'--version' failed; trying '--help' as a fallback."
+            timeout 20s docker run --rm ${{ steps.meta.outputs.local_tag }} --help
+          }
+
+      - name: Emit summary
+        run: |
+          {
+            echo "### Docker CI"
+            echo ""
+            echo "- CI version label: **${{ steps.meta.outputs.version }}**"
+            echo "- Local test tag: **${{ steps.meta.outputs.local_tag }}**"
+            echo "- Built multi-arch (validate only), loaded amd64 and smoke-tested."
+            echo ""
+            echo "_Note: No images were pushed. Publishing is handled by **publish-on-tag.yml** after tag creation._"
+          } >> $GITHUB_STEP_SUMMARY

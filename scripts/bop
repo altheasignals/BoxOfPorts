@@ -1,644 +1,295 @@
 #!/usr/bin/env bash
-# bop (Docker wrapper) v
-
-# bop - Docker wrapper for BoxOfPorts CLI
-# "When the music never stops... the container keeps running"
+# bop (Docker wrapper) v1.2.11
 #
-# This wrapper ensures you're always running the latest stable version
-# of BoxOfPorts via Docker, with automatic version checking and updates.
+# Clean, always-fresh wrapper for BoxOfPorts.
+# Tracks either :stable or :latest every run with no stale gating.
 
 set -euo pipefail
 
-# Configuration
+# --- Config -------------------------------------------------------------------
 readonly DOCKER_IMAGE="altheasignals/boxofports"
 readonly DOCKER_TAG_STABLE="stable"
 readonly DOCKER_TAG_LATEST="latest"
+
 readonly HOME_CONFIG_DIR="${HOME}/.boxofports"
-readonly VERSION_CACHE_FILE="${HOME_CONFIG_DIR}/.bop_version_cache"
-readonly FORCE_UPDATE_FILE="${HOME_CONFIG_DIR}/.bop_force_update"
 readonly CONFIG_FILE="${HOME_CONFIG_DIR}/bop.conf"
-readonly UPDATE_CHECK_FILE="${HOME_CONFIG_DIR}/.bop_update_check"
+
+# Kept only for user-facing info; no gating logic uses these files anymore.
+readonly VERSION_CACHE_FILE="${HOME_CONFIG_DIR}/.bop_version_cache"
+
 readonly REMOTE_BOP_URL="https://raw.githubusercontent.com/altheasignals/BoxOfPorts/main/scripts/bop"
 readonly BOP_SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
 
-# Colors for output (keeping it groovy)
+# --- UI -----------------------------------------------------------------------
 readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m' 
+readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
 readonly PURPLE='\033[0;35m'
-readonly CYAN='\033[0;36m'
-readonly NC='\033[0m' # No Color
+readonly NC='\033[0m'
 
-# Logging functions with a touch of cosmic vibes
-log_info() {
-    echo -e "${BLUE}🎵 $*${NC}" >&2
-}
+log_info()    { echo -e "${BLUE}$*${NC}"  >&2; }
+log_ok()      { echo -e "${GREEN}$*${NC}" >&2; }
+log_warn()    { echo -e "${YELLOW}$*${NC}" >&2; }
+log_err()     { echo -e "${RED}$*${NC}"   >&2; }
+log_cosmic()  { echo -e "${PURPLE}$*${NC}" >&2; }
 
-log_success() {
-    echo -e "${GREEN}✓ $*${NC}" >&2  
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠️  $*${NC}" >&2
-}
-
-log_error() {
-    echo -e "${RED}✗ $*${NC}" >&2
-}
-
-log_cosmic() {
-    echo -e "${PURPLE}🌌 $*${NC}" >&2
-}
-
-# Ensure config directory exists
+# --- Helpers ------------------------------------------------------------------
 create_config_dir() {
-    if [[ ! -d "$HOME_CONFIG_DIR" ]]; then
-        mkdir -p "$HOME_CONFIG_DIR"
-        log_info "Created config directory at $HOME_CONFIG_DIR"
-    fi
+  [[ -d "$HOME_CONFIG_DIR" ]] || { mkdir -p "$HOME_CONFIG_DIR"; log_info "Created $HOME_CONFIG_DIR"; }
 }
 
-# Get current local Docker image version
+# Read version label from a local image; prefer OCI key, fallback to project key.
 get_local_version() {
-    local tag="$1"
-    docker inspect "${DOCKER_IMAGE}:${tag}" --format='{{index .Config.Labels "version"}}' 2>/dev/null || echo "unknown"
+  local tag="$1" v=""
+  v="$(docker inspect "${DOCKER_IMAGE}:${tag}" --format='{{ index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || true)"
+  if [[ -z "${v}" || "${v}" == "<no value>" ]]; then
+    v="$(docker inspect "${DOCKER_IMAGE}:${tag}" --format='{{ index .Config.Labels "io.boxofports.version"}}' 2>/dev/null || true)"
+  fi
+  [[ -n "${v}" && "${v}" != "<no value>" ]] && echo "${v}" || echo "unknown"
 }
 
-# Get remote Docker image version from registry  
-get_remote_version() {
-    local tag="$1"
-    # Use docker manifest to get version info without pulling
-    docker manifest inspect "${DOCKER_IMAGE}:${tag}" --format='{{index .Config.Labels "version"}}' 2>/dev/null || echo "unknown"
-}
-
-# Classify version as stable or dev (deprecated - no longer enforced)
-classify_version() {
-    local version="$1"
-    # All versions are considered valid now - classification is based on track selection
-    echo "stable"
-}
-
-# Compare versions (returns 0 if v1 >= v2, 1 otherwise)
+# Semantic >= using sort -V; unknown is treated as lower.
 version_gte() {
-    local v1="$1"
-    local v2="$2"
-    
-    # Handle "unknown" versions
-    [[ "$v1" == "unknown" ]] && return 1
-    [[ "$v2" == "unknown" ]] && return 0
-    
-    # Use sort -V for semantic version comparison
-    [[ "$(printf '%s\n' "$v1" "$v2" | sort -V | tail -n1)" == "$v1" ]]
+  local v1="${1:-unknown}" v2="${2:-unknown}"
+  [[ "$v1" == "unknown" ]] && return 1
+  [[ "$v2" == "unknown" ]] && return 0
+  [[ "$(printf '%s\n' "$v1" "$v2" | sort -V | tail -n1)" == "$v1" ]]
 }
 
-# Update version cache
-update_version_cache() {
-    local current_version="$1"
-    echo "$current_version" > "$VERSION_CACHE_FILE"
-    echo "$(date '+%s')" >> "$VERSION_CACHE_FILE"
-}
+# Release track: env > config > default(stable). Steal-Your-Face forces dev.
+is_steal_your_face_mode() { [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]; }
 
-# Get remote bop wrapper version
-get_remote_bop_version() {
-    local remote_version
-    remote_version=$(curl -fsSL "$REMOTE_BOP_URL" 2>/dev/null | grep '^# bop (Docker wrapper) v' | head -n1 | sed 's/.*v\([0-9.]*\).*/\1/' | tr -d '"')
-    echo "${remote_version:-unknown}"
-}
-
-# Check if bop wrapper update check is stale (older than 24 hours)
-is_bop_update_check_stale() {
-    [[ ! -f "$UPDATE_CHECK_FILE" ]] && return 0
-    
-    local check_time
-    check_time=$(cat "$UPDATE_CHECK_FILE" 2>/dev/null || echo "0")
-    local current_time
-    current_time=$(date '+%s')
-    local age=$((current_time - check_time))
-    
-    # Check is stale if older than 24 hours (86400 seconds)
-    [[ $age -gt 86400 ]]
-}
-
-# Update the bop wrapper script
-update_bop_wrapper() {
-    local backup_file="${BOP_SCRIPT_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
-    
-    log_info "Updating bop wrapper..."
-    
-    # Create backup
-    if cp "$BOP_SCRIPT_PATH" "$backup_file" 2>/dev/null; then
-        log_info "Created backup: $(basename "$backup_file")"
-    else
-        log_warning "Could not create backup - continuing anyway"
-    fi
-    
-    # Download new version
-    if curl -fsSL "$REMOTE_BOP_URL" -o "${BOP_SCRIPT_PATH}.new" 2>/dev/null; then
-        # Verify the download
-        if [[ -s "${BOP_SCRIPT_PATH}.new" ]] && head -n1 "${BOP_SCRIPT_PATH}.new" | grep -q "#!/usr/bin/env bash"; then
-            # Replace current script
-            if mv "${BOP_SCRIPT_PATH}.new" "$BOP_SCRIPT_PATH" 2>/dev/null; then
-                chmod +x "$BOP_SCRIPT_PATH" 2>/dev/null || true
-                log_success "Bop wrapper updated successfully"
-                
-                # Clean up old backup files (keep last 3)
-                if command -v find >/dev/null 2>&1; then
-                    find "$(dirname "$BOP_SCRIPT_PATH")" -name "$(basename "$BOP_SCRIPT_PATH").backup.*" -type f 2>/dev/null | \
-                        sort -r | tail -n +4 | xargs rm -f 2>/dev/null || true
-                fi
-                
-                return 0
-            else
-                log_error "Failed to replace bop script"
-            fi
-        else
-            log_error "Downloaded file appears corrupted"
-        fi
-        
-        # Cleanup failed download
-        rm -f "${BOP_SCRIPT_PATH}.new" 2>/dev/null || true
-    else
-        log_error "Failed to download updated bop wrapper"
-    fi
-    
-    # Restore backup on failure
-    if [[ -f "$backup_file" ]]; then
-        if mv "$backup_file" "$BOP_SCRIPT_PATH" 2>/dev/null; then
-            log_info "Restored from backup after failed update"
-        fi
-    fi
-    
-    return 1
-}
-
-# Get current bop wrapper version from script header
-get_current_bop_version() {
-    grep '^# bop (Docker wrapper) v' "$BOP_SCRIPT_PATH" | head -n1 | sed 's/.*v\([0-9.]*\).*/\1/' | tr -d '"'
-}
-
-# Check for bop wrapper updates
-check_bop_wrapper_updates() {
-    # Skip if update check is not stale
-    if ! is_bop_update_check_stale; then
-        return 0
-    fi
-    
-    # Get versions
-    local current_version
-    current_version=$(get_current_bop_version)
-    local remote_version
-    remote_version=$(get_remote_bop_version)
-    
-    # Update check timestamp
-    echo "$(date '+%s')" > "$UPDATE_CHECK_FILE"
-    
-    if [[ "$remote_version" == "unknown" ]]; then
-        # Can't check for updates, but don't fail
-        return 0
-    fi
-    
-    # Compare versions
-    if ! version_gte "$current_version" "$remote_version"; then
-        log_warning "Bop wrapper update available: $current_version → $remote_version"
-        
-        # Auto-update if we can write to the script location
-        if [[ -w "$BOP_SCRIPT_PATH" ]] || [[ -w "$(dirname "$BOP_SCRIPT_PATH")" ]]; then
-            log_info "Attempting automatic update..."
-            if update_bop_wrapper; then
-                log_cosmic "🎉 Bop wrapper updated! Restarting with new version..."
-                # Restart with new version
-                exec "$BOP_SCRIPT_PATH" "$@"
-            fi
-        else
-            log_warning "Cannot auto-update (no write permission)"
-            log_info "💡 To update manually: curl -fsSL $REMOTE_BOP_URL | sudo tee $BOP_SCRIPT_PATH > /dev/null && sudo chmod +x $BOP_SCRIPT_PATH"
-        fi
-    fi
-}
-
-# Check if cache is stale (older than 1 hour)
-is_cache_stale() {
-    [[ ! -f "$VERSION_CACHE_FILE" ]] && return 0
-    
-    local cache_time
-    cache_time=$(sed -n '2p' "$VERSION_CACHE_FILE" 2>/dev/null || echo "0")
-    local current_time
-    current_time=$(date '+%s')
-    local age=$((current_time - cache_time))
-    
-    # Cache is stale if older than 1 hour (3600 seconds)
-    [[ $age -gt 3600 ]]
-}
-
-# Get release track preference (stable or dev)
 get_release_track() {
-    # Check for steal-your-face mode first (always overrides other settings)
-    if [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]; then
-        echo "dev"
-        return
-    fi
-    
-    # Check for command-line argument (handled elsewhere)
-    # Check environment variable
-    if [[ -n "${BOP_RELEASE_TRACK:-}" ]]; then
-        echo "${BOP_RELEASE_TRACK}"
-        return
-    fi
-    
-    # Check config file
-    if [[ -f "$CONFIG_FILE" ]] && grep -q "^release_track=" "$CONFIG_FILE"; then
-        grep "^release_track=" "$CONFIG_FILE" | cut -d= -f2 | tr -d '"'
-        return
-    fi
-    
-    # Default to stable
-    echo "stable"
+  if is_steal_your_face_mode; then echo "dev"; return; fi
+  if [[ -n "${BOP_RELEASE_TRACK:-}" ]]; then echo "${BOP_RELEASE_TRACK}"; return; fi
+  if [[ -f "$CONFIG_FILE" ]] && grep -q '^release_track=' "$CONFIG_FILE"; then
+    grep '^release_track=' "$CONFIG_FILE" | cut -d= -f2 | tr -d '"'
+    return
+  fi
+  echo "stable"
 }
 
-# Detect if user wants "Steal Your Face" mode (bleeding edge with extra vibes)
-is_steal_your_face_mode() {
-    [[ -f "$HOME_CONFIG_DIR/.steal_your_face" ]] || [[ "${BOP_STEAL_YOUR_FACE:-}" == "true" ]]
-}
-
-# Pull Docker image if needed
-pull_image() {
-    local tag="$1"
-    local force="${2:-false}"
-    
-    log_info "Checking for image updates..."
-    
-    # Check if we have the image locally
-    if ! docker image inspect "${DOCKER_IMAGE}:${tag}" >/dev/null 2>&1 || [[ "$force" == "true" ]]; then
-        log_info "Pulling ${DOCKER_IMAGE}:${tag}..."
-        if docker pull "${DOCKER_IMAGE}:${tag}"; then
-            log_success "Image updated successfully"
-            return 0
-        else
-            log_error "Failed to pull image"
-            return 1
-        fi
-    fi
-    
-    # Check versions if not forcing
-    if [[ "$force" != "true" ]] && ! is_cache_stale; then
-        return 0  # Skip version check if cache is fresh
-    fi
-    
-    local local_version remote_version
-    local_version=$(get_local_version "$tag")
-    
-    log_info "Current version: $local_version"
-    
-    # Try to get remote version (may fail if registry is unavailable)
-    if remote_version=$(get_remote_version "$tag" 2>/dev/null); then
-        log_info "Latest version: $remote_version"
-        
-        if ! version_gte "$local_version" "$remote_version"; then
-            log_warning "New version available: $remote_version"
-            log_info "Updating to latest version..."
-            
-            if docker pull "${DOCKER_IMAGE}:${tag}"; then
-                log_success "Updated to version $remote_version"
-                update_version_cache "$remote_version"
-            else
-                log_error "Failed to update image"
-                return 1
-            fi
-        else
-            log_success "You're on the latest version"
-            update_version_cache "$local_version"
-        fi
-    else
-        log_warning "Could not check for updates (registry unavailable)"
-        update_version_cache "$local_version"
-    fi
-}
-
-# Force stable version update if needed
-check_stable_enforcement() {
-    local current_tag="$1"
-    local current_version="$2"
-    
-    # Only enforce if running stable tag
-    [[ "$current_tag" != "$DOCKER_TAG_STABLE" ]] && return 0
-    
-    # Check if current version is actually stable
-    if ! is_stable_version "$current_version"; then
-        log_warning "Current version $current_version is not stable"
-        log_info "Checking for latest stable release..."
-        
-        # Force pull stable
-        if pull_image "$DOCKER_TAG_STABLE" "true"; then
-            local new_version
-            new_version=$(get_local_version "$DOCKER_TAG_STABLE")
-            if is_stable_version "$new_version"; then
-                log_success "Updated to stable version $new_version"
-                touch "$FORCE_UPDATE_FILE"
-            fi
-        fi
-    fi
-}
-
-# Resolve Docker tag based on release track
 resolve_docker_tag() {
-    local track="$1"
-    
-    case "$track" in
-        stable)
-            echo "$DOCKER_TAG_STABLE"
-            ;;
-        dev)
-            echo "$DOCKER_TAG_LATEST"
-            ;;
-        *)
-            log_error "Unknown release track: $track. Valid options: stable, dev"
-            exit 1
-            ;;
-    esac
+  case "$1" in
+    stable) echo "$DOCKER_TAG_STABLE" ;;
+    dev)    echo "$DOCKER_TAG_LATEST" ;;
+    *)      log_err "Unknown release track: $1 (expected: stable|dev)"; exit 1 ;;
+  esac
 }
 
-# Validate track/version compatibility (deprecated - no longer enforces .0 constraint)
-validate_track_version() {
-    local track="$1"
-    local tag="$2"
-    local version="$3"
-    
-    # Version constraints are deprecated - all versions are valid for any track
-    # This function remains for compatibility but no longer enforces restrictions
-    return 0
-}
+# Always reconcile with the registry. No TTL, no “stale” checks.
+pull_fresh_image() {
+  local tag="$1"
+  local before after
+  before="$(get_local_version "$tag")"
 
-# Main image management logic
-manage_image() {
-    local track
-    track=$(get_release_track)
-    
-    local tag
-    tag=$(resolve_docker_tag "$track")
-    
-    # Show track info
-    if is_steal_your_face_mode; then
-        log_cosmic "🌀 Steal Your Face mode active — riding the cosmic wave (dev track + vibes)"
+  log_info "Pulling ${DOCKER_IMAGE}:${tag} (always checking registry)…"
+  if docker pull "${DOCKER_IMAGE}:${tag}" >/dev/null; then
+    after="$(get_local_version "$tag")"
+    if [[ "$before" != "unknown" && "$after" != "unknown" && "$before" != "$after" ]]; then
+      log_warn "Updated container: ${before} → ${after}"
     else
-        case "$track" in
-            stable)
-                log_info "Riding the steady line — using stable releases"
-                ;;
-            dev)
-                log_info "Development track active — bleeding edge updates"
-                ;;
-        esac
+      log_ok "Image is up to date${after:+ (v${after})}"
     fi
-    
-    # Pull/update image
-    pull_image "$tag"
-    
-    # Get current version after potential update
-    local current_version
-    current_version=$(get_local_version "$tag")
-    
-    # Validate track/version compatibility
-    validate_track_version "$track" "$tag" "$current_version"
-    
-    echo "$tag"
-}
-
-# Run boxofports in container
-run_boxofports() {
-    local docker_tag="$1"
-    shift
-    
-    # Ensure config directory exists and has proper permissions
-    create_config_dir
-    
-    # Mount home config directory to container
-    # Note: Running as current user to ensure volume mount permissions work correctly
-    local docker_args=(
-        --rm
-        --interactive
-        --tty
-        --user "$(id -u):$(id -g)"
-        --env "HOME=/tmp"
-        --volume "$HOME_CONFIG_DIR:/tmp/.boxofports"
-    )
-    
-    # Mount current directory for file access (CSV files, etc.)
-    docker_args+=(--volume "$(pwd):/workspace" --workdir /workspace)
-    
-    # Pass through relevant environment variables
-    local env_vars=(
-        "EJOIN_HOST"
-        "EJOIN_PORT" 
-        "EJOIN_USER"
-        "EJOIN_PASSWORD"
-        "BOP_PROFILE"
-        "BOP_VERBOSE"
-    )
-    
-    for env_var in "${env_vars[@]}"; do
-        if [[ -n "${!env_var:-}" ]]; then
-            docker_args+=(--env "$env_var=${!env_var}")
-        fi
-    done
-    
-    # Enable vibe mode if steal-your-face is active
-    if is_steal_your_face_mode; then
-        docker_args+=(--env "BOXOFPORTS_VIBE_MODE=true")
-    fi
-    
-    # Execute boxofports with all passed arguments (entrypoint handles the boxofports command)
-    log_info "Running boxofports..."
-    exec docker run "${docker_args[@]}" "${DOCKER_IMAGE}:${docker_tag}" "$@"
-}
-
-# Show bop wrapper help
-show_bop_help() {
-    echo "bop - Clean Docker wrapper for BoxOfPorts"
-    echo "\"When the music never stops... the container keeps running\""
-    echo ""
-    echo "USAGE:"
-    echo "  bop [boxofports-command]     # Pass command directly to BoxOfPorts"
-    echo "  bop --bop <subcommand>       # Control the wrapper itself"
-    echo ""
-    echo "BOP WRAPPER COMMANDS (--bop <subcommand>):"
-    echo "  version                      # Show wrapper and container versions"
-    echo "  update                       # Force update BoxOfPorts container"
-    echo "  update-wrapper               # Update bop wrapper script"
-    echo "  config                       # Show/create wrapper configuration"
-    echo "  track <stable|dev>           # Switch release track"
-    echo "  steal-your-face              # Toggle cosmic mode (dev track + vibes)"
-    echo ""
-    echo "EXAMPLES:"
-    echo "  bop                          # Show BoxOfPorts splash screen"
-    echo "  bop ops get-imei --ports 1A  # Run BoxOfPorts command"
-    echo "  bop --bop version            # Show wrapper info"
-    echo "  bop --bop track dev          # Switch to development track"
-    echo "  bop --bop steal-your-face    # Toggle cosmic mode"
-}
-
-# Handle special bop commands
-handle_special_commands() {
-    # Check for --bop command
-    if [[ "${1:-}" == "--bop" ]]; then
-        shift # Remove --bop
-        
-        case "${1:-}" in
-            "")
-                show_bop_help
-                exit 0
-                ;;
-            version)
-                local track
-                track=$(get_release_track)
-                local tag
-                tag=$(resolve_docker_tag "$track")
-                local version
-                version=$(get_local_version "$tag")
-                local bop_version
-                bop_version=$(get_current_bop_version)
-                
-                echo "bop (Docker wrapper) v1.2.11"
-                echo "BoxOfPorts container version: $version"
-                echo "Docker image: ${DOCKER_IMAGE}:${tag}"
-                echo "Release track: $track"
-                if is_steal_your_face_mode; then
-                    echo "Steal Your Face mode: ACTIVE 🌀"
-                fi
-                exit 0
-                ;;
-            update)
-                log_info "Forcing update check..."
-                local track
-                track=$(get_release_track)
-                local tag
-                tag=$(resolve_docker_tag "$track")
-                pull_image "$tag" "true"
-                log_success "Update complete"
-                exit 0
-                ;;
-            update-wrapper)
-                log_info "Checking for bop wrapper updates..."
-                local current_version
-                current_version=$(get_current_bop_version)
-                local remote_version
-                remote_version=$(get_remote_bop_version)
-                
-                if [[ "$remote_version" == "unknown" ]]; then
-                    log_warning "Unable to check for updates - network issue or GitHub unavailable"
-                    exit 1
-                fi
-                
-                if ! version_gte "$current_version" "$remote_version"; then
-                    log_info "Update available: $current_version → $remote_version"
-                    if update_bop_wrapper; then
-                        log_cosmic "🎉 Bop wrapper updated successfully! Restarting with new version..."
-                        exec "$BOP_SCRIPT_PATH" "--bop" "$@"
-                    else
-                        log_error "Update failed - see messages above"
-                        exit 1
-                    fi
-                else
-                    log_success "Already running latest bop wrapper version ($current_version)"
-                fi
-                exit 0
-                ;;
-            config)
-                echo "Configuration file: $CONFIG_FILE"
-                if [[ -f "$CONFIG_FILE" ]]; then
-                    echo "Current settings:"
-                    cat "$CONFIG_FILE"
-                else
-                    echo "No configuration file exists. Creating example..."
-                    cat > "$CONFIG_FILE" << 'EOF'
-# BoxOfPorts wrapper configuration
-# Set release track: stable (stable builds) or dev (latest builds)
-release_track=stable
-
-# Other settings can go here in the future
-EOF
-                    echo "Created example configuration at $CONFIG_FILE"
-                fi
-                exit 0
-                ;;
-            track)
-                if [[ -z "${2:-}" ]]; then
-                    log_error "--bop track requires an argument: stable or dev"
-                    exit 1
-                fi
-                case "$2" in
-                    stable|dev)
-                        # Update config file
-                        if [[ -f "$CONFIG_FILE" ]]; then
-                            sed -i '' "s/^release_track=.*/release_track=$2/" "$CONFIG_FILE" 2>/dev/null || \
-                            sed -i "s/^release_track=.*/release_track=$2/" "$CONFIG_FILE"
-                        else
-                            create_config_dir
-                            echo "release_track=$2" > "$CONFIG_FILE"
-                        fi
-                        log_success "Release track set to: $2"
-                        if [[ "$2" == "dev" ]]; then
-                            log_warning "Development track active - you'll get bleeding edge updates"
-                        fi
-                        ;;
-                    *)
-                        log_error "Invalid track: $2. Valid options: stable, dev"
-                        exit 1
-                        ;;
-                esac
-                exit 0
-                ;;
-            steal-your-face)
-                if [[ ! -f "$HOME_CONFIG_DIR/.steal_your_face" ]]; then
-                    touch "$HOME_CONFIG_DIR/.steal_your_face"
-                    log_cosmic "🌀 Steal Your Face mode enabled - welcome to the cosmic dance!"
-                    log_warning "You're now on the bus! Development track activated with enhanced vibes."
-                    log_info "💫 This unlocks bleeding edge updates and special interface elements."
-                else
-                    rm -f "$HOME_CONFIG_DIR/.steal_your_face"
-                    log_info "Steal Your Face mode disabled - returning to stable releases"
-                    log_info "The cosmic dance fades... back to the steady line."
-                fi
-                exit 0
-                ;;
-            *)
-                log_error "Unknown bop command: $1"
-                echo "Run 'bop --bop' for available commands"
-                exit 1
-                ;;
-        esac
-    fi
-    
-    # Not a --bop command, pass all arguments through to boxofports
-    return 0
-}
-
-# Main execution
-main() {
-    create_config_dir
-    
-    # Handle special --bop commands first
-    handle_special_commands "$@"
-    
-    # Check for bop wrapper updates (only for normal boxofports commands)
-    if [[ $# -gt 0 ]]; then
-        check_bop_wrapper_updates "$@"
-    fi
-    
-    # Manage Docker image and get appropriate tag
-    local docker_tag
-    docker_tag=$(manage_image)
-    
-    # Run boxofports with all arguments (or no arguments for splash screen)
-    run_boxofports "$docker_tag" "$@"
-}
-
-# Ensure we have Docker
-if ! command -v docker >/dev/null 2>&1; then
-    log_error "Docker is required but not installed"
-    log_info "Please install Docker: https://docs.docker.com/get-docker/"
+    # Update simple cache file for humans/tools (not used for gating)
+    {
+      echo "${after}"
+      date '+%s'
+    } > "${VERSION_CACHE_FILE}" 2>/dev/null || true
+  else
+    log_err "Failed to pull ${DOCKER_IMAGE}:${tag}"
     exit 1
+  fi
+}
+
+# --- Wrapper self-update (no 24h throttle; check on each normal run) ----------
+get_current_bop_version() {
+  grep '^# bop (Docker wrapper) v' "$BOP_SCRIPT_PATH" | head -n1 | sed 's/.*v\([0-9.]*\).*/\1/' | tr -d '"'
+}
+
+get_remote_bop_version() {
+  local rv
+  rv="$(curl -fsSL "$REMOTE_BOP_URL" 2>/dev/null | grep '^# bop (Docker wrapper) v' | head -n1 | sed 's/.*v\([0-9.]*\).*/\1/' | tr -d '"')"
+  echo "${rv:-unknown}"
+}
+
+update_bop_wrapper() {
+  local backup="${BOP_SCRIPT_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
+  log_info "Updating bop wrapper…"
+  cp "$BOP_SCRIPT_PATH" "$backup" 2>/dev/null || true
+  if curl -fsSL "$REMOTE_BOP_URL" -o "${BOP_SCRIPT_PATH}.new" 2>/dev/null; then
+    if [[ -s "${BOP_SCRIPT_PATH}.new" ]] && head -n1 "${BOP_SCRIPT_PATH}.new" | grep -q "#!/usr/bin/env bash"; then
+      mv "${BOP_SCRIPT_PATH}.new" "$BOP_SCRIPT_PATH"
+      chmod +x "$BOP_SCRIPT_PATH" 2>/dev/null || true
+      log_ok "Wrapper updated"
+      return 0
+    fi
+  fi
+  log_err "Wrapper update failed; keeping current file"
+  rm -f "${BOP_SCRIPT_PATH}.new" 2>/dev/null || true
+  mv "$backup" "$BOP_SCRIPT_PATH" 2>/dev/null || true
+  return 1
+}
+
+check_bop_wrapper_updates() {
+  local current remote
+  current="$(get_current_bop_version)"
+  remote="$(get_remote_bop_version)"
+  [[ "$remote" == "unknown" ]] && return 0
+  if ! version_gte "$current" "$remote"; then
+    log_warn "bop update available: ${current:-unknown} → ${remote}"
+    if [[ -w "$BOP_SCRIPT_PATH" ]] || [[ -w "$(dirname "$BOP_SCRIPT_PATH")" ]]; then
+      if update_bop_wrapper; then
+        log_cosmic "wrapper updated — restarting…"
+        exec "$BOP_SCRIPT_PATH" "$@"
+      fi
+    else
+      log_warn "No write permission to auto-update."
+      log_info  "Manual: curl -fsSL $REMOTE_BOP_URL | sudo tee $BOP_SCRIPT_PATH > /dev/null && sudo chmod +x $BOP_SCRIPT_PATH"
+    fi
+  fi
+}
+
+# --- CLI glue -----------------------------------------------------------------
+show_bop_help() {
+  cat <<'EOF'
+bop — BoxOfPorts Docker wrapper (always-fresh)
+Usage:
+  bop [boxofports-args…]        Run BoxOfPorts in the configured track
+  bop --bop <subcommand>        Control the wrapper
+
+Subcommands:
+  version            Show wrapper and container versions
+  update             Force repull of the configured track tag
+  update-wrapper     Force wrapper self-update
+  config             Show/create wrapper config
+  track <stable|dev> Switch release track
+  steal-your-face    Toggle cosmic dev mode (dev track + vibes)
+EOF
+}
+
+handle_bop_subcommands() {
+  if [[ "${1:-}" != "--bop" ]]; then return 0; fi
+  shift
+  case "${1:-}" in
+    "" ) show_bop_help; exit 0 ;;
+    version )
+      local track tag version bopv
+      track="$(get_release_track)"
+      tag="$(resolve_docker_tag "$track")"
+      version="$(get_local_version "$tag")"
+      bopv="$(get_current_bop_version)"
+      echo "bop wrapper: v${bopv:-unknown}"
+      echo "Docker image: ${DOCKER_IMAGE}:${tag}"
+      echo "Container version: ${version}"
+      echo "Release track: ${track}$(is_steal_your_face_mode && echo ' (Steal Your Face)')"
+      exit 0
+      ;;
+    update )
+      local track tag
+      track="$(get_release_track)"; tag="$(resolve_docker_tag "$track")"
+      pull_fresh_image "$tag"; log_ok "Update complete"; exit 0
+      ;;
+    update-wrapper )
+      check_bop_wrapper_updates "--bop" "version"; exit 0
+      ;;
+    config )
+      echo "Config: $CONFIG_FILE"
+      if [[ -f "$CONFIG_FILE" ]]; then
+        echo "Current settings:"; cat "$CONFIG_FILE"
+      else
+        mkdir -p "$HOME_CONFIG_DIR"
+        cat > "$CONFIG_FILE" <<'CFG'
+# BoxOfPorts wrapper configuration
+# stable (default) or dev
+release_track=stable
+CFG
+        echo "Created $CONFIG_FILE"
+      fi
+      exit 0
+      ;;
+    track )
+      [[ -n "${2:-}" ]] || { log_err "--bop track requires: stable|dev"; exit 1; }
+      case "$2" in
+        stable|dev)
+          mkdir -p "$HOME_CONFIG_DIR"
+          if [[ -f "$CONFIG_FILE" ]]; then
+            # portable in-place sed (BSD/Darwin & GNU)
+            sed -i '' 's/^release_track=.*/release_track='"$2"'/' "$CONFIG_FILE" 2>/dev/null || \
+            sed -i     's/^release_track=.*/release_track='"$2"'/' "$CONFIG_FILE"
+          else
+            echo "release_track=$2" > "$CONFIG_FILE"
+          fi
+          log_ok "Track set to: $2"
+          [[ "$2" == "dev" ]] && log_warn "Development track enabled — bleeding edge ahead."
+          exit 0
+          ;;
+        *) log_err "Invalid track: $2"; exit 1 ;;
+      esac
+      ;;
+    steal-your-face )
+      if is_steal_your_face_mode; then
+        rm -f "$HOME_CONFIG_DIR/.steal_your_face"
+        log_info "Steal Your Face disabled — back to steady line."
+      else
+        touch "$HOME_CONFIG_DIR/.steal_your_face"
+        log_cosmic "Steal Your Face enabled — welcome to the cosmic dance."
+      fi
+      exit 0
+      ;;
+    * )
+      log_err "Unknown subcommand: $1"; show_bop_help; exit 1 ;;
+  esac
+}
+
+manage_image_and_run() {
+  local track tag
+  track="$(get_release_track)"
+  tag="$(resolve_docker_tag "$track")"
+
+  if is_steal_your_face_mode; then
+    log_cosmic "dev track engaged (Steal Your Face)"
+  else
+    [[ "$track" == "dev" ]] && log_warn "dev track active" || log_info "stable track active"
+  fi
+
+  pull_fresh_image "$tag"
+
+  # Runtime mounts
+  create_config_dir
+  local args=(
+    --rm -it
+    --user "$(id -u):$(id -g)"
+    --env "HOME=/tmp"
+    --volume "$HOME_CONFIG_DIR:/tmp/.boxofports"
+    --volume "$(pwd):/workspace" --workdir /workspace
+  )
+
+  # Pass through useful env vars
+  for e in EJOIN_HOST EJOIN_PORT EJOIN_USER EJOIN_PASSWORD BOP_PROFILE BOP_VERBOSE; do
+    [[ -n "${!e:-}" ]] && args+=(--env "$e=${!e}")
+  done
+
+  log_info "Running boxofports…"
+  exec docker run "${args[@]}" "${DOCKER_IMAGE}:${tag}" "$@"
+}
+
+main() {
+  create_config_dir
+  handle_bop_subcommands "$@"
+  # Only check wrapper updates on “normal” runs (not when we’re just showing help)
+  if [[ $# -gt 0 ]]; then
+    check_bop_wrapper_updates "$@"
+  fi
+  manage_image_and_run "$@"
+}
+
+# Docker must be present
+if ! command -v docker >/dev/null 2>&1; then
+  log_err "Docker is required but not installed"
+  log_info "Install Docker: https://docs.docker.com/get-docker/"
+  exit 1
 fi
 
-# Run main function with all arguments
 main "$@"

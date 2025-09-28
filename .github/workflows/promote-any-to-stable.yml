@@ -1,241 +1,299 @@
-name: "Promote Any Version to Stable"
-# "Sometimes the perfect song isn't the one that follows the rules"
-# Promote any development version to stable, then bump dev to next version
+name: promote-any-to-stable
 
 on:
   workflow_dispatch:
     inputs:
-      source_version:
-        description: 'Version to promote to stable (leave empty to use current dev version)'
+      mode:
+        description: "Promotion mode"
+        type: choice
+        required: true
+        default: by_version
+        options: [by_version, by_digest, rollback_previous_stable]
+      target_version:
+        description: "X.Y.Z when mode=by_version"
         required: false
-        type: string
-      auto_bump_dev:
-        description: 'Automatically bump dev version after promotion'
+      target_digest:
+        description: "sha256:… when mode=by_digest"
         required: false
-        default: true
-        type: boolean
+      update_release:
+        description: "Flip GitHub Release to non-prerelease if a version is known"
+        type: choice
+        required: false
+        default: "true"
+        options: ["true", "false"]
       dry_run:
-        description: 'Dry run - show what would be done without making changes'
+        description: "Preview only (no retag)"
+        type: choice
         required: false
-        default: false
-        type: boolean
+        default: "false"
+        options: ["false", "true"]
+      confirm:
+        description: 'Type YES to confirm emergency promotion'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote-any-to-stable
+  cancel-in-progress: false
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAME: altheasignals/boxofports
+  IMAGE: docker.io/altheasignals/boxofports
 
 jobs:
-  promote-to-stable:
+  promote:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-      
     steps:
-    - name: "🌈 Checkout the magnificent codebase"
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: "🎭 Set up Python environment"
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        
-    - name: "🎯 Determine source version"
-      id: source
-      run: |
-        # Load version registry
-        CURRENT_DEV=$(python3 -c "import json; print(json.load(open('version_registry.json'))['versions']['development'])")
-        CURRENT_STABLE=$(python3 -c "import json; print(json.load(open('version_registry.json'))['versions']['stable'])")
-        
-        if [[ -n "${{ github.event.inputs.source_version }}" ]]; then
-          SOURCE_VERSION="${{ github.event.inputs.source_version }}"
-          echo "🎯 Using specified version: $SOURCE_VERSION"
-        else
-          SOURCE_VERSION="$CURRENT_DEV"
-          echo "🎯 Using current development version: $SOURCE_VERSION"
-        fi
-        
-        echo "source_version=$SOURCE_VERSION" >> $GITHUB_OUTPUT
-        echo "current_stable=$CURRENT_STABLE" >> $GITHUB_OUTPUT
-        echo "current_dev=$CURRENT_DEV" >> $GITHUB_OUTPUT
-        
-        # Validate version format
-        if [[ ! "$SOURCE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "❌ Invalid version format: $SOURCE_VERSION"
-          exit 1
-        fi
-        
-        echo "✅ Source version validated: $SOURCE_VERSION"
-        
-    - name: "🔍 Verify source image exists"
-      run: |
-        echo "🔍 Checking if source image exists: ${IMAGE_NAME}:${{ steps.source.outputs.source_version }}"
-        
-        if docker buildx imagetools inspect "${IMAGE_NAME}:${{ steps.source.outputs.source_version }}" >/dev/null 2>&1; then
-          echo "✅ Source image found: ${IMAGE_NAME}:${{ steps.source.outputs.source_version }}"
-        else
-          echo "❌ Source image not found: ${IMAGE_NAME}:${{ steps.source.outputs.source_version }}"
-          echo "💡 Make sure the version has been built and published first"
-          exit 1
-        fi
-        
-    - name: "🔍 Show promotion plan"
-      run: |
-        echo "🎵 Promotion Plan:"
-        echo "  Current stable: ${{ steps.source.outputs.current_stable }}"
-        echo "  Current dev:    ${{ steps.source.outputs.current_dev }}"
-        echo "  Promoting:      ${{ steps.source.outputs.source_version }} → stable"
-        
-        if [[ "${{ github.event.inputs.auto_bump_dev }}" == "true" ]]; then
-          # Calculate next dev version
-          VERSION="${{ steps.source.outputs.source_version }}"
-          IFS='.' read -ra PARTS <<< "$VERSION"
-          MAJOR=${PARTS[0]}
-          MINOR=${PARTS[1]}
-          PATCH=${PARTS[2]}
-          NEW_DEV_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
-          echo "  New dev version: $NEW_DEV_VERSION"
-          echo "new_dev_version=$NEW_DEV_VERSION" >> $GITHUB_OUTPUT
-        else
-          echo "  Dev version: (unchanged)"
-        fi
-        
-        if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-          echo "🔍 DRY RUN - No changes will be made"
-        fi
-        
-    - name: "🐳 Set up Docker Buildx"
-      if: ${{ github.event.inputs.dry_run != 'true' }}
-      uses: docker/setup-buildx-action@v3
-      
-    - name: "🔑 Login to DockerHub"
-      if: ${{ github.event.inputs.dry_run != 'true' }}
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        
-    - name: "🏷️ Update version registry"
-      if: ${{ github.event.inputs.dry_run != 'true' }}
-      run: |
-        echo "📝 Updating version registry..."
-        
-        python3 << 'EOF'
-        import json
-        from datetime import datetime, timezone
-        
-        # Load registry
-        with open('version_registry.json', 'r') as f:
-            registry = json.load(f)
-        
-        # Update stable version
-        old_stable = registry['versions']['stable']
-        new_stable = "${{ steps.source.outputs.source_version }}"
-        registry['versions']['stable'] = new_stable
-        registry['release_info']['stable']['version'] = new_stable
-        registry['release_info']['stable']['released'] = datetime.now(timezone.utc).isoformat()
-        registry['release_info']['stable']['notes'] = f"Promoted from development version {new_stable}"
-        
-        # Update dev version if requested
-        if "${{ github.event.inputs.auto_bump_dev }}" == "true":
-            new_dev = "${{ steps.source.outputs.new_dev_version }}"
-            registry['versions']['development'] = new_dev
-            registry['release_info']['development']['version'] = new_dev  
-            registry['release_info']['development']['released'] = datetime.now(timezone.utc).isoformat()
-            registry['release_info']['development']['notes'] = f"Auto-bumped after promoting {new_stable} to stable"
-            print(f"📝 Updated development version: {new_dev}")
-        
-        # Update metadata
-        registry['_meta']['updated'] = datetime.now(timezone.utc).isoformat()
-        
-        # Save registry
-        with open('version_registry.json', 'w') as f:
-            json.dump(registry, f, indent=2)
-            
-        print(f"✅ Updated registry: stable {old_stable} → {new_stable}")
-        EOF
-        
-        # Sync all files with new versions
-        python3 scripts/version_sync.py
-        
-    - name: "🏷️ Promote Docker stable tag"
-      if: ${{ github.event.inputs.dry_run != 'true' }}
-      run: |
-        echo "🎵 Promoting Docker stable tag..."
-        
-        # Use retag script for consistent behavior
-        ./scripts/retag_by_digest.sh \
-          "${IMAGE_NAME}:${{ steps.source.outputs.source_version }}" \
-          "${IMAGE_NAME}:stable"
-          
-        echo "✅ Successfully promoted ${{ steps.source.outputs.source_version }} to stable Docker tag"
-        
-    - name: "📝 Commit changes"
-      if: ${{ github.event.inputs.dry_run != 'true' }}
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action [promote-stable]"
-        
-        git add version_registry.json boxofports/ pyproject.toml Dockerfile docker/ scripts/
-        
-        COMMIT_MSG="feat(release): promote ${{ steps.source.outputs.source_version }} to stable
-        
-        🎉 Stable release promotion complete!
-        - Promoted version: ${{ steps.source.outputs.source_version }} → stable
-        - Docker tag 'stable' now points to ${{ steps.source.outputs.source_version }}
-        - All version files synchronized"
-        
-        if [[ "${{ github.event.inputs.auto_bump_dev }}" == "true" ]]; then
-          COMMIT_MSG="$COMMIT_MSG
-        - Development version bumped: ${{ steps.source.outputs.new_dev_version }}"
-        fi
-        
-        COMMIT_MSG="$COMMIT_MSG
-        
-        🌊 The stable current flows to a new destination..."
-        
-        git commit -m "$COMMIT_MSG"
-        git push
-        
-    - name: "🎯 Create Git tag for new dev version"
-      if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.auto_bump_dev == 'true' }}
-      run: |
-        NEW_DEV_TAG="v${{ steps.source.outputs.new_dev_version }}"
-        echo "🏷️ Creating tag for new development version: $NEW_DEV_TAG"
-        
-        git tag -a "$NEW_DEV_TAG" -m "Development version ${{ steps.source.outputs.new_dev_version }}
-        
-        Auto-created after promoting ${{ steps.source.outputs.source_version }} to stable.
-        This tag will trigger the publish workflow to build the new dev version."
-        
-        git push origin "$NEW_DEV_TAG"
-        echo "✅ Created and pushed tag: $NEW_DEV_TAG"
-        
-    - name: "🎉 Summary"
-      run: |
-        echo "🎵 Promote to Stable workflow completed!"
-        echo ""
-        
-        if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-          echo "🔍 DRY RUN - No changes made"
-          echo "  Would promote: ${{ steps.source.outputs.source_version }} → stable"
-          if [[ "${{ github.event.inputs.auto_bump_dev }}" == "true" ]]; then
-            echo "  Would bump dev: ${{ steps.source.outputs.new_dev_version }}"
+      - name: Validate confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "YES" ]; then
+            echo "::error::Confirmation failed. Type YES to proceed."
+            exit 1
           fi
-        else
-          echo "✅ PROMOTION COMPLETED"
-          echo "  Promoted to stable: ${{ steps.source.outputs.source_version }}"
-          echo "  Docker stable tag updated: ${IMAGE_NAME}:stable"
-          
-          if [[ "${{ github.event.inputs.auto_bump_dev }}" == "true" ]]; then
-            echo "  New dev version: ${{ steps.source.outputs.new_dev_version }}"
-            echo "  🚀 New dev version will be built automatically"
+
+      - name: Checkout (needed for rollback mode to read tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools (jq + skopeo)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq skopeo
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker login
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Capture current :stable state
+        id: current_stable
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          AUTH=""
+          if [ -n "$DH_USER" ] && [ -n "$DH_TOKEN" ]; then
+            AUTH="--creds ${DH_USER}:${DH_TOKEN}"
           fi
-        fi
-        
-        echo ""
-        echo "🌊 Users on stable track will now receive: ${{ steps.source.outputs.source_version }}"
-        echo "🎼 The music flows to its intended destination..."
+
+          # Resolve current stable digest
+          stable_out=$(docker buildx imagetools inspect "${{ env.IMAGE }}:stable" 2>/dev/null || true)
+          stable_digest=$(echo "$stable_out" | sed -n 's/^Name:\s\+\(.*@sha256:[0-9a-f]\+\).*$/\1/p' | head -n1 | awk -F@ '{print $2}')
+          echo "digest=${stable_digest}" >> $GITHUB_OUTPUT
+
+          # Resolve stable version label if present
+          ver=""
+          if skopeo inspect $AUTH docker://${{ env.IMAGE }}:stable > /tmp/ins.json 2>/dev/null; then
+            ver=$(jq -r '.Labels["org.opencontainers.image.version"] // .Labels["io.boxofports.version"] // empty' /tmp/ins.json)
+          fi
+          echo "version=$ver" >> $GITHUB_OUTPUT
+
+          echo "Current stable digest: ${stable_digest:-<unknown>}"
+          echo "Current stable version label: ${ver:-<unknown>}"
+
+      - name: Validate inputs per mode
+        run: |
+          mode="${{ github.event.inputs.mode }}"
+          case "$mode" in
+            by_version)
+              tv="${{ github.event.inputs.target_version }}"
+              if ! echo "$tv" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                echo "::error::mode=by_version requires target_version X.Y.Z"
+                exit 1
+              fi
+              ;;
+            by_digest)
+              td="${{ github.event.inputs.target_digest }}"
+              if ! echo "$td" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
+                echo "::error::mode=by_digest requires target_digest sha256:<64-hex>"
+                exit 1
+              fi
+              ;;
+            rollback_previous_stable)
+              # no extra input required
+              ;;
+            *)
+              echo "::error::Invalid mode '$mode'"
+              exit 1
+              ;;
+          esac
+
+      - name: Resolve target digest and version (by_version)
+        id: byver
+        if: ${{ github.event.inputs.mode == 'by_version' }}
+        run: |
+          V="${{ github.event.inputs.target_version }}"
+          out=$(docker buildx imagetools inspect "${{ env.IMAGE }}:${V}" 2>/dev/null || true)
+          digest=$(echo "$out" | sed -n 's/^Name:\s\+\(.*@sha256:[0-9a-f]\+\).*$/\1/p' | head -n1 | awk -F@ '{print $2}')
+          if [ -z "$digest" ]; then
+            echo "::error::Could not resolve digest for :$V. Ensure publish-on-tag ran successfully."
+            exit 1
+          fi
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+          echo "version=$V" >> $GITHUB_OUTPUT
+          echo "Resolved :$V digest: $digest"
+
+      - name: Resolve target digest (by_digest)
+        id: bydig
+        if: ${{ github.event.inputs.mode == 'by_digest' }}
+        run: |
+          D="${{ github.event.inputs.target_digest }}"
+          # Basic sanity check by trying to create a temp tag and immediately delete it in dry mode
+          echo "digest=$D" >> $GITHUB_OUTPUT
+          echo "version=" >> $GITHUB_OUTPUT
+          echo "Using provided digest: $D"
+
+      - name: Resolve target digest and version (rollback_previous_stable)
+        id: rollback
+        if: ${{ github.event.inputs.mode == 'rollback_previous_stable' }}
+        run: |
+          set -e
+          # Determine current stable version label
+          CUR="${{ steps.current_stable.outputs.version }}"
+          if ! echo "$CUR" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::warning::Current stable version label missing. Falling back to tag list."
+            CUR=""
+          fi
+
+          git fetch --tags --force
+          # List all semver tags
+          mapfile -t TAGS < <(git tag -l "v[0-9]*.[0-9]*.[0-9]*" | sed 's/^v//' | sort -V)
+
+          # If we know current stable version, pick the largest tag < CUR. Else pick the second-largest tag (best-effort).
+          TARGET=""
+          if [ -n "$CUR" ]; then
+            for t in "${TAGS[@]}"; do
+              if [ "$t" = "$CUR" ]; then break; fi
+              TARGET="$t"
+            done
+          else
+            count=${#TAGS[@]}
+            if [ "$count" -ge 2 ]; then
+              TARGET="${TAGS[$((count-2))]}"
+            fi
+          fi
+
+          if [ -z "$TARGET" ]; then
+            echo "::error::Could not determine a previous stable tag to roll back to."
+            exit 1
+          fi
+
+          out=$(docker buildx imagetools inspect "${{ env.IMAGE }}:${TARGET}" 2>/dev/null || true)
+          digest=$(echo "$out" | sed -n 's/^Name:\s\+\(.*@sha256:[0-9a-f]\+\).*$/\1/p' | head -n1 | awk -F@ '{print $2}')
+          if [ -z "$digest" ]; then
+            echo "::error::No manifest found for :$TARGET. Ensure it was published."
+            exit 1
+          fi
+
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+          echo "version=$TARGET" >> $GITHUB_OUTPUT
+          echo "Rollback target :$TARGET digest: $digest"
+
+      - name: Summarize plan
+        id: plan
+        run: |
+          mode="${{ github.event.inputs.mode }}"
+          dry="${{ github.event.inputs.dry_run }}"
+          cur_ver="${{ steps.current_stable.outputs.version }}"
+          cur_dig="${{ steps.current_stable.outputs.digest }}"
+          tgt_ver=""
+          tgt_dig=""
+          if [ "$mode" = "by_version" ]; then
+            tgt_ver="${{ steps.byver.outputs.version }}"
+            tgt_dig="${{ steps.byver.outputs.digest }}"
+          elif [ "$mode" = "by_digest" ]; then
+            tgt_dig="${{ steps.bydig.outputs.digest }}"
+          else
+            tgt_ver="${{ steps.rollback.outputs.version }}"
+            tgt_dig="${{ steps.rollback.outputs.digest }}"
+          fi
+
+          echo "mode=$mode" >> $GITHUB_OUTPUT
+          echo "tgt_ver=$tgt_ver" >> $GITHUB_OUTPUT
+          echo "tgt_dig=$tgt_dig" >> $GITHUB_OUTPUT
+
+          {
+            echo "### Emergency Promotion Plan"
+            echo ""
+            echo "- Current stable version label: ${cur_ver:-<unknown>}"
+            echo "- Current stable digest: ${cur_dig:-<unknown>}"
+            echo "- Mode: $mode"
+            echo "- Target version: ${tgt_ver:-<none>}"
+            echo "- Target digest: ${tgt_dig}"
+            echo "- Dry run: ${dry}"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Retag :stable to target digest
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        run: |
+          mode="${{ steps.plan.outputs.mode }}"
+          digest=""
+          if [ "$mode" = "by_version" ]; then
+            digest="${{ steps.byver.outputs.digest }}"
+          elif [ "$mode" = "by_digest" ]; then
+            digest="${{ steps.bydig.outputs.digest }}"
+          else
+            digest="${{ steps.rollback.outputs.digest }}"
+          fi
+
+          if [ -z "$digest" ]; then
+            echo "::error::No target digest resolved."
+            exit 1
+          fi
+
+          docker buildx imagetools create \
+            -t "${{ env.IMAGE }}:stable" \
+            "${{ env.IMAGE }}@${digest}"
+
+          echo "Retagged :stable to digest $digest"
+
+      - name: Flip GitHub Release to non-prerelease (if version known)
+        if: ${{ github.event.inputs.update_release == 'true' && (github.event.inputs.mode == 'by_version' || github.event.inputs.mode == 'rollback_previous_stable') && github.event.inputs.dry_run == 'false' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const mode = '${{ github.event.inputs.mode }}';
+            const tgtVer = mode === 'by_version'
+              ? '${{ steps.byver.outputs.version }}'
+              : '${{ steps.rollback.outputs.version }}';
+
+            if (!tgtVer || !/^\d+\.\d+\.\d+$/.test(tgtVer)) {
+              core.info('No target version available for release flip.');
+              return;
+            }
+            const tag = `v${tgtVer}`;
+
+            try {
+              const { data: rels } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              const rel = rels.find(r => r.tag_name === tag);
+              if (!rel) {
+                core.info(`No release found for ${tag}. Skipping flip.`);
+              } else if (rel.prerelease) {
+                await github.rest.repos.updateRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: rel.id,
+                  prerelease: false
+                });
+                core.info(`Release ${tag} flipped to non-prerelease.`);
+              } else {
+                core.info(`Release ${tag} already non-prerelease.`);
+              }
+            } catch (e) {
+              core.warning(`Failed to update release: ${e.message}`);
+            }
+
+      - name: Final summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Operation completed." >> $GITHUB_STEP_SUMMARY
