@@ -97,7 +97,12 @@ sudo chmod +x "$BIN_PATH"
 echo "✅ Global command created: $BIN_PATH"
 
 # Set proper ownership and permissions
-sudo chown -R root:root "$INSTALL_DIR"
+# Use wheel group on macOS, root group on Linux
+if [[ "$(uname)" == "Darwin" ]]; then
+    sudo chown -R root:wheel "$INSTALL_DIR"
+else
+    sudo chown -R root:root "$INSTALL_DIR"
+fi
 sudo chmod -R 755 "$INSTALL_DIR"
 
 # Test installation

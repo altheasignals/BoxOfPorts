@@ -36,7 +36,7 @@ No more surprise version bumps! All releases are **intentional and controlled**.
 **Location**: GitHub Actions → "Version Bump" workflow
 
 **Options**:
-- `dev-patch`: 1.2.0 → 1.2.3 (development increment)
+- `dev-patch`: 1.2.5 → 1.2.3 (development increment)
 - `minor`: 1.2.3 → 1.3.0 (new stable release)  
 - `major`: 1.3.2 → 2.0.0 (breaking changes)
 - `set-exact`: Specify exact version (e.g., 1.2.5)
@@ -170,7 +170,7 @@ If a stable release has issues:
 ```bash
 # Rollback stable tag to previous version
 ./scripts/retag_by_digest.sh \
-  altheasignals/boxofports:1.2.0 \
+  altheasignals/boxofports:1.2.5 \
   altheasignals/boxofports:stable
 ```
 

@@ -14,6 +14,33 @@ echo "BoxOfPorts - SMS Gateway Management CLI for EJOIN Router Operators"
 echo "Like 'Box of Rain', but for ports"
 echo ""
 
+# Show current GitHub versions available for installation
+show_version_comparison() {
+    local github_stable="unknown"
+    local github_dev="unknown"
+    
+    # Fetch GitHub versions if curl is available
+    if command -v curl >/dev/null 2>&1; then
+        github_stable=$(curl -s "https://api.github.com/repos/altheasignals/boxofports/releases/latest" 2>/dev/null | 
+                       grep '"tag_name"' | cut -d'"' -f4 | sed 's/^v//' 2>/dev/null || echo "unknown")
+        github_dev=$(curl -s "https://raw.githubusercontent.com/altheasignals/boxofports/main/version_registry.json" 2>/dev/null | 
+                    grep '"development"' | head -1 | cut -d'"' -f4 2>/dev/null || echo "unknown")
+    fi
+    
+    # Display available versions if we have version info
+    if [[ "$github_stable" != "unknown" ]] || [[ "$github_dev" != "unknown" ]]; then
+        echo "📊 Available Versions"
+        echo "==================="
+        printf "%-15s %-10s\n" "Track" "Version"
+        printf "%-15s %-10s\n" "-----" "-------"
+        printf "%-15s %-10s\n" "Stable:" "v$github_stable"
+        printf "%-15s %-10s\n" "Development:" "v$github_dev"
+        echo ""
+    fi
+}
+
+show_version_comparison
+
 # Check Python version
 echo "📋 Checking Python version..."
 if ! python3 --version | grep -E "Python 3\.(11|12|13)" > /dev/null; then

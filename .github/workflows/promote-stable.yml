@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       target_version:
-        description: 'Version to promote to stable (e.g., 1.2.0). Must end in .0'
+        description: 'Version to promote to stable (e.g., 1.2.5)'
         required: false
         type: string
       auto_select:
-        description: 'Auto-select the latest X.Y.0 version available'
+        description: 'Auto-select the latest version available'
         required: false
         default: false
         type: boolean
@@ -45,16 +45,16 @@ jobs:
         if [[ "${{ github.event.inputs.auto_select }}" == "true" ]]; then
           echo "🔍 Auto-selecting latest X.Y.0 version..."
           
-          # Get all Git tags that match vX.Y.0 pattern, sort them, get the latest
-          LATEST_STABLE=$(git tag -l 'v*.*.*' | grep -E 'v[0-9]+\.[0-9]+\.0$' | sort -V | tail -n 1)
+          # Get all Git tags that match vX.Y.Z pattern, sort them, get the latest
+          LATEST_VERSION=$(git tag -l 'v*.*.*' | grep -E 'v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
           
-          if [[ -z "$LATEST_STABLE" ]]; then
-            echo "❌ No stable versions (X.Y.0) found in Git tags"
+          if [[ -z "$LATEST_VERSION" ]]; then
+            echo "❌ No versions found in Git tags"
             exit 1
           fi
           
           # Remove 'v' prefix
-          TARGET_VERSION=${LATEST_STABLE#v}
+          TARGET_VERSION=${LATEST_VERSION#v}
           echo "🎯 Auto-selected version: $TARGET_VERSION"
           
         elif [[ -n "${{ github.event.inputs.target_version }}" ]]; then
@@ -72,12 +72,7 @@ jobs:
           exit 1
         fi
         
-        # Validate it's a stable version (ends with .0)
-        if [[ ! "$TARGET_VERSION" =~ \.[0-9]+\.0$ ]]; then
-          echo "❌ Version $TARGET_VERSION is not stable (must end with .0)"
-          echo "💡 Use the development track for non-stable versions: BOP_RELEASE_TRACK=dev bop --help"
-          exit 1
-        fi
+        # Version validation passed - any X.Y.Z version can be promoted to stable
         
         echo "target_version=$TARGET_VERSION" >> $GITHUB_OUTPUT
         echo "source_tag=${IMAGE_NAME}:${TARGET_VERSION}" >> $GITHUB_OUTPUT

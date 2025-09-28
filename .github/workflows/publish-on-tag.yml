@@ -41,16 +41,12 @@ jobs:
         echo "minor=$MINOR" >> $GITHUB_OUTPUT
         echo "patch=$PATCH" >> $GITHUB_OUTPUT
         
-        # Classify version (stable if patch is 0, dev otherwise)
-        if [[ $PATCH == "0" ]]; then
-          echo "is_stable=true" >> $GITHUB_OUTPUT
-          echo "track=stable" >> $GITHUB_OUTPUT
-          echo "🎉 This is a stable release: $VERSION"
-        else
-          echo "is_stable=false" >> $GITHUB_OUTPUT
-          echo "track=dev" >> $GITHUB_OUTPUT
-          echo "🔄 This is a development release: $VERSION"
-        fi
+        # All releases start as development releases by default
+        # Use manual promotion workflow to mark versions as stable
+        echo "is_stable=false" >> $GITHUB_OUTPUT
+        echo "track=dev" >> $GITHUB_OUTPUT
+        echo "🔄 Development release: $VERSION (use promotion workflow to mark as stable)"
+        echo "📝 Note: All tagged releases default to development track for testing"
         
     - name: "🎭 Set up Python environment"
       uses: actions/setup-python@v4  

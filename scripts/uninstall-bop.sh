@@ -17,17 +17,34 @@ DETECTED_CONFIGS=()
 DETECTED_DATA=()
 
 print_header() {
-    echo -e "${BLUE}"
     echo "BoxOfPorts Uninstaller"
-    echo "Sometimes the light's all shinin' on me"
-    echo "======================================="
-    echo "Scanning for all installations to avoid version conflicts..."
-    echo -e "${NC}"
+    echo "Scanning for installations..."
+    
+    # Try to fetch current GitHub versions (non-blocking)
+    local github_stable="unknown"
+    local github_dev="unknown"
+    
+    if command -v curl >/dev/null 2>&1; then
+        # Fetch latest stable release
+        github_stable=$(curl -s "https://api.github.com/repos/altheasignals/boxofports/releases/latest" 2>/dev/null | 
+                       grep '"tag_name"' | cut -d'"' -f4 | sed 's/^v//' 2>/dev/null || echo "unknown")
+        
+        # Fetch development version from main branch version_registry.json
+        github_dev=$(curl -s "https://raw.githubusercontent.com/altheasignals/boxofports/main/version_registry.json" 2>/dev/null | 
+                    grep '"development"' | head -1 | cut -d'"' -f4 2>/dev/null || echo "unknown")
+    fi
+    
+    # Show current official versions if available
+    if [[ "$github_stable" != "unknown" ]] || [[ "$github_dev" != "unknown" ]]; then
+        echo -e "${BLUE}📡 Current Official Versions${NC}"
+        echo -e "${GREEN}Stable:${NC} ${YELLOW}v$github_stable${NC} | ${GREEN}Development:${NC} ${YELLOW}v$github_dev${NC}"
+        echo
+    fi
 }
 
 print_section() {
-    echo -e "\n${YELLOW}$1${NC}"
-    echo "$(printf '%.0s-' {1..50})"
+    echo ""
+    echo "$1"
 }
 
 add_detection() {
@@ -51,33 +68,39 @@ add_detection() {
 
 # Check for pip installations
 check_pip_installations() {
-    print_section "🔍 Checking pip installations..."
+    print_section "🐍 Checking pip installations..."
     
-    # Global pip
-    if pip show boxofports >/dev/null 2>&1; then
+    # Check if it's an editable install first
+    local is_editable=false
+    if pip list --editable 2>/dev/null | grep -q boxofports; then
+        is_editable=true
+    fi
+    
+    # Only show global pip if it's NOT an editable install
+    if pip show boxofports >/dev/null 2>&1 && [[ "$is_editable" == "false" ]]; then
         local version=$(pip show boxofports | grep "Version:" | cut -d' ' -f2 || echo "unknown")
         local bop_path=$(which bop 2>/dev/null || echo 'pip global')
         add_detection "install" "$bop_path" "pip global install (v$version)" "pip_global"
-        echo -e "  ${RED}✓${NC} Found pip global installation (version: $version)"
+        echo -e "  ${GREEN}✓${NC} Found pip global installation ${YELLOW}(version: $version)${NC}"
     fi
     
-    # pip --user installations
-    if pip show --user boxofports >/dev/null 2>&1; then
+    # pip --user installations (also check it's not editable)
+    if pip show --user boxofports >/dev/null 2>&1 && [[ "$is_editable" == "false" ]]; then
         local version=$(pip show --user boxofports | grep "Version:" | cut -d' ' -f2 || echo "unknown")
         add_detection "install" "$HOME/.local/bin/bop" "pip user install (v$version)" "pip_user"
-        echo -e "  ${RED}✓${NC} Found pip --user installation (version: $version)"
+        echo -e "  ${GREEN}✓${NC} Found pip --user installation ${YELLOW}(version: $version)${NC}"
+    fi
+    
+    # If no pip installations found and no editable, show info message
+    if ! pip show boxofports >/dev/null 2>&1 && ! pip show --user boxofports >/dev/null 2>&1 && [[ "$is_editable" == "false" ]]; then
+        echo -e "  ${YELLOW}ℹ${NC} No pip installations found"
     fi
 }
 
-# Check for conda/mamba installations (skip - not in our recommended install methods)
-check_conda_installations() {
-    print_section "🔍 Checking conda/mamba installations..."
-    echo -e "  ${YELLOW}ℹ${NC} Skipping conda/mamba - not a recommended installation method"
-}
 
 # Check for Docker wrapper installations  
 check_docker_wrapper() {
-    print_section "🔍 Checking Docker wrapper installations..."
+    print_section "🐳 Checking Docker wrapper installations..."
     
     # Common installation paths
     local wrapper_paths=(
@@ -87,6 +110,8 @@ check_docker_wrapper() {
         "$HOME/bin/bop"
         "./bop"
         "./scripts/bop"
+        "/usr/local/bin/boxofports"  # System-wide installation
+        "/usr/bin/boxofports"        # Alternative system path
     )
     
     for path in "${wrapper_paths[@]}"; do
@@ -95,7 +120,12 @@ check_docker_wrapper() {
             if grep -q "DOCKER_IMAGE=" "$path" 2>/dev/null; then
                 local image=$(grep "DOCKER_IMAGE=" "$path" | head -1 | cut -d'"' -f2)
                 add_detection "install" "$path" "Docker wrapper (image: $image)" "docker_wrapper"
-                echo -e "  ${RED}✓${NC} Found Docker wrapper: $path (image: $image)"
+                echo -e "  ${GREEN}✓${NC} Found Docker wrapper: ${BLUE}$path${NC} ${YELLOW}(image: $image)${NC}"
+            # Check if it's a system-wide installation wrapper
+            elif grep -q "/opt/boxofports/venv" "$path" 2>/dev/null; then
+                local version=$($path --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "unknown")
+                add_detection "install" "$path" "System-wide installation v$version" "system_install"
+                echo -e "  ${GREEN}✓${NC} Found system-wide installation: ${BLUE}$path${NC} ${YELLOW}(v$version)${NC}"
             fi
         fi
     done
@@ -108,10 +138,10 @@ check_docker_wrapper() {
             if grep -q "DOCKER_IMAGE=" "$bop_path" 2>/dev/null; then
                 local image=$(grep "DOCKER_IMAGE=" "$bop_path" | head -1 | cut -d'"' -f2 || echo "unknown")
                 add_detection "install" "$bop_path" "Docker wrapper in PATH (image: $image)" "docker_wrapper"
-                echo -e "  ${RED}✓${NC} Found Docker wrapper in PATH: $bop_path"
+                echo -e "  ${GREEN}✓${NC} Found Docker wrapper in PATH: ${BLUE}$bop_path${NC}"
             else
                 add_detection "install" "$bop_path" "Unknown bop installation" "unknown"
-                echo -e "  ${RED}✓${NC} Found unknown bop installation: $bop_path"
+                echo -e "  ${GREEN}✓${NC} Found unknown bop installation: ${BLUE}$bop_path${NC}"
             fi
         fi
     fi
@@ -119,13 +149,14 @@ check_docker_wrapper() {
 
 # Check for development installations (skip - developers can handle their own)
 check_development() {
-    print_section "🔍 Checking development installations..."
+    print_section "🛠️ Checking development installations..."
     
     # Look for editable installs only
     if pip list --editable 2>/dev/null | grep -q boxofports; then
         local path=$(pip show boxofports | grep "Location:" | cut -d' ' -f2 || echo "unknown")
-        add_detection "install" "$path" "pip editable install (development)" "pip_editable"
-        echo -e "  ${RED}✓${NC} Found pip editable install: $path"
+        local version=$(pip show boxofports | grep "Version:" | cut -d' ' -f2 || echo "unknown")
+        add_detection "install" "$path" "pip editable install v$version (development)" "pip_editable"
+        echo -e "  ${GREEN}✓${NC} Found pip editable install: ${BLUE}$path${NC} ${YELLOW}(v$version)${NC}"
     else
         echo -e "  ${YELLOW}ℹ${NC} No development installations found (developers can handle their own)"
     fi
@@ -133,13 +164,13 @@ check_development() {
 
 # Check for configuration and data directories (only recommended locations)
 check_configs_and_data() {
-    print_section "🔍 Checking configuration and data directories..."
+    print_section "📁 Checking configuration and data directories..."
     
     # Configuration directories (only the main one we recommend)
     if [[ -d "$HOME/.boxofports" ]]; then
         local files=$(ls -1 "$HOME/.boxofports" 2>/dev/null | wc -l | tr -d ' ')
         add_detection "config" "$HOME/.boxofports" "config directory ($files files)" "config"
-        echo -e "  ${YELLOW}✓${NC} Found config directory: $HOME/.boxofports ($files files)"
+        echo -e "  ${GREEN}✓${NC} Found config directory: ${BLUE}$HOME/.boxofports${NC} ${YELLOW}($files files)${NC}"
     fi
     
     # Check if there are other config directories
@@ -152,14 +183,14 @@ check_configs_and_data() {
         if [[ -d "$path" ]]; then
             local files=$(ls -1 "$path" 2>/dev/null | wc -l | tr -d ' ')
             add_detection "config" "$path" "alternate config directory ($files files)" "config"
-            echo -e "  ${YELLOW}✓${NC} Found alternate config directory: $path ($files files)"
+            echo -e "  ${GREEN}✓${NC} Found alternate config directory: ${BLUE}$path${NC} ${YELLOW}($files files)${NC}"
         fi
     done
 }
 
 # Check for Docker images
 check_docker_images() {
-    print_section "🔍 Checking Docker images..."
+    print_section "📺 Checking Docker images..."
     
     if command -v docker >/dev/null 2>&1; then
         # Check specifically for our recommended images
@@ -176,8 +207,23 @@ check_docker_images() {
                     if [[ -n "$line" ]]; then
                         local image=$(echo "$line" | awk '{print $1}')
                         local size=$(echo "$line" | awk '{print $2}')
-                        add_detection "install" "docker:$image" "Docker image ($size)" "docker_image"
-                        echo -e "  ${BLUE}✓${NC} Found Docker image: $image ($size)"
+                        # Try to get version from the Docker image
+                        local version="unknown"
+                        
+                        # First try to get version from image tag
+                        if [[ "$image" =~ :([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+                            version="${BASH_REMATCH[1]}"
+                        # Then try to get version from Docker labels
+                        elif docker inspect "$image" --format '{{.Config.Labels.version}}' 2>/dev/null | grep -qE '[0-9]+\.[0-9]+\.[0-9]+'; then
+                            version=$(docker inspect "$image" --format '{{.Config.Labels.version}}' 2>/dev/null)
+                        # For known tags, map them to likely versions
+                        elif [[ "$image" == *":latest" ]]; then
+                            version="latest"
+                        elif [[ "$image" == *":stable" ]]; then
+                            version="stable"
+                        fi
+                        add_detection "install" "docker:$image" "Docker image v$version ($size)" "docker_image"
+                        echo -e "  ${GREEN}✓${NC} Found Docker image: ${BLUE}$image${NC} ${YELLOW}(v$version)${NC}"
                     fi
                 done <<< "$images"
             fi
@@ -201,9 +247,35 @@ display_summary() {
         local i=1
         for detection in "${DETECTED_INSTALLATIONS[@]}"; do
             IFS='|' read -r path description method <<< "$detection"
-            echo "  $i) $description"
-            echo "     Path: $path"
-            echo "     Type: $method"
+            # Clean up description and highlight version consistently
+            local clean_description="$description"
+            local version_text=""
+            
+            # Extract version and clean description
+            if [[ "$description" =~ (.*)\ v([0-9\.]+|[a-z]+|unknown)\ \(.*\) ]]; then
+                clean_description="${BASH_REMATCH[1]} (${description##*\(}"
+                version_text=" ${YELLOW}v${BASH_REMATCH[2]}${NC}"
+            elif [[ "$description" =~ (.*)\ v([0-9\.]+|[a-z]+|unknown) ]]; then
+                clean_description="${BASH_REMATCH[1]}"
+                version_text=" ${YELLOW}v${BASH_REMATCH[2]}${NC}"
+            elif [[ "$description" =~ \(v([^\)]+)\) ]]; then
+                local version="${BASH_REMATCH[1]}"
+                clean_description=$(echo "$description" | sed "s/(v[^)]*)//")
+                version_text=" ${YELLOW}v$version${NC}"
+            fi
+            
+            echo -e "  ${BLUE}$i)${NC} $clean_description$version_text"
+            # Add size info after path for Docker images
+            if [[ "$method" == "docker_image" ]]; then
+                # Extract size from description
+                local size=""
+                if [[ "$description" =~ \(([^\)]*MB|[^\)]*GB)\) ]]; then
+                    size=" ${YELLOW}(${BASH_REMATCH[1]})${NC}"
+                fi
+                echo -e "     ${GREEN}Path:${NC} $path$size"
+            else
+                echo -e "     ${GREEN}Path:${NC} $path"
+            fi
             echo
             ((i++))
         done
@@ -214,8 +286,8 @@ display_summary() {
         local i=1
         for detection in "${DETECTED_CONFIGS[@]}"; do
             IFS='|' read -r path description method <<< "$detection"
-            echo "  $i) $description"
-            echo "     Path: $path"
+            echo -e "  ${BLUE}$i)${NC} $description"
+            echo -e "     ${GREEN}Path:${NC} $path"
             ((i++))
         done
     fi
@@ -225,8 +297,8 @@ display_summary() {
         local i=1
         for detection in "${DETECTED_DATA[@]}"; do
             IFS='|' read -r path description method <<< "$detection"
-            echo "  $i) $description"
-            echo "     Path: $path"
+            echo -e "  ${BLUE}$i)${NC} $description"
+            echo -e "     ${GREEN}Path:${NC} $path"
             ((i++))
         done
     fi
@@ -332,6 +404,14 @@ interactive_removal() {
                         rm -f "$path" && echo "✓ Removed: $path" || echo "✗ Failed to remove: $path"
                     fi
                     ;;
+                "system_install")
+                    echo "⚠️  Removing system-wide installation requires sudo privileges"
+                    if sudo rm -f "$path" 2>/dev/null && sudo rm -rf "/opt/boxofports" 2>/dev/null; then
+                        echo "✓ Removed system installation: $path and /opt/boxofports"
+                    else
+                        echo "✗ Failed to remove system installation (requires sudo)"
+                    fi
+                    ;;
                 "docker_image")
                     local image_name=${path#docker:}
                     docker rmi "$image_name" 2>/dev/null && echo "✓ Removed Docker image: $image_name" || echo "✗ Failed to remove Docker image: $image_name"
@@ -405,7 +485,6 @@ main() {
     
     # Run all detection checks
     check_pip_installations
-    check_conda_installations
     check_docker_wrapper
     check_development
     check_configs_and_data

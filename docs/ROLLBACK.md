@@ -9,9 +9,9 @@ This document provides quick rollback procedures for BoxOfPorts releases when is
 If a stable release has critical issues, rollback the Docker tag immediately:
 
 ```bash
-# Rollback stable to previous version (replace 1.2.0 with target version)
+# Rollback stable to previous version (replace 1.2.5 with target version)
 ./scripts/retag_by_digest.sh \
-  altheasignals/boxofports:1.2.0 \
+  altheasignals/boxofports:1.2.5 \
   altheasignals/boxofports:stable
 
 # Verify the rollback
@@ -79,7 +79,7 @@ git push origin main
 # Or reset version manually
 # Edit pyproject.toml to correct version
 git add pyproject.toml
-git commit -m "fix(version): rollback to 1.2.0 due to release issues"
+git commit -m "fix(version): rollback to 1.2.5 due to release issues"
 git push origin main
 ```
 
