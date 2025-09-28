@@ -6,6 +6,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.2.7)'
+        required: true
+        type: string
 
 env:
   REGISTRY: docker.io
@@ -22,11 +28,19 @@ jobs:
     - name: "🌈 Checkout the magnificent codebase"
       uses: actions/checkout@v4
       
-    - name: "🏷️ Parse version from tag"
+    - name: "🏷️ Parse version from tag or input"
       id: version
       run: |
-        # Extract version from Git tag (remove 'v' prefix)
-        VERSION=${GITHUB_REF#refs/tags/v}
+        # Determine version source (tag push vs workflow dispatch)
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          VERSION="${{ github.event.inputs.version }}"
+          echo "🚀 Workflow dispatch - using input version: $VERSION"
+        else
+          # Extract version from Git tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "🏷️ Tag push - extracted version: $VERSION"
+        fi
+        
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "tag=v$VERSION" >> $GITHUB_OUTPUT
         echo "Building version: $VERSION"

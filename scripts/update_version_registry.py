@@ -16,6 +16,40 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def trigger_publish_workflow(version, github_token):
+    """Trigger the publish-on-tag workflow for a specific version."""
+    print(f"🚀 Triggering publish-on-tag workflow for v{version}...")
+    
+    try:
+        # Trigger the workflow_dispatch for publish-on-tag.yml
+        trigger_cmd = [
+            'curl', '-s', '-X', 'POST',
+            '-H', f'Authorization: token {github_token}',
+            '-H', 'Accept: application/vnd.github.v3+json',
+            '-H', 'Content-Type: application/json',
+            f'https://api.github.com/repos/altheasignals/boxofports/actions/workflows/publish-on-tag.yml/dispatches',
+            '-d', json.dumps({
+                'ref': 'main',
+                'inputs': {
+                    'version': version
+                }
+            })
+        ]
+        
+        result = subprocess.run(trigger_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"❌ Failed to trigger workflow: {result.stderr}")
+            return False
+            
+        # A successful dispatch returns empty response with 204 status
+        print(f"✅ Workflow dispatch request sent successfully")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error triggering workflow: {e}")
+        return False
+
+
 def promote_github_release(version):
     """Promote a GitHub release from prerelease to stable (non-prerelease)."""
     print(f"🏷️ Attempting to promote GitHub release v{version} to stable...")
@@ -41,9 +75,32 @@ def promote_github_release(version):
             
         release_data = json.loads(result.stdout)
         if 'id' not in release_data:
-            print(f"❌ No GitHub release found for v{version}")
-            print(f"   Make sure the tag v{version} has been pushed and release created")
-            return False
+            print(f"⚠️  No GitHub release found for v{version}")
+            print(f"   Attempting to trigger publish-on-tag workflow to create release...")
+            
+            # Try to trigger the publish-on-tag workflow
+            workflow_success = trigger_publish_workflow(version, github_token)
+            if workflow_success:
+                print(f"   Workflow triggered successfully - waiting for release creation...")
+                # Wait a bit for the workflow to complete
+                import time
+                time.sleep(10)
+                
+                # Try to check for the release again
+                result = subprocess.run(check_cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    release_data = json.loads(result.stdout)
+                    if 'id' in release_data:
+                        print(f"✅ Release created successfully by workflow")
+                    else:
+                        print(f"❌ Release still not found after workflow trigger")
+                        return False
+                else:
+                    print(f"❌ Failed to verify release creation after workflow")
+                    return False
+            else:
+                print(f"❌ Could not trigger workflow - manual intervention required")
+                return False
             
         release_id = release_data['id']
         current_prerelease = release_data.get('prerelease', True)
