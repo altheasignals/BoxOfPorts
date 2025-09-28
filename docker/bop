@@ -273,7 +273,7 @@ handle_special_commands() {
             local version
             version=$(get_local_version "$tag")
             
-            echo "bop (Docker wrapper) v1.2.8"
+            echo "bop (Docker wrapper) v1.2.10"
             echo "BoxOfPorts container version: $version"
             echo "Docker image: ${DOCKER_IMAGE}:${tag}"
             echo "Mode: $(is_steal_your_face_mode && echo "Steal Your Face (bleeding edge)" || echo "Stable releases")"
