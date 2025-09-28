@@ -3,13 +3,16 @@
 Version Status Checker for BoxOfPorts
 "Like checking the tuning of all instruments before the show"
 
-This script checks version consistency across all files and shows the current state.
+This script checks version consistency across all files and shows the current state,
+including live GitHub release information for complete version harmony.
 """
 
 import json
 import re
+import urllib.request
+import urllib.error
 from pathlib import Path
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 
 
 class VersionChecker:
@@ -17,6 +20,7 @@ class VersionChecker:
         self.registry_path = registry_path
         self.repo_root = Path(__file__).parent.parent
         self.registry = self._load_registry()
+        self.github_repo = "altheasignals/BoxOfPorts"
         
     def _load_registry(self) -> Dict[str, Any]:
         """Load the central version registry."""
@@ -88,19 +92,63 @@ class VersionChecker:
         """Check bop wrapper versions."""
         results = {}
         
-        # Check main bop script
+        # Check main bop script (version in header comment)
         bop_script = self.repo_root / "scripts" / "bop"
         results["scripts/bop"] = self._extract_version_from_file(
-            bop_script, [r'bop \(Docker wrapper\) v([^"]*)"']
+            bop_script, [r'# bop \(Docker wrapper\) v([0-9]+\.[0-9]+\.[0-9]+)']
         )
         
-        # Check docker/bop
+        # Check docker/bop (version in echo statement)
         docker_bop = self.repo_root / "docker" / "bop"
         results["docker/bop"] = self._extract_version_from_file(
-            docker_bop, [r'bop \(Docker wrapper\) v([^"]*)"']
+            docker_bop, [r'bop \(Docker wrapper\) v([0-9]+\.[0-9]+\.[0-9]+)']
         )
         
         return results
+    
+    def _fetch_github_releases(self) -> Optional[Dict[str, Any]]:
+        """Fetch GitHub release information from API."""
+        try:
+            url = f"https://api.github.com/repos/{self.github_repo}/releases"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                return json.loads(response.read().decode())
+        except (urllib.error.URLError, json.JSONDecodeError, Exception):
+            return None
+    
+    def get_github_release_info(self) -> Dict[str, Optional[str]]:
+        """Get current and pre-release version info from GitHub."""
+        releases = self._fetch_github_releases()
+        if not releases:
+            return {
+                "latest_release": None,
+                "latest_prerelease": None,
+                "release_count": None
+            }
+        
+        # Filter and find versions
+        latest_release = None
+        latest_prerelease = None
+        
+        for release in releases:
+            if release.get("draft"):
+                continue  # Skip draft releases
+                
+            version = release.get("tag_name", "").lstrip("v")
+            if not version:
+                continue
+                
+            if release.get("prerelease", False):
+                if latest_prerelease is None:
+                    latest_prerelease = version
+            else:
+                if latest_release is None:
+                    latest_release = version
+        
+        return {
+            "latest_release": latest_release,
+            "latest_prerelease": latest_prerelease,
+            "release_count": str(len([r for r in releases if not r.get("draft", False)]))
+        }
     
     def display_version_summary(self):
         """Display a comprehensive version summary."""
@@ -122,6 +170,31 @@ class VersionChecker:
         docker_info = self.registry['docker']
         print(f"  {docker_info['image_name']}:stable  → {self.registry['versions']['stable']}")
         print(f"  {docker_info['image_name']}:latest  → {self.registry['versions']['development']}")
+        print()
+        
+        # GitHub releases
+        print("🐙 GITHUB RELEASES:")
+        github_info = self.get_github_release_info()
+        if github_info["latest_release"] is not None or github_info["latest_prerelease"] is not None:
+            if github_info["latest_release"]:
+                status = "✅" if github_info["latest_release"] == self.registry['versions']['stable'] else "⚠️"
+                print(f"  {status} Latest release:     {github_info['latest_release']}")
+            else:
+                print("  📝 Latest release:     No stable releases found")
+                
+            if github_info["latest_prerelease"]:
+                status = "✅" if github_info["latest_prerelease"] == self.registry['versions']['development'] else "⚠️"
+                print(f"  {status} Latest pre-release: {github_info['latest_prerelease']}")
+            else:
+                print("  📝 Latest pre-release: No pre-releases available")
+                
+            if github_info["release_count"]:
+                print(f"  📊 Total releases:     {github_info['release_count']}")
+                
+            print(f"  🔗 Repository:         https://github.com/{self.github_repo}")
+        else:
+            print("  ⚠️  Could not fetch release information from GitHub")
+            print("  🔗 Repository:         https://github.com/{self.github_repo}")
         print()
         
         # File versions
@@ -154,7 +227,7 @@ class VersionChecker:
         
         print()
         
-        # Check consistency
+        # Check consistency (including GitHub releases)
         all_python_consistent = all(
             versions and versions[0] == self.registry['versions']['stable'] 
             for versions in python_versions.values()
@@ -165,12 +238,24 @@ class VersionChecker:
             for versions in bop_versions.values() if versions
         )
         
+        # Check GitHub release alignment
+        github_release_aligned = (
+            github_info["latest_release"] == self.registry['versions']['stable'] if github_info["latest_release"] else True
+        )
+        github_prerelease_aligned = (
+            github_info["latest_prerelease"] == self.registry['versions']['development'] if github_info["latest_prerelease"] else True
+        )
+        
         print("🎯 CONSISTENCY STATUS:")
-        if all_python_consistent and all_bop_consistent:
+        if all_python_consistent and all_bop_consistent and github_release_aligned and github_prerelease_aligned:
             print("  ✅ All versions are synchronized")
             print("  🌊 The harmony flows perfectly!")
         else:
             print("  ⚠️  Version inconsistencies detected")
+            if not github_release_aligned:
+                print(f"  🐙 GitHub release mismatch: {github_info['latest_release']} vs {self.registry['versions']['stable']}")
+            if not github_prerelease_aligned:
+                print(f"  🐙 GitHub pre-release mismatch: {github_info['latest_prerelease']} vs {self.registry['versions']['development']}")
             print("  💡 Run 'python3 scripts/version_sync.py' to fix")
         
         print()

@@ -25,13 +25,17 @@ print_header() {
     local github_dev="unknown"
     
     if command -v curl >/dev/null 2>&1; then
-        # Fetch latest stable release
+        # Fetch latest stable release (non-prerelease)
         github_stable=$(curl -s "https://api.github.com/repos/altheasignals/boxofports/releases/latest" 2>/dev/null | 
                        grep '"tag_name"' | cut -d'"' -f4 | sed 's/^v//' 2>/dev/null || echo "unknown")
         
-        # Fetch development version from main branch version_registry.json
-        github_dev=$(curl -s "https://raw.githubusercontent.com/altheasignals/boxofports/main/version_registry.json" 2>/dev/null | 
-                    grep '"development"' | head -1 | cut -d'"' -f4 2>/dev/null || echo "unknown")
+        # Fetch overall latest release (which could be stable or development)
+        github_latest=$(curl -s "https://api.github.com/repos/altheasignals/boxofports/releases" 2>/dev/null | 
+                       grep '"tag_name"' | head -1 | cut -d'"' -f4 | sed 's/^v//' 2>/dev/null || echo "unknown")
+        
+        # For development version, use the latest overall release
+        # This correctly shows the current development state
+        github_dev="$github_latest"
     fi
     
     # Show current official versions if available
@@ -201,12 +205,21 @@ check_docker_images() {
         )
         
         for image_pattern in "${expected_images[@]}"; do
-            local images=$(docker images --filter "reference=$image_pattern" --format "{{.Repository}}:{{.Tag}} {{.Size}}" 2>/dev/null || true)
+            # Include image ID in the format for <none> tagged images
+            local images=$(docker images --filter "reference=$image_pattern" --format "{{.Repository}}:{{.Tag}} {{.ID}} {{.Size}}" 2>/dev/null || true)
             if [[ -n "$images" ]]; then
                 while IFS= read -r line; do
                     if [[ -n "$line" ]]; then
                         local image=$(echo "$line" | awk '{print $1}')
-                        local size=$(echo "$line" | awk '{print $2}')
+                        local image_id=$(echo "$line" | awk '{print $2}')
+                        local size=$(echo "$line" | awk '{print $3}')
+                        
+                        # For <none> tagged images, use the image ID for removal
+                        local removal_target="$image"
+                        if [[ "$image" == *"<none>" ]]; then
+                            removal_target="$image_id"
+                        fi
+                        
                         # Try to get version from the Docker image
                         local version="unknown"
                         
@@ -214,15 +227,29 @@ check_docker_images() {
                         if [[ "$image" =~ :([0-9]+\.[0-9]+\.[0-9]+) ]]; then
                             version="${BASH_REMATCH[1]}"
                         # Then try to get version from Docker labels
-                        elif docker inspect "$image" --format '{{.Config.Labels.version}}' 2>/dev/null | grep -qE '[0-9]+\.[0-9]+\.[0-9]+'; then
-                            version=$(docker inspect "$image" --format '{{.Config.Labels.version}}' 2>/dev/null)
-                        # For known tags, map them to likely versions
+                        elif docker inspect "$image_id" >/dev/null 2>&1; then
+                            # Try org.opencontainers.image.version first
+                            local label_version=$(docker inspect "$image_id" --format '{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null)
+                            if [[ -n "$label_version" ]] && [[ "$label_version" != "<no value>" ]]; then
+                                version="$label_version"
+                            # Try simple version label
+                            elif docker inspect "$image_id" --format '{{.Config.Labels.version}}' 2>/dev/null | grep -qE '[0-9]+\.[0-9]+\.[0-9]+'; then
+                                version=$(docker inspect "$image_id" --format '{{.Config.Labels.version}}' 2>/dev/null)
+                            # For known tags, use tag names
+                            elif [[ "$image" == *":latest" ]]; then
+                                version="latest"
+                            elif [[ "$image" == *":stable" ]]; then
+                                version="stable"
+                            fi
+                        # Fallback to tag-based detection
                         elif [[ "$image" == *":latest" ]]; then
                             version="latest"
                         elif [[ "$image" == *":stable" ]]; then
                             version="stable"
                         fi
-                        add_detection "install" "docker:$image" "Docker image v$version ($size)" "docker_image"
+                        
+                        # Store the removal target (image name or ID) for later use
+                        add_detection "install" "docker:$removal_target" "Docker image v$version ($size)" "docker_image"
                         echo -e "  ${GREEN}✓${NC} Found Docker image: ${BLUE}$image${NC} ${YELLOW}(v$version)${NC}"
                     fi
                 done <<< "$images"
