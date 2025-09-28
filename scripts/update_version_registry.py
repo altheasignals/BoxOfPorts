@@ -140,6 +140,61 @@ def promote_github_release(version):
         return False
 
 
+def commit_and_push_changes(repo_root, version=None):
+    """Commit and push changes to the repository."""
+    try:
+        # Check if there are changes to commit
+        status_result = subprocess.run(
+            ['git', 'status', '--porcelain'], 
+            cwd=repo_root, capture_output=True, text=True
+        )
+        
+        if not status_result.stdout.strip():
+            print("ℹ️  No changes to commit")
+            return True
+            
+        # Add all changes
+        print("📝 Staging changes...")
+        add_result = subprocess.run(
+            ['git', 'add', '.'], 
+            cwd=repo_root, capture_output=True, text=True
+        )
+        
+        if add_result.returncode != 0:
+            print(f"❌ Failed to stage changes: {add_result.stderr}")
+            return False
+            
+        # Commit changes
+        commit_msg = f"chore(version): promote v{version} to stable" if version else "chore: update version registry"
+        print(f"📝 Committing changes: {commit_msg}")
+        commit_result = subprocess.run(
+            ['git', 'commit', '-m', commit_msg], 
+            cwd=repo_root, capture_output=True, text=True
+        )
+        
+        if commit_result.returncode != 0:
+            print(f"❌ Failed to commit changes: {commit_result.stderr}")
+            return False
+            
+        # Push changes
+        print("🚀 Pushing changes to origin...")
+        push_result = subprocess.run(
+            ['git', 'push', 'origin', 'main'], 
+            cwd=repo_root, capture_output=True, text=True
+        )
+        
+        if push_result.returncode != 0:
+            print(f"❌ Failed to push changes: {push_result.stderr}")
+            return False
+            
+        print("✅ Changes committed and pushed successfully")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error in git operations: {e}")
+        return False
+
+
 def update_registry(stable_version=None, dev_version=None, sync_only=False):
     """Update the version registry and optionally sync files."""
     repo_root = Path(__file__).parent.parent
@@ -162,6 +217,7 @@ def update_registry(stable_version=None, dev_version=None, sync_only=False):
     print()
     
     changes_made = False
+    promoted_version = None
     
     # Update versions if provided
     if stable_version:
@@ -170,6 +226,7 @@ def update_registry(stable_version=None, dev_version=None, sync_only=False):
         registry["release_info"]["stable"]["version"] = stable_version
         registry["release_info"]["stable"]["released"] = datetime.now(timezone.utc).isoformat()
         changes_made = True
+        promoted_version = stable_version
         
         # Also promote the corresponding GitHub release
         print("\n🔄 Promoting corresponding GitHub release...")
@@ -207,6 +264,14 @@ def update_registry(stable_version=None, dev_version=None, sync_only=False):
         else:
             print("❌ Version synchronization failed")
             print(result.stderr)
+            return False
+            
+        # Commit and push changes
+        print("\n🔄 Committing and pushing changes...")
+        git_success = commit_and_push_changes(repo_root, promoted_version)
+        if not git_success:
+            print("⚠️  Git operations failed, but version update was successful")
+            print("   You may need to commit and push manually")
             return False
     else:
         print("ℹ️  No changes specified")

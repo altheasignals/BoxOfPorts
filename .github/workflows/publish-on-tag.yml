@@ -21,7 +21,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write  # Required to create releases
       packages: write
       
     steps:
@@ -138,12 +138,10 @@ jobs:
         echo "📝 This allows for additional validation before promoting to stable."
         
     - name: "🏷️ Create GitHub release"
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.version.outputs.tag }}
-        release_name: BoxOfPorts ${{ steps.version.outputs.version }}
+        name: BoxOfPorts ${{ steps.version.outputs.version }}
         body: |
           ## BoxOfPorts ${{ steps.version.outputs.version }}
           
@@ -195,6 +193,9 @@ jobs:
           
         draft: false
         prerelease: ${{ steps.version.outputs.is_stable != 'true' }}
+        files: |
+          dist/boxofports-${{ steps.version.outputs.version }}-py3-none-any.whl
+          dist/boxofports-${{ steps.version.outputs.version }}.tar.gz
         
     - name: "🎉 Summary"
       run: |
