@@ -127,28 +127,30 @@ jobs:
       - name: Compute next version
         id: nextver
         if: steps.skipcheck.outputs.skip == 'false'
-        run: |
-          python3 - << 'PY'
-import os, re, sys
-base = os.environ.get("BASE") or ""
-bump = os.environ.get("BUMP") or "patch"
-m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', base)
-if not m:
-    print(f"::error::Base version '{base}' is not valid X.Y.Z")
-    sys.exit(1)
-major, minor, patch = map(int, m.groups())
-if bump == "major":
-    major, minor, patch = major+1, 0, 0
-elif bump == "minor":
-    minor, patch = minor+1, 0
-else:
-    patch += 1
-print(f"::set-output name=next::{major}.{minor}.{patch}")
-PY
         env:
           BASE: ${{ steps.base.outputs.version }}
           BUMP: ${{ steps.bumptype.outputs.bump }}
-
+        run: |
+          python3 - << 'PY' > /tmp/next.txt
+          import os, re, sys
+          base = os.environ.get("BASE") or ""
+          bump = os.environ.get("BUMP") or "patch"
+          m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', base)
+          if not m:
+              print(f"::error::Base version '{base}' is not valid X.Y.Z")
+              sys.exit(1)
+          major, minor, patch = map(int, m.groups())
+          if bump == "major":
+              major, minor, patch = major+1, 0, 0
+          elif bump == "minor":
+              minor, patch = minor+1, 0
+          else:
+              patch += 1
+          print(f"{major}.{minor}.{patch}")
+          PY
+                    NEXT=$(cat /tmp/next.txt)
+                    echo "next=$NEXT" >> $GITHUB_OUTPUT
+                    
       - name: Export next version
         if: steps.skipcheck.outputs.skip == 'false'
         run: echo "NEXT_VERSION=${{ steps.nextver.outputs.next }}" >> $GITHUB_ENV

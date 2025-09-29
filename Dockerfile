@@ -4,8 +4,10 @@
 FROM python:3.11-slim
 
 # Build arguments for version info and labels
-ARG VERSION=unknown
-ARG BUILD_DATE=unknown
+ARG VERSION
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=$VERSION
+ARG BUILD_DATE
+ENV BOXOFPORTS_BUILD_DATE=${BUILD_DATE}
 ARG GIT_SHA=unknown
 
 # Set metadata with dynamic values

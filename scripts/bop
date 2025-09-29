@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bop (Docker wrapper) v1.2.11
+# bop (Docker wrapper) v
 #
 # Clean, always-fresh wrapper for BoxOfPorts.
 # Tracks either :stable or :latest every run with no stale gating.

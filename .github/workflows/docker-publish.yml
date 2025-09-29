@@ -92,14 +92,59 @@ jobs:
             timeout 20s docker run --rm ${{ steps.meta.outputs.local_tag }} --help
           }
 
-      - name: Emit summary
+      - name: Install jq (for label parsing)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+
+      - name: Read image labels (expected to match CI version)
+        id: labels
+        run: |
+          lbl_json=$(docker inspect ${{ steps.meta.outputs.local_tag }} --format '{{json .Config.Labels}}')
+          echo "labels_raw=$lbl_json" >> $GITHUB_OUTPUT
+          label_version=$(echo "$lbl_json" | jq -r '.["org.opencontainers.image.version"] // .["io.boxofports.version"] // empty')
+          echo "version=$label_version" >> $GITHUB_OUTPUT
+          echo "Image label version: ${label_version:-<none>}"
+
+      - name: Resolve Python package version inside the container
+        id: pkgver
+        run: |
+          # Ask Python inside the image what version of 'boxofports' is installed
+          pkg_version=$(docker run --rm ${{ steps.meta.outputs.local_tag }} \
+            python -c "import importlib.metadata as m; print(m.version('boxofports'))" 2>/dev/null || true)
+          echo "version=$pkg_version" >> $GITHUB_OUTPUT
+          echo "Package version (importlib.metadata): ${pkg_version:-<none>}"
+
+      - name: Compare versions and print summary
+        run: |
+          set -euo pipefail
+          exp="${{ steps.meta.outputs.version }}"
+          lbl="${{ steps.labels.outputs.version }}"
+          pkg="${{ steps.pkgver.outputs.version }}"
+
+          {
+            echo "### Version Alignment Check"
+            echo ""
+            echo "- **Expected (CI meta)**: \`$exp\`"
+            echo "- **Image label**: \`${lbl:-<none>}\`"
+            echo "- **Python package (inside image)**: \`${pkg:-<none>}\`"
+          } >> $GITHUB_STEP_SUMMARY
+
+          fail=0
+          [ "$lbl" = "$exp" ] || { echo "::error::Image label '$lbl' != expected '$exp'"; fail=1; }
+          [ "$pkg" = "$exp" ] || { echo "::error::Package version '$pkg' != expected '$exp'"; fail=1; }
+          if [ $fail -ne 0 ]; then
+            echo "::error::Version mismatch detected."
+            exit 1
+          fi
+
+      - name: Emit CI summary
         run: |
           {
-            echo "### Docker CI"
             echo ""
-            echo "- CI version label: **${{ steps.meta.outputs.version }}**"
-            echo "- Local test tag: **${{ steps.meta.outputs.local_tag }}**"
-            echo "- Built multi-arch (validate only), loaded amd64 and smoke-tested."
+            echo "✅ Docker CI build OK"
+            echo "- Built multi-arch (validate only), loaded amd64, smoke-tested."
+            echo "- Versions aligned across CI meta, image labels, and runtime package."
             echo ""
             echo "_Note: No images were pushed. Publishing is handled by **publish-on-tag.yml** after tag creation._"
           } >> $GITHUB_STEP_SUMMARY

@@ -146,28 +146,28 @@ jobs:
           BASE="${{ steps.base.outputs.version }}"
           BUMP="${{ github.event.inputs.bump }}"
           python3 - << 'PY' > /tmp/next.txt
-import os, re, sys
-base = os.environ["BASE"]
-bump = os.environ.get("BUMP","patch")
-m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', base)
-if not m:
-    print(f"ERROR: invalid base '{base}'", file=sys.stderr)
-    sys.exit(1)
-maj, minr, pat = map(int, m.groups())
-if bump == "major":
-    maj, minr, pat = maj+1, 0, 0
-elif bump == "minor":
-    minr, pat = minr+1, 0
-else:
-    pat += 1
-print(f"{maj}.{minr}.{pat}")
-PY
-          NEXT=$(cat /tmp/next.txt)
-          echo "version=$NEXT" >> $GITHUB_OUTPUT
-          echo "Next version (computed): $NEXT"
-        env:
-          BASE: ${{ steps.base.outputs.version }}
-          BUMP: ${{ github.event.inputs.bump }}
+          import os, re, sys
+          base = os.environ["BASE"]
+          bump = os.environ.get("BUMP","patch")
+          m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', base)
+          if not m:
+              print(f"ERROR: invalid base '{base}'", file=sys.stderr)
+              sys.exit(1)
+          maj, minr, pat = map(int, m.groups())
+          if bump == "major":
+              maj, minr, pat = maj+1, 0, 0
+          elif bump == "minor":
+              minr, pat = minr+1, 0
+          else:
+              pat += 1
+          print(f"{maj}.{minr}.{pat}")
+          PY
+                    NEXT=$(cat /tmp/next.txt)
+                    echo "version=$NEXT" >> $GITHUB_OUTPUT
+                    echo "Next version (computed): $NEXT"
+                  env:
+                    BASE: ${{ steps.base.outputs.version }}
+                    BUMP: ${{ github.event.inputs.bump }}
 
       - name: Create annotated tag
         run: |

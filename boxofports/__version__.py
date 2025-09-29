@@ -1,6 +1,19 @@
 """Version information for BoxOfPorts."""
 
-__version__ = "1.2.10"
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+import os
+
+# --- canonical version (from package metadata or fallback) --------------------
+try:
+    __version__ = _pkg_version("boxofports")
+except PackageNotFoundError:
+    # Optional fallback if you later enable setuptools-scm write_to
+    try:
+        from ._generated_version import __version__  # type: ignore
+    except Exception:
+        __version__ = "0.0.0"
+
+# --- static project metadata ---------------------------------------------------
 __title__ = "BoxOfPorts"
 __command__ = "boxofports"
 __description__ = "SMS Gateway Management CLI for EJOIN Router Operators"
@@ -9,12 +22,15 @@ __author_email__ = "support@altheasignals.net"
 __url__ = "https://altheasignals.net"
 __license__ = "Proprietary"
 
-# Build information
-__build_date__ = "2025-01-26"
+# --- build/runtime metadata ----------------------------------------------------
+# Prefer to source build date from environment (easy to set in Docker builds).
+__build_date__ = os.getenv("BOXOFPORTS_BUILD_DATE", "unknown")
+
+# API compatibility surface you control manually
 __api_version__ = "2.2"
 __python_requires__ = ">=3.11"
 
-# Design inspiration
+# Design inspiration (cute stays cute)
 __inspiration__ = "And it's just a box of ports. I don't know who put it there"
 
 def get_version_info() -> dict:

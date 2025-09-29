@@ -52,7 +52,9 @@ jobs:
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --build-arg VERSION="$V" \
+            --build-arg BUILD_DATE="$BD" \
             --label org.opencontainers.image.version="$V" \
+            --label org.opencontainers.image.created="$BD" \
             --label io.boxofports.version="$V" \
             --label io.boxofports.track="dev" \
             --label io.boxofports.stable="false" \
