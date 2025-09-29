@@ -143,25 +143,21 @@ jobs:
           else
             BASE="${{ steps.base.outputs.version }}"
             BUMP="${{ github.event.inputs.bump }}"
-            # Pass BASE and BUMP as argv to Python to avoid env/exports issues
-            NEXT=$(python3 - "$BASE" "$BUMP" << 'PY'
-            import sys, re
-            base = (sys.argv[1] if len(sys.argv) > 1 else "").strip()
-            bump = (sys.argv[2] if len(sys.argv) > 2 else "patch").strip().lower()
-            m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', base)
-            if not m:
-                print(f"ERROR: invalid base '{base}'", file=sys.stderr); sys.exit(1)
-            maj, minr, pat = map(int, m.groups())
-            if bump == "major":
-                maj, minr, pat = maj+1, 0, 0
-            elif bump == "minor":
-                minr, pat = minr+1, 0
-            else:
-                pat += 1
-            print(f"{maj}.{minr}.{pat}")
-            PY
-            )
+
+            # validate BASE looks like X.Y.Z
+            if ! echo "$BASE" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::Invalid base '$BASE' (expected X.Y.Z)"; exit 1
+            fi
+
+            IFS='.' read -r MAJ MIN PAT <<< "$BASE"
+            case "$BUMP" in
+              major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
+              minor) MIN=$((MIN+1)); PAT=0 ;;
+              *)     PAT=$((PAT+1)) ;;
+            esac
+            NEXT="${MAJ}.${MIN}.${PAT}"
           fi
+
           echo "version=$NEXT" >> "$GITHUB_OUTPUT"
           echo "Next version: $NEXT"
 
