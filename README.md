@@ -15,6 +15,8 @@ boxofports --install-completion         # Enable shell completion
 boxofports config add-profile mygateway # Add your gateway (saves typing credentials)
 ```
 
+### CANARY TEST
+
 ### System-wide Installation
 
 **Requires elevated privileges** - Available to all users:
