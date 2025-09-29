@@ -101,4 +101,3 @@ VOLUME ["/app/data", "/app/config", "/app/logs"]
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Default command
-CMD ["--help"]
