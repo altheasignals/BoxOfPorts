@@ -3,11 +3,11 @@ name: publish-on-tag
 on:
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+      - 'v*.*.*'            # ✅ glob, not regex
+  workflow_dispatch:        # ✅ manual recovery path
     inputs:
       tag:
-        description: "Tag to publish (e.g., v1.2.14)"
+        description: "Tag to publish (e.g., v1.2.15). If empty, uses the current ref tag."
         required: false
       prerelease:
         description: "Mark GitHub Release as prerelease"
@@ -32,7 +32,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # tags visible when needed
+          fetch-depth: 0
 
       - name: Derive version from tag or input
         id: ver
@@ -44,16 +44,13 @@ jobs:
           fi
           case "$TAG" in
             v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "::error::Invalid tag '$TAG'  (expected vX.Y.Z)"; exit 1 ;;
+            *) echo "::error::Invalid tag '$TAG' (expected vX.Y.Z)"; exit 1 ;;
           esac
           V="${TAG#v}"
           MIN="${V%.*}"
-          echo "tag=$TAG"       >> $GITHUB_OUTPUT
-          echo "version=$V"     >> $GITHUB_OUTPUT
-          echo "minor=$MIN"     >> $GITHUB_OUTPUT
-          echo "ref_tag=$TAG"
-          echo "semver=$V"
-          echo "minor=$MIN"
+          echo "tag=$TAG"   >> $GITHUB_OUTPUT
+          echo "version=$V" >> $GITHUB_OUTPUT
+          echo "minor=$MIN" >> $GITHUB_OUTPUT
 
       - name: Verify DockerHub secrets (fail fast)
         run: |
@@ -111,6 +108,4 @@ jobs:
           name: ${{ steps.ver.outputs.tag }}
           prerelease: ${{ github.event.inputs.prerelease || 'true' }}
           draft: false
-          body: |
-            Automated publish for ${{ steps.ver.outputs.tag }}.
-            - Docker: `${{ env.IMAGE }}:${{ steps.ver.outputs.version }}`, `${{ env.IMAGE }}:${{ steps.ver.outputs.minor }}`, `:latest`
+          generate_release_notes: true
