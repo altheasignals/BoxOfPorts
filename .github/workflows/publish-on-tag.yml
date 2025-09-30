@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish (e.g., v1.2.14). If empty, uses the current ref tag."
+        description: "Tag to publish (e.g., v1.2.14)"
         required: false
       prerelease:
         description: "Mark GitHub Release as prerelease"
@@ -44,7 +44,7 @@ jobs:
           fi
           case "$TAG" in
             v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "::error::Invalid tag '$TAG' (expected vX.Y.Z)"; exit 1 ;;
+            *) echo "::error::Invalid tag '$TAG'  (expected vX.Y.Z)"; exit 1 ;;
           esac
           V="${TAG#v}"
           MIN="${V%.*}"
