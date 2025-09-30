@@ -3,33 +3,67 @@ name: publish-on-tag
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g., v1.2.14). If empty, uses the current ref tag."
+        required: false
+      prerelease:
+        description: "Mark GitHub Release as prerelease"
+        type: choice
+        default: "true"
+        options: ["true", "false"]
 
 permissions:
   contents: write
 
 concurrency:
-  group: publish-on-tag-${{ github.ref_name }}
+  group: publish-on-tag-${{ github.ref || github.event.inputs.tag || 'manual' }}
   cancel-in-progress: false
 
 env:
-  REGISTRY: docker.io
   IMAGE: docker.io/altheasignals/boxofports
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # tags visible when needed
 
-      - name: Derive version from tag
+      - name: Derive version from tag or input
         id: ver
         run: |
-          raw="${GITHUB_REF_NAME}"     # e.g., v1.2.11
-          ver="${raw#v}"               # 1.2.11
-          echo "version=$ver" >> $GITHUB_OUTPUT
-          echo "minor=${ver%.*}" >> $GITHUB_OUTPUT  # 1.2
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::Invalid tag '$TAG' (expected vX.Y.Z)"; exit 1 ;;
+          esac
+          V="${TAG#v}"
+          MIN="${V%.*}"
+          echo "tag=$TAG"       >> $GITHUB_OUTPUT
+          echo "version=$V"     >> $GITHUB_OUTPUT
+          echo "minor=$MIN"     >> $GITHUB_OUTPUT
+          echo "ref_tag=$TAG"
+          echo "semver=$V"
+          echo "minor=$MIN"
+
+      - name: Verify DockerHub secrets (fail fast)
+        run: |
+          test -n "${{ secrets.DOCKERHUB_USERNAME }}" || { echo "::error::Missing DOCKERHUB_USERNAME"; exit 1; }
+          test -n "${{ secrets.DOCKERHUB_TOKEN }}"    || { echo "::error::Missing DOCKERHUB_TOKEN"; exit 1; }
+
+      - name: Set metadata
+        id: meta
+        run: |
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -44,70 +78,39 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push multi-arch images
-        id: build
-        run: |
-          V="${{ steps.ver.outputs.version }}"
-          M="${{ steps.ver.outputs.minor }}"
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --build-arg VERSION="$V" \
-            --build-arg BUILD_DATE="$BD" \
-            --label org.opencontainers.image.version="$V" \
-            --label org.opencontainers.image.created="$BD" \
-            --label io.boxofports.version="$V" \
-            --label io.boxofports.track="dev" \
-            --label io.boxofports.stable="false" \
-            -t "${IMAGE}:${V}" \
-            -t "${IMAGE}:${M}" \
-            --push .
+      - name: Build & Push (multi-arch)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.minor }}
+            ${{ env.IMAGE }}:latest
+          build-args: |
+            VERSION=${{ steps.ver.outputs.version }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.ver.outputs.version }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.build_date }}
+            io.boxofports.version=${{ steps.ver.outputs.version }}
+            io.boxofports.track=dev
+            io.boxofports.stable=false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Find manifest digest for :X.Y.Z
-        id: digest
+      - name: Inspect pushed manifest (sanity)
         run: |
-          V="${{ steps.ver.outputs.version }}"
-          out=$(docker buildx imagetools inspect "${IMAGE}:${V}")
-          # Grab the top-level manifest list digest
-          digest=$(echo "$out" | sed -n 's/^Name:\s\+\(.*@sha256:[0-9a-f]\+\).*$/\1/p' | head -n1 | awk -F@ '{print $2}')
-          if [ -z "$digest" ]; then
-            echo "::error::Could not resolve digest for ${IMAGE}:${V}"
-            exit 1
-          fi
-          echo "digest=$digest" >> $GITHUB_OUTPUT
-          echo "Resolved digest: $digest"
+          docker buildx imagetools inspect ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
 
-      - name: Update :latest pointer to this digest
-        run: |
-          docker buildx imagetools create \
-            -t "${IMAGE}:latest" \
-            "${IMAGE}@${{ steps.digest.outputs.digest }}"
-
-      - name: Create or update GitHub prerelease
+      - name: Create/Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          prerelease: true
-          generate_release_notes: true
-
-      - name: Attach version registry JSON as release asset
-        run: |
-          V="${{ steps.ver.outputs.version }}"
-          cat > version_registry.json <<EOF
-          {
-            "versions": {
-              "development": "${V}"
-            },
-            "docker": {
-              "image_name": "altheasignals/boxofports",
-              "tags": { "development": "latest", "stable": "stable" }
-            }
-          }
-          EOF
-        shell: bash
-
-      - name: Upload registry asset
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: version_registry.json
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          prerelease: ${{ github.event.inputs.prerelease || 'true' }}
+          draft: false
+          body: |
+            Automated publish for ${{ steps.ver.outputs.tag }}.
+            - Docker: `${{ env.IMAGE }}:${{ steps.ver.outputs.version }}`, `${{ env.IMAGE }}:${{ steps.ver.outputs.minor }}`, `:latest`
